@@ -6,12 +6,15 @@
 export async function loadLegacyPolyfills(): Promise<void> {
   if (typeof window === "undefined") return;
 
-  // core-js pieces the legacy plugin's modernPolyfills may miss on very old engines.
+  // core-js pieces older engines may miss.
   await import("core-js/features/promise/all-settled");
   await import("core-js/features/object/from-entries");
+  await import("core-js/features/object/has-own");
   await import("core-js/features/string/replace-all");
   await import("core-js/features/array/flat");
   await import("core-js/features/array/flat-map");
+  await import("core-js/features/array/at");
+  await import("core-js/features/global-this");
 
   // IntersectionObserver polyfill (native side-effect import).
   if (!("IntersectionObserver" in window)) {

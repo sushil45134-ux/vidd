@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { loadLegacyPolyfills } from "../lib/legacy-polyfills";
 
 function NotFoundComponent() {
   return (
@@ -119,12 +120,17 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Kick off legacy polyfill loading as soon as the client bundle evaluates,
+// before React hydrates. Guarded internally for SSR.
+void loadLegacyPolyfills();
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
-    // Load polyfills for older Chromium engines (Samsung Tizen / Smart TVs).
-    import("../lib/legacy-polyfills").then((m) => m.loadLegacyPolyfills()).catch(() => {});
+    // Second call is a no-op after the initial promise resolves; keeps the
+    // polyfill import in the client graph even under aggressive tree-shaking.
+    void loadLegacyPolyfills();
   }, []);
 
   return (
