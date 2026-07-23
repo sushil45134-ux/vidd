@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "./safe-storage";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +17,7 @@ const EVENT = "vid:hero-banners-changed";
 function readLocal(): HeroBanner[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = safeLocalStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as HeroBanner[]) : [];
@@ -27,7 +28,7 @@ function readLocal(): HeroBanner[] {
 
 function writeLocal(list: HeroBanner[]) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    safeLocalStorage.setItem(KEY, JSON.stringify(list));
   } catch (e) {
     alert(
       "Banner image is too large to save locally. Please pick a smaller image (under ~2 MB) or use an image URL instead."
@@ -176,7 +177,7 @@ export function useHeroBanners(): HeroBanner[] {
       if (!alive || !remote) return;
       // Write remote into local cache and notify.
       try {
-        localStorage.setItem(KEY, JSON.stringify(remote));
+        safeLocalStorage.setItem(KEY, JSON.stringify(remote));
       } catch {
         /* ignore quota */
       }

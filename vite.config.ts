@@ -6,10 +6,20 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// NOTE: @vitejs/plugin-legacy conflicts with TanStack Start's start-manifest
+// plugin ("multiple entries detected"). Instead we down-transpile the client
+// bundle via build.target and load polyfills at runtime in
+// src/lib/legacy-polyfills.ts so optional chaining / nullish coalescing and
+// missing APIs (ResizeObserver, IntersectionObserver, Promise.allSettled)
+// work on Samsung Tizen / older Smart TV Chromium engines.
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
+  },
+  vite: {
+    build: {
+      target: ["chrome60", "safari11", "es2017"],
+      cssTarget: ["chrome60", "safari11"],
+    },
   },
 });

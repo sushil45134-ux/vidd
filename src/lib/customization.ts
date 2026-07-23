@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "./safe-storage";
 import { useEffect, useState } from "react";
 import type { Movie } from "../data";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,7 +97,7 @@ function mergeConfig(parsed: Partial<SiteConfig>): SiteConfig {
 function loadCustomRowsBackup(): CustomRow[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(CUSTOM_ROWS_BACKUP_KEY);
+    const raw = safeLocalStorage.getItem(CUSTOM_ROWS_BACKUP_KEY);
     const rows = raw ? (JSON.parse(raw) as CustomRow[]) : [];
     return Array.isArray(rows) ? rows : [];
   } catch {
@@ -106,7 +107,7 @@ function loadCustomRowsBackup(): CustomRow[] {
 
 function rememberCustomRows(rows: CustomRow[]) {
   if (typeof window === "undefined" || rows.length === 0) return;
-  localStorage.setItem(CUSTOM_ROWS_BACKUP_KEY, JSON.stringify(rows));
+  safeLocalStorage.setItem(CUSTOM_ROWS_BACKUP_KEY, JSON.stringify(rows));
 }
 
 function preserveCustomRows(cfg: SiteConfig, options?: SaveConfigOptions): SiteConfig {
@@ -181,7 +182,7 @@ export function loadConfig(): SiteConfig {
   if (typeof window === "undefined") return DEFAULT_CONFIG;
   try {
     const backupRows = loadCustomRowsBackup();
-    const raw = localStorage.getItem(KEY);
+    const raw = safeLocalStorage.getItem(KEY);
     if (!raw) return backupRows.length > 0 ? { ...DEFAULT_CONFIG, customRows: backupRows } : DEFAULT_CONFIG;
     const parsed = JSON.parse(raw) as Partial<SiteConfig>;
     const merged = mergeConfig(parsed);
@@ -199,16 +200,16 @@ export function loadConfig(): SiteConfig {
 export function saveConfig(cfg: SiteConfig, options?: SaveConfigOptions) {
   const next = preserveCustomRows(cfg, options);
   rememberCustomRows(next.customRows);
-  localStorage.setItem(KEY, JSON.stringify(next));
-  localStorage.setItem(PENDING_REMOTE_SAVE_KEY, new Date().toISOString());
+  safeLocalStorage.setItem(KEY, JSON.stringify(next));
+  safeLocalStorage.setItem(PENDING_REMOTE_SAVE_KEY, new Date().toISOString());
   void saveRemoteConfig(next).then((ok) => {
-    if (ok) localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
+    if (ok) safeLocalStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
   });
   window.dispatchEvent(new Event(EVENT));
 }
 
 export function resetConfig() {
-  localStorage.removeItem(KEY);
+  safeLocalStorage.removeItem(KEY);
   window.dispatchEvent(new Event(EVENT));
 }
 
@@ -217,7 +218,7 @@ export function useSiteConfig(): SiteConfig {
   useEffect(() => {
     let alive = true;
     const local = loadConfig();
-    const pendingRemoteSaveAt = localStorage.getItem(PENDING_REMOTE_SAVE_KEY);
+    const pendingRemoteSaveAt = safeLocalStorage.getItem(PENDING_REMOTE_SAVE_KEY);
     setCfg(local);
     loadRemoteConfig().then((remote) => {
       if (!alive || !remote) return;
@@ -225,12 +226,12 @@ export function useSiteConfig(): SiteConfig {
       const remoteHasRows = hasCustomRows(remote);
       if (localHasRows && (!remoteHasRows || !isRemoteNewer(remote, pendingRemoteSaveAt))) {
         void saveRemoteConfig(local).then((ok) => {
-          if (ok) localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
+          if (ok) safeLocalStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
         });
         return;
       }
       if (remoteHasRows || !localHasRows) {
-        localStorage.setItem(KEY, JSON.stringify(remote));
+        safeLocalStorage.setItem(KEY, JSON.stringify(remote));
         setCfg(remote);
       }
     });

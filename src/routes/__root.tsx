@@ -76,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" },
       { title: "vid — stream what you love" },
       { name: "description", content: "vid is a cinematic streaming home for your uploads, playlists, and picks." },
       { name: "author", content: "vid" },
@@ -121,6 +121,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    // Load polyfills for older Chromium engines (Samsung Tizen / Smart TVs).
+    import("../lib/legacy-polyfills").then((m) => m.loadLegacyPolyfills()).catch(() => {});
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
