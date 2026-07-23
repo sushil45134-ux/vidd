@@ -369,7 +369,7 @@ export function VideoPlayer({
   const getSpeedLabel = (s: number) => (s === 1 ? "Normal" : `${s}x`);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center">
+    <div className="tv-player-overlay fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center">
       <div
         ref={playerRef}
         className={`relative bg-black transition-all duration-300 ${
@@ -382,11 +382,13 @@ export function VideoPlayer({
       >
         {/* YouTube Player */}
         <div className="absolute inset-0 flex items-center justify-center bg-black">
-          <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
-            <div className="absolute" style={{ top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }}>
-              <div id="yt-player" className="w-full h-full" />
+          <div className="tv-youtube-frame absolute inset-0 flex items-center justify-center bg-black">
+            <div className="tv-youtube-frame w-full h-full relative" style={{ overflow: "hidden" }}>
+            <div className="tv-youtube-frame absolute" style={{ top: "0", bottom: "0", left: "0", right: "0" }}>
+              <div id="yt-player" className="tv-youtube-player w-full h-full" />
             </div>
           </div>
+        </div>
         </div>
 
         {/* Top gradient */}
@@ -419,7 +421,7 @@ export function VideoPlayer({
 
           {/* ═══════ TOP BAR ═══════ */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 md:p-6 pointer-events-auto">
-            <button onClick={onClose} className="w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center transition-all backdrop-blur-sm">
+            <button onClick={onClose} className="w-10 h-10 rounded-full bg-black/80 hover:bg-black flex items-center justify-center transition-all">
               <X size={22} className="text-white" />
             </button>
 
@@ -432,7 +434,7 @@ export function VideoPlayer({
               {onSaveToWatchLater && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onSaveToWatchLater(videoId, videoTitle || "Video"); }}
-                  className="w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center transition-all backdrop-blur-sm"
+                  className="w-10 h-10 rounded-full bg-black/80 hover:bg-black flex items-center justify-center transition-all"
                   title="Save to Watch Later"
                 >
                   <Bookmark size={18} className="text-white" />
@@ -443,7 +445,7 @@ export function VideoPlayer({
               {onSaveToPlaylist && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onSaveToPlaylist(videoId, videoTitle || "Video"); }}
-                  className="w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center transition-all backdrop-blur-sm"
+                  className="w-10 h-10 rounded-full bg-black/80 hover:bg-black flex items-center justify-center transition-all"
                   title="Add to Playlist"
                 >
                   <ListPlus size={18} className="text-white" />
@@ -454,7 +456,7 @@ export function VideoPlayer({
               {queueItems && queueItems.length > 1 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowQueue(q => !q); setShowSettings(false); setShowSubtitlesMenu(false); }}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${showQueue ? "bg-netflix-red/80 hover:bg-netflix-red" : "bg-black/50 hover:bg-black/80"}`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${showQueue ? "bg-netflix-red/80 hover:bg-netflix-red" : "bg-black/80 hover:bg-black"}`}
                   title="Queue"
                 >
                   <ListVideo size={18} className="text-white" />
@@ -465,14 +467,14 @@ export function VideoPlayer({
               <div ref={subtitlesRef} className="relative">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowSubtitlesMenu(!showSubtitlesMenu); setShowSettings(false); }}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${activeSubtitle ? "bg-netflix-red/80 hover:bg-netflix-red" : "bg-black/50 hover:bg-black/80"}`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${activeSubtitle ? "bg-netflix-red/80 hover:bg-netflix-red" : "bg-black/80 hover:bg-black"}`}
                   title="Subtitles / CC"
                 >
                   <Subtitles size={18} className="text-white" />
                 </button>
 
                 {showSubtitlesMenu && (
-                  <div className="absolute top-12 right-0 w-64 bg-[#181818]/95 backdrop-blur-xl rounded-lg shadow-2xl border border-white/10 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+                  <div className="absolute top-12 right-0 w-64 bg-[#181818] rounded-lg shadow-2xl border border-white/10 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
                     <div className="px-4 py-3 border-b border-white/10">
                       <h4 className="text-white text-sm font-bold flex items-center gap-2">
                         <Subtitles size={14} /> Subtitles / CC
@@ -510,14 +512,14 @@ export function VideoPlayer({
               <div ref={settingsRef} className="relative">
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowSettings(!showSettings); setShowSubtitlesMenu(false); }}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${showSettings ? "bg-white/20 hover:bg-white/30" : "bg-black/50 hover:bg-black/80"}`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${showSettings ? "bg-white/20 hover:bg-white/30" : "bg-black/80 hover:bg-black"}`}
                   title="Settings"
                 >
                   <Settings size={18} className={`text-white transition-transform duration-300 ${showSettings ? "rotate-90" : ""}`} />
                 </button>
 
                 {showSettings && (
-                  <div className="absolute top-12 right-0 w-56 bg-[#181818]/95 backdrop-blur-xl rounded-lg shadow-2xl border border-white/10 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+                  <div className="absolute top-12 right-0 w-56 bg-[#181818] rounded-lg shadow-2xl border border-white/10 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
                     <div className="px-4 py-3 border-b border-white/10">
                       <h4 className="text-white text-sm font-bold flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -550,7 +552,7 @@ export function VideoPlayer({
           {/* Center play button */}
           {!isPlaying && !isBuffering && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-              <button onClick={togglePlay} className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center hover:bg-white/30 transition-all active:scale-90 border border-white/20">
+              <button onClick={togglePlay} className="w-20 h-20 rounded-full bg-black/80 flex items-center justify-center hover:bg-black transition-all active:scale-90 border border-white/20">
                 <Play size={36} fill="white" className="text-white ml-1" />
               </button>
             </div>
@@ -639,7 +641,7 @@ export function VideoPlayer({
         {showQueue && queueItems && queueItems.length > 1 && (
           <div
             ref={queueRef}
-            className="absolute top-0 right-0 bottom-0 w-80 bg-black/90 backdrop-blur-xl z-40 flex flex-col border-l border-white/10 animate-fadeIn"
+            className="absolute top-0 right-0 bottom-0 w-80 bg-black z-40 flex flex-col border-l border-white/10 animate-fadeIn"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Panel header */}

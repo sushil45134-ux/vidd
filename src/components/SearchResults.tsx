@@ -23,7 +23,7 @@ export default function SearchResults({
   toggleLike,
 }: SearchResultsProps) {
   return (
-    <div className="pt-6 px-4 md:px-12 min-h-screen">
+    <div className="tv-section pt-6 px-4 md:px-12 min-h-screen">
       <h2 className="text-gray-400 text-sm mb-6">
         {results.length > 0 ? (
           <>
@@ -55,11 +55,11 @@ export default function SearchResults({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="tv-card-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {results.map((movie) => (
-          <div key={movie.id} className="group">
+          <div key={movie.id} className="tv-grid-item group">
             <div
-              className="relative overflow-hidden rounded-md aspect-video bg-gray-800 cursor-pointer"
+              className="tv-card-media relative overflow-hidden rounded-md aspect-video bg-gray-800 cursor-pointer"
               onClick={() => onSelectMovie(movie)}
             >
               <img

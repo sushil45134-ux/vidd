@@ -39,8 +39,8 @@ export default function HeroBanner({
   // Empty state — no videos yet
   if (movies.length === 0) {
     return (
-      <div className="relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0">
+      <div className="tv-hero relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden flex items-center justify-center">
+        <div className="tv-hero-bg absolute inset-0">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-[#ff6a00]/10 rounded-full blur-[180px]" />
           <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black to-transparent" />
         </div>
@@ -88,15 +88,15 @@ export default function HeroBanner({
   const description = cfg.heroDescription?.trim() || item.description;
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden">
-      <div className="absolute inset-0" key={item.id}>
+    <div className="tv-hero relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden">
+      <div className="tv-hero-bg absolute inset-0" key={item.id}>
         <div
-          className="absolute inset-0 bg-cover bg-center animate-fade-in"
+          className="absolute inset-0 bg-cover bg-center animate-fade-in bg-slate-900"
           style={{ backgroundImage: `url(${item.backdrop || item.image || item.thumbnailUrl || ""})` }}
         />
         {overlayVisible && (
           <>
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-black/40 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/70 to-transparent" />
           </>
         )}
@@ -109,7 +109,7 @@ export default function HeroBanner({
         <button
           onClick={toggleOverlay}
           title={overlayVisible ? "Hide banner text" : "Show banner text"}
-          className="absolute top-24 right-4 md:right-8 z-20 h-10 px-3 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md ring-1 ring-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+           className="absolute top-24 right-4 md:right-8 z-20 h-10 px-3 rounded-full bg-black/80 hover:bg-black ring-1 ring-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition"
         >
           {overlayVisible ? <EyeOff size={14} /> : <Eye size={14} />}
           {overlayVisible ? "Hide text" : "Show text"}
@@ -124,7 +124,7 @@ export default function HeroBanner({
               {cfg.heroBadge}
             </span>
             {item.rating && (
-              <span className="px-2 py-0.5 bg-white/15 backdrop-blur-sm text-white text-[10px] font-bold rounded">
+             <span className="px-2 py-0.5 bg-black/70 text-white text-[10px] font-bold rounded">
                 {item.rating}
               </span>
             )}
@@ -152,7 +152,7 @@ export default function HeroBanner({
             </button>
             <button
               onClick={() => onMoreInfo(item)}
-              className="h-11 md:h-12 px-6 md:px-7 rounded-md bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-bold text-sm flex items-center gap-2.5 transition active:scale-95"
+               className="h-11 md:h-12 px-6 md:px-7 rounded-md bg-black/80 hover:bg-black text-white font-bold text-sm flex items-center gap-2.5 transition active:scale-95"
             >
               <Info size={18} />
               More Info

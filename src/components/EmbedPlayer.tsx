@@ -466,8 +466,17 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center">
-      <div ref={containerRef} className="relative w-full h-full bg-black">
+    <div
+      className={
+        kind === "video"
+          ? "tv-player-overlay relative z-[100] bg-black animate-fadeIn flex items-center justify-center"
+          : "tv-player-overlay fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center"
+      }
+    >
+      <div
+        ref={containerRef}
+        className={`${kind === "video" ? "tv-native-video-frame" : "tv-player-frame relative w-full h-full"} bg-black`}
+      >
         {kind === "iframe" && isDailymotion && dailymotionVideoId ? (
           <div
             ref={dailymotionRootRef}
@@ -493,13 +502,20 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
             preload="auto"
             crossOrigin="anonymous"
             {...({ "webkit-playsinline": "true", "x5-playsinline": "true" } as any)}
-            className="absolute inset-0 w-full h-full"
+            className="tv-native-video w-full"
             style={{
-              position: "absolute",
+              position: "relative",
               zIndex: 1,
+              display: "block",
+              width: "100%",
+              maxWidth: "100%",
+              height: "auto",
+              maxHeight: "100vh",
+              margin: "0 auto",
               backgroundColor: "#000",
               transform: "translateZ(0)",
               WebkitTransform: "translateZ(0)",
+              objectFit: "contain",
             }}
           />
         )}

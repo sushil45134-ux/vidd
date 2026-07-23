@@ -62,8 +62,8 @@ export default function Navbar({
   const isActive = (c: Category) => activeCategory === c && !searchQuery;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] bg-black border-b border-white/10 h-16">
-      <div className="max-w-[1800px] mx-auto h-16 px-4 md:px-8 flex flex-col">
+    <nav className="tv-navbar fixed top-0 left-0 right-0 z-[100] bg-black border-b border-white/10 h-16">
+      <div className="w-full max-w-[1800px] mx-auto h-16 px-4 md:px-8 flex flex-col bg-black">
         {/* Row 1: Logo + Actions */}
         <div className="h-9 flex items-center justify-between gap-3">
           <button
