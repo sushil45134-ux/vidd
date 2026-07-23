@@ -25,7 +25,7 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
   }, [query, library]);
 
   return (
-    <div className="tv-section pt-6 px-4 md:px-12 min-h-screen bg-[#141414]">
+    <div className="pt-6 px-4 md:px-12 min-h-screen bg-[#141414]">
       <div className="max-w-3xl mx-auto mb-8">
         <div className="flex items-center bg-[#222] border border-gray-700 rounded-lg overflow-hidden focus-within:border-[#e50914] transition-colors">
           <Search size={20} className="text-gray-400 ml-4 flex-shrink-0" />
@@ -64,14 +64,14 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
           </p>
         </div>
       ) : (
-        <div className="tv-card-grid max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((m) => (
             <div
               key={m.id}
-              className="tv-grid-item group bg-[#1a1a1a] rounded-lg overflow-hidden hover:bg-[#222] transition-colors border border-gray-800 hover:border-gray-700 cursor-pointer"
+              className="group bg-[#1a1a1a] rounded-lg overflow-hidden hover:bg-[#222] transition-colors border border-gray-800 hover:border-gray-700 cursor-pointer"
               onClick={() => onSelectMovie(m)}
             >
-              <div className="tv-card-media relative aspect-video bg-gray-900">
+              <div className="relative aspect-video bg-gray-900">
                 <img
                   src={m.image}
                   alt={m.title}

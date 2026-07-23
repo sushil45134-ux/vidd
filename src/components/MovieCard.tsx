@@ -46,7 +46,7 @@ export default function MovieCard({
 
   return (
     <div
-      className={`tv-row-card relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
+      className={`relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
         isLarge ? "w-[280px] md:w-[360px]" : "w-[220px] md:w-[300px]"
       }`}
       onMouseEnter={() => setIsHovered(true)}
@@ -54,7 +54,7 @@ export default function MovieCard({
       onClick={onClick}
     >
       <div
-        className={`tv-card-frame relative overflow-hidden rounded-md transition-all duration-300 ${
+        className={`relative overflow-hidden rounded-md transition-all duration-300 ${
           isHovered ? "scale-110 z-30 shadow-2xl shadow-black/80" : "scale-100 z-10"
         }`}
       >

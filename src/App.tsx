@@ -319,7 +319,7 @@ function App() {
   }, [heroBannerOverrides, displayItems]);
 
   return (
-    <div className="tv-app-shell bg-black min-h-screen text-white">
+    <div className="bg-black min-h-screen text-white">
       <Navbar
         onSearch={setSearchQuery}
         searchQuery={searchQuery}
@@ -339,7 +339,7 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <main className="tv-main pt-16">
+      <main className="pt-16">
 
       {showNotifications && (
         <NotificationPanel
@@ -379,7 +379,7 @@ function App() {
       )}
 
       {showingCategory && (
-        <div className="tv-section pt-6 min-h-screen">
+        <div className="pt-6 min-h-screen">
           <h1 className="text-white text-2xl md:text-4xl font-bold mb-6 px-4 md:px-12">
             {activeCategory === "movies"
               ? "Movies"
@@ -424,7 +424,7 @@ function App() {
             );
           })}
 
-          <div className="tv-section px-4 md:px-12">
+          <div className="px-4 md:px-12">
           {getCategoryMovies().length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
               <p className="text-gray-400 text-lg">No titles found</p>
@@ -437,14 +437,14 @@ function App() {
               </p>
             </div>
           ) : (
-            <div className="tv-card-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {getCategoryMovies().map((movie) => (
                 <div
                   key={movie.id}
-                  className="tv-grid-item group cursor-pointer"
+                  className="group cursor-pointer"
                   onClick={() => setSelectedMovie(movie)}
                 >
-                  <div className="tv-card-media relative overflow-hidden rounded-md aspect-video bg-gray-800">
+                  <div className="relative overflow-hidden rounded-md aspect-video bg-gray-800">
                     <img
                       src={movie.image}
                       alt={movie.title}

@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { loadLegacyPolyfills } from "../lib/legacy-polyfills";
 
 function NotFoundComponent() {
   return (
@@ -77,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "vid — stream what you love" },
       { name: "description", content: "vid is a cinematic streaming home for your uploads, playlists, and picks." },
       { name: "author", content: "vid" },
@@ -120,18 +119,8 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-// Kick off legacy polyfill loading as soon as the client bundle evaluates,
-// before React hydrates. Guarded internally for SSR.
-void loadLegacyPolyfills();
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
-  useEffect(() => {
-    // Second call is a no-op after the initial promise resolves; keeps the
-    // polyfill import in the client graph even under aggressive tree-shaking.
-    void loadLegacyPolyfills();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -6,19 +6,10 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-// Samsung Tizen / older Smart TV browsers ship Chromium 47–76. Lower the
-// JS + CSS baselines so Vite/esbuild down-transpile optional chaining,
-// nullish coalescing, class fields, etc., and so Lightning CSS emits
-// older CSS where possible. Runtime polyfills for missing web APIs load
-// from src/lib/legacy-polyfills.ts.
 export default defineConfig({
   tanstackStart: {
+    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
+    // nitro/vite builds from this
     server: { entry: "server" },
-  },
-  vite: {
-    build: {
-      target: ["chrome49", "safari11", "es2016"],
-      cssTarget: ["chrome49", "safari11"],
-    },
   },
 });
