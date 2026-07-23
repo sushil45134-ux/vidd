@@ -489,7 +489,18 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
             src={src}
             controls
             autoPlay
-            className="absolute inset-0 w-full h-full bg-black"
+            playsInline
+            preload="auto"
+            crossOrigin="anonymous"
+            {...({ "webkit-playsinline": "true", "x5-playsinline": "true" } as any)}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              position: "absolute",
+              zIndex: 1,
+              backgroundColor: "#000",
+              transform: "translateZ(0)",
+              WebkitTransform: "translateZ(0)",
+            }}
           />
         )}
 
