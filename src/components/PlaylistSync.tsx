@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, RefreshCw, Check, Play, Loader, Sparkles, Plus, Trash2 } from "lucide-react";
 import type { Movie } from "../data";
+import { youtubeThumbnailSources } from "../lib/media";
 import { analyzeVideo } from "../utils/aiAnalyze";
 
 interface PlaylistSyncProps {
@@ -59,7 +60,7 @@ async function fetchPlaylist(playlistId: string): Promise<{ title: string; video
       const videos = (data.videos || []).map((v: any) => ({
         videoId: v.videoId,
         title: v.title,
-        thumbnail: v.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`,
+        thumbnail: v.videoThumbnails?.[0]?.url || youtubeThumbnailSources(v.videoId)[0] || "",
         author: v.author || "",
       }));
       return { title: data.title || "", videos };
@@ -186,7 +187,7 @@ export default function PlaylistSync({ onClose, onSync, existingIds }: PlaylistS
           episodeNumber: i + 1,
           seasonNumber: season,
         };
-        const image = v.thumbnail.startsWith("http") ? v.thumbnail : `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`;
+        const image = v.thumbnail.startsWith("http") ? v.thumbnail : youtubeThumbnailSources(v.videoId)[0] || "";
         const backdrop = `https://img.youtube.com/vi/${v.videoId}/maxresdefault.jpg`;
         if (useAi) {
           const ai = analyzeVideo(v.title, v.author);
@@ -203,7 +204,7 @@ export default function PlaylistSync({ onClose, onSync, existingIds }: PlaylistS
             cast: [v.author],
             creator: v.author,
             youtubeId: v.videoId,
-            thumbnailUrl: `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`,
+            thumbnailUrl: youtubeThumbnailSources(v.videoId)[0] || image,
             embedPlatform: "YouTube",
             ...base,
           });
@@ -221,7 +222,7 @@ export default function PlaylistSync({ onClose, onSync, existingIds }: PlaylistS
             cast: [v.author],
             creator: v.author,
             youtubeId: v.videoId,
-            thumbnailUrl: `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`,
+            thumbnailUrl: youtubeThumbnailSources(v.videoId)[0] || image,
             embedPlatform: "YouTube",
             ...base,
           });

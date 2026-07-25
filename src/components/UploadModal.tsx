@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Upload, Film, Play, Image, Trash2, Check, Link, Globe } from "lucide-react";
 import type { Movie } from "../data";
+import { youtubeThumbnailSources } from "../lib/media";
 
 interface UploadModalProps {
   onClose: () => void;
@@ -43,14 +44,14 @@ function detectPlatform(input: string): PlatformResult | null {
     if (m) return {
       platform: "YouTube", id: m[1],
       embedUrl: `https://www.youtube.com/embed/${m[1]}?autoplay=1&rel=0&modestbranding=1`,
-      thumbnail: `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`,
+      thumbnail: youtubeThumbnailSources(m[1])[0] || "",
       color: "bg-red-600", icon: "▶️",
     };
   }
   if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return {
     platform: "YouTube", id: trimmed,
     embedUrl: `https://www.youtube.com/embed/${trimmed}?autoplay=1&rel=0&modestbranding=1`,
-    thumbnail: `https://img.youtube.com/vi/${trimmed}/hqdefault.jpg`,
+    thumbnail: youtubeThumbnailSources(trimmed)[0] || "",
     color: "bg-red-600", icon: "▶️",
   };
 

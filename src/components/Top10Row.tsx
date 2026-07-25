@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Movie } from "../data";
+import { movieImageSources } from "../lib/media";
+import SmartImage from "./SmartImage";
 
 interface Top10RowProps {
   title: string;
@@ -81,9 +83,10 @@ export default function Top10Row({ title, movies, onSelectMovie }: Top10RowProps
 
               {/* Movie Poster */}
               <div className="relative w-[200px] md:w-[260px] aspect-video rounded overflow-hidden z-10 group-hover/card:scale-105 transition-transform duration-300">
-                <img
-                  src={movie.image}
+                <SmartImage
+                  src={movieImageSources(movie)}
                   alt={movie.title}
+                  loading="lazy"
                   className="w-full h-full object-cover"
                 />
               </div>

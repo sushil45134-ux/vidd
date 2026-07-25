@@ -6,6 +6,8 @@ import {
   upsertHeroBanner,
   removeHeroBanner,
 } from "../lib/heroBanners";
+import { optimizeImageFile } from "../lib/imageOptimization";
+import SmartImage from "./SmartImage";
 
 interface Props {
   movie: Movie;
@@ -25,14 +27,16 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
   const [urlInput, setUrlInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const onFile = (f: File) => {
+  const onFile = async (f: File) => {
     if (f.size > 5 * 1024 * 1024) {
       alert("Please pick an image smaller than 5 MB.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setBannerImage(String(reader.result));
-    reader.readAsDataURL(f);
+    try {
+      setBannerImage(await optimizeImageFile(f, 1280, 720, 0.62));
+    } catch {
+      alert("This image could not be processed. Please try another file.");
+    }
   };
 
   const save = () => {
@@ -90,7 +94,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
           {/* Live preview */}
           <div className="relative aspect-[21/9] rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
             {bannerImage ? (
-              <img
+              <SmartImage
                 src={bannerImage}
                 alt="preview"
                 className="w-full h-full object-cover"

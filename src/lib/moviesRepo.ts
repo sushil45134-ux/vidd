@@ -3,12 +3,17 @@ import type { Movie } from "@/data";
 
 // DB row -> Movie
 export function rowToMovie(r: any): Movie {
+  const fallbackImage = r.youtube_id
+    ? `https://img.youtube.com/vi/${r.youtube_id}/hqdefault.jpg`
+    : r.embed_platform === "Dailymotion" && r.embed_url
+      ? `https://www.dailymotion.com/thumbnail/video/${String(r.embed_url).split("/video/")[1]?.split("?")[0] || ""}`
+      : "https://placehold.co/640x360/181818/777?text=Video";
   return {
     id: Number(r.id),
     title: r.title,
     description: r.description ?? "",
-    image: r.image,
-    backdrop: r.backdrop ?? undefined,
+    image: r.image || r.thumbnail_url || fallbackImage,
+    backdrop: r.backdrop || r.image || r.thumbnail_url || fallbackImage,
     year: r.year,
     rating: r.rating,
     duration: r.duration ?? "",
@@ -63,7 +68,9 @@ export async function fetchAllMovies(): Promise<{
 }> {
   const { data, error } = await supabase
     .from("movies")
-    .select("*")
+    .select(
+      "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at"
+    )
     .order("created_at", { ascending: false });
   if (error) {
     console.error("[moviesRepo] fetch error", error);
@@ -77,6 +84,19 @@ export async function fetchAllMovies(): Promise<{
     else uploaded.push(m); // 'uploaded' + 'demo' both shown as library items
   });
   return { uploaded, synced };
+}
+
+export async function fetchMovieImages(): Promise<Map<number, string>> {
+  const { data, error } = await supabase
+    .from("movies")
+    .select("id,image,thumbnail_url,backdrop");
+  if (error) return new Map();
+  return new Map(
+    (data ?? []).map((row: any) => [
+      Number(row.id),
+      row.thumbnail_url || row.image || row.backdrop || "",
+    ])
+  );
 }
 
 export async function insertMovies(

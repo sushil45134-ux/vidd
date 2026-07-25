@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Play, Plus, Check, ThumbsUp, ChevronDown, Trash2, Image as ImageIcon } from "lucide-react";
 import type { Movie } from "../data";
+import { movieImageSources } from "../lib/media";
+import SmartImage from "./SmartImage";
 
 interface MovieCardProps {
   movie: Movie;
@@ -58,9 +60,10 @@ export default function MovieCard({
           isHovered ? "scale-110 z-30 shadow-2xl shadow-black/80" : "scale-100 z-10"
         }`}
       >
-        <img
-          src={movie.image}
+        <SmartImage
+          src={movieImageSources(movie)}
           alt={movie.title}
+          loading="lazy"
           className="w-full aspect-video object-cover transition-all duration-300"
         />
 
@@ -137,14 +140,14 @@ export default function MovieCard({
                   <Trash2 size={14} className="text-white" />
                 </button>
               )}
-              {canEditThumbnail && onEditThumbnail && !movie.isCollection && (
+              {canEditThumbnail && onEditThumbnail && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditThumbnail(movie);
                   }}
                   className="w-8 h-8 rounded-full border-2 border-[#f47521]/60 bg-[#f47521]/15 hover:bg-[#f47521] flex items-center justify-center transition-colors"
-                  title="Change thumbnail"
+                  title={movie.isCollection ? "Change series thumbnail" : "Change thumbnail"}
                 >
                   <ImageIcon size={14} className="text-white" />
                 </button>

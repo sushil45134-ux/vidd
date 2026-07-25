@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { Movie } from "../data";
-import { supabase } from "@/integrations/supabase/client";
 
 export type RowKey =
   | "uploads"
@@ -133,6 +132,7 @@ function dbRowToConfig(row: any): SiteConfig {
 
 async function loadRemoteConfig(): Promise<SiteConfig | null> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase
       .from("site_config")
       .select("*")
@@ -145,8 +145,22 @@ async function loadRemoteConfig(): Promise<SiteConfig | null> {
   }
 }
 
+let remoteConfigPromise: Promise<SiteConfig | null> | null = null;
+
+function loadRemoteConfigOnce(): Promise<SiteConfig | null> {
+  if (!remoteConfigPromise) {
+    remoteConfigPromise = loadRemoteConfig().finally(() => {
+      window.setTimeout(() => {
+        remoteConfigPromise = null;
+      }, 30_000);
+    });
+  }
+  return remoteConfigPromise;
+}
+
 async function saveRemoteConfig(cfg: SiteConfig): Promise<boolean> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { error } = await supabase.from("site_config").upsert({
       id: 1,
       brand_prefix: cfg.brandPrefix,
@@ -219,7 +233,7 @@ export function useSiteConfig(): SiteConfig {
     const local = loadConfig();
     const pendingRemoteSaveAt = localStorage.getItem(PENDING_REMOTE_SAVE_KEY);
     setCfg(local);
-    loadRemoteConfig().then((remote) => {
+    loadRemoteConfigOnce().then((remote) => {
       if (!alive || !remote) return;
       const localHasRows = hasCustomRows(local);
       const remoteHasRows = hasCustomRows(remote);

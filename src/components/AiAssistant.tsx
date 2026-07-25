@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Sparkles, Loader, Check, Plus, Trash2 } from "lucide-react";
 import type { Movie } from "../data";
+import { youtubeThumbnailSources } from "../lib/media";
 import { analyzeVideo, type AiAnalysis } from "../utils/aiAnalyze";
 
 interface AiAssistantProps {
@@ -16,7 +17,7 @@ async function fetchVideoInfo(videoId: string): Promise<VideoInfo | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.error) return null;
-    return { videoId, title: data.title || "", author: data.author_name || "", thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` };
+    return { videoId, title: data.title || "", author: data.author_name || "", thumbnail: youtubeThumbnailSources(videoId)[0] || "" };
   } catch { return null; }
 }
 

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Play, Info, Upload, RefreshCw, Eye, EyeOff } from "lucide-react";
 import type { Movie } from "../data";
 import { useSiteConfig, loadConfig, saveConfig } from "../lib/customization";
+import { movieImageSources } from "../lib/media";
 import Logo from "./Logo";
+import SmartImage from "./SmartImage";
 
 interface HeroBannerProps {
   movies: Movie[];
@@ -90,10 +92,15 @@ export default function HeroBanner({
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden">
       <div className="absolute inset-0" key={item.id}>
-        <div
-          className="absolute inset-0 bg-cover bg-center animate-fade-in"
-          style={{ backgroundImage: `url(${item.backdrop || item.image || item.thumbnailUrl || ""})` }}
+        <SmartImage
+          src={movieImageSources(item, "hero")}
+          alt={item.title}
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
+          className="absolute inset-0 w-full h-full object-cover animate-fade-in"
         />
+
         {overlayVisible && (
           <>
             <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />

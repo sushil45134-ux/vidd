@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Upload, Link2, RotateCcw } from "lucide-react";
 import type { Movie } from "../data";
+import { optimizeImageFile } from "../lib/imageOptimization";
+import { movieImageSources } from "../lib/media";
+import SmartImage from "./SmartImage";
 
 interface Props {
   movie: Movie;
@@ -9,7 +12,7 @@ interface Props {
 }
 
 export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
-  const [preview, setPreview] = useState<string>(movie.image);
+  const [preview, setPreview] = useState<string>(movie.thumbnailUrl || movie.image || movie.backdrop || "");
   const [url, setUrl] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const blobRef = useRef<string | null>(null);
@@ -23,17 +26,16 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
     };
   }, []);
 
-  const setBlob = (file: File) => {
+  const setBlob = async (file: File) => {
     if (blobRef.current) URL.revokeObjectURL(blobRef.current);
-    // Convert to a data URL so it survives reload and can be persisted to the DB.
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "");
+    try {
+      const dataUrl = await optimizeImageFile(file, 960, 540, 0.66);
       blobRef.current = null;
       setPreview(dataUrl);
       setUrl("");
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      alert("This image could not be processed. Please try another file.");
+    }
   };
 
   const applyUrl = () => {
@@ -95,7 +97,7 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
         <div className="p-5 space-y-4">
           <div className="aspect-video w-full rounded-md overflow-hidden bg-black/60 ring-1 ring-white/10">
             {preview ? (
-              <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+              <SmartImage src={[preview, ...movieImageSources(movie)]} alt="Preview" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-white/40 text-xs">
                 No preview

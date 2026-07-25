@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { Search, X, Play } from "lucide-react";
 import type { Movie } from "../data";
+import { movieImageSources } from "../lib/media";
+import SmartImage from "./SmartImage";
 
 interface Props {
   onPlay: (movie: Movie) => void;
@@ -72,8 +74,8 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
               onClick={() => onSelectMovie(m)}
             >
               <div className="relative aspect-video bg-gray-900">
-                <img
-                  src={m.image}
+                <SmartImage
+                  src={movieImageSources(m)}
                   alt={m.title}
                   className="w-full h-full object-cover"
                   loading="lazy"

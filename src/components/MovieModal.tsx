@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Play, Bookmark, Plus, Star, ChevronRight, ChevronLeft, Trash2, Sparkles, Image as ImageIcon } from "lucide-react";
 import type { Movie, Season } from "../data";
+import { movieImageSources } from "../lib/media";
 import HeroBannerPicker from "./HeroBannerPicker";
+import SmartImage from "./SmartImage";
+import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
 
 interface MovieModalProps {
   movie: Movie;
@@ -34,6 +37,8 @@ export default function MovieModal({
   onEditThumbnail,
 }: MovieModalProps) {
   const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const heroBanners = useHeroBanners();
+  const isHeroBanner = heroBanners.some((b) => b.movieId === movie.id);
 
   const isCollection = !!(movie.isCollection && movie.episodes && movie.episodes.length > 0);
   const seasons: Season[] = useMemo(() => {
@@ -99,8 +104,8 @@ export default function MovieModal({
   const showSeasonPicker = isCollection && hasMultiSeason && selectedSeason == null;
 
   const heroTitle = movie.title;
-  const moviePoster = movie.thumbnailUrl || movie.image || movie.backdrop;
-  const episodePoster = currentEp.thumbnailUrl || currentEp.image || currentEp.backdrop;
+  const moviePoster = movieImageSources(movie, "hero");
+  const episodePoster = movieImageSources(currentEp, "hero");
   const heroImage = showSeasonPicker
     ? moviePoster
     : (isCollection ? episodePoster : moviePoster);
@@ -128,7 +133,7 @@ export default function MovieModal({
       >
         {/* Hero */}
         <div className="relative aspect-[16/9] w-full">
-          <img
+          <SmartImage
             src={heroImage}
             alt={heroTitle}
             className="w-full h-full object-cover"
@@ -138,7 +143,7 @@ export default function MovieModal({
 
           {!isCollection && heroImage && (
             <div className="pointer-events-none absolute right-6 bottom-24 top-20 z-[2] hidden w-[28%] max-w-[260px] min-w-[180px] overflow-hidden rounded-xl ring-1 ring-white/15 shadow-2xl shadow-black/60 md:block">
-              <img
+              <SmartImage
                 src={heroImage}
                 alt={`${heroTitle} poster`}
                 className="h-full w-full object-cover"
@@ -237,20 +242,34 @@ export default function MovieModal({
                   <button
                     onClick={() => setShowBannerPicker(true)}
                     className="flex items-center gap-2 border border-[#ff6a00]/60 bg-[#ff6a00]/15 hover:bg-[#ff6a00] hover:text-black text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
-                    title="Set as hero banner"
+                    title={isHeroBanner ? "Update hero banner" : "Set as hero banner"}
                   >
                     <Sparkles size={14} />
-                    Set as Hero
+                    {isHeroBanner ? "Update Hero" : "Set as Hero"}
                   </button>
                 )}
-                {canEditThumbnail && onEditThumbnail && !isCollection && (
+                {canDelete && isHeroBanner && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Remove "${movie.title}" from the hero banner?`)) {
+                        removeHeroBanner(movie.id);
+                      }
+                    }}
+                    className="flex items-center gap-2 border border-red-500/60 bg-red-600/15 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
+                    title="Remove from hero banner"
+                  >
+                    <Trash2 size={14} />
+                    Remove from Hero
+                  </button>
+                )}
+                {canEditThumbnail && onEditThumbnail && (
                   <button
                     onClick={() => onEditThumbnail(movie)}
                     className="flex items-center gap-2 border border-[#f47521]/60 bg-[#f47521]/15 hover:bg-[#f47521] text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
-                    title="Change thumbnail"
+                    title={isCollection ? "Change series thumbnail" : "Change thumbnail"}
                   >
                     <ImageIcon size={14} />
-                    Change Thumbnail
+                    {isCollection ? "Change Series Thumbnail" : "Change Thumbnail"}
                   </button>
                 )}
 
@@ -378,9 +397,10 @@ function SeasonCard({ season, onOpen }: { season: Season; onOpen: () => void }) 
       className="group relative text-left rounded-lg overflow-hidden bg-white/5 ring-1 ring-white/5 hover:ring-[#f47521]/60 transition-all"
     >
       <div className="relative aspect-video">
-        <img
-          src={first?.backdrop || first?.image}
+        <SmartImage
+          src={first ? movieImageSources(first) : undefined}
           alt={`Season ${season.seasonNumber}`}
+          loading="lazy"
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
@@ -421,9 +441,10 @@ function EpisodeCard({
       onClick={current ? onPlay : onSelect}
     >
       <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5">
-        <img
-          src={movie.image}
+        <SmartImage
+          src={movieImageSources(movie)}
           alt={movie.title}
+          loading="lazy"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -487,7 +508,7 @@ function SimilarCard({
       onClick={onSelect}
     >
       <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5">
-        <img src={movie.image} alt={movie.title} className="w-full h-full object-cover" />
+        <SmartImage src={movieImageSources(movie)} alt={movie.title} loading="lazy" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <button
           onClick={(e) => {

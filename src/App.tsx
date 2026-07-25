@@ -1,30 +1,28 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
 import MovieRow from "./components/MovieRow";
-import MovieModal from "./components/MovieModal";
-
-import PlayerOverlay from "./components/PlayerOverlay";
-import SearchResults from "./components/SearchResults";
 import NotificationPanel from "./components/NotificationPanel";
-import UploadModal from "./components/UploadModal";
-import PlaylistSync from "./components/PlaylistSync";
-import AiAssistant from "./components/AiAssistant";
-import AdminRowsEditor from "./components/AdminRowsEditor";
+import SearchResults from "./components/SearchResults";
 import UnifiedSearch from "./components/UnifiedSearch";
-import ThumbnailEditor from "./components/ThumbnailEditor";
+import SmartImage from "./components/SmartImage";
+
+// Heavy modals / overlays — loaded on demand to keep the initial bundle small.
+const MovieModal = lazy(() => import("./components/MovieModal"));
+const PlayerOverlay = lazy(() => import("./components/PlayerOverlay"));
+const UploadModal = lazy(() => import("./components/UploadModal"));
+const PlaylistSync = lazy(() => import("./components/PlaylistSync"));
+const AiAssistant = lazy(() => import("./components/AiAssistant"));
+const AdminRowsEditor = lazy(() => import("./components/AdminRowsEditor"));
+const ThumbnailEditor = lazy(() => import("./components/ThumbnailEditor"));
+
 
 
 import type { Movie, Category } from "./data";
 import { getMovieRef, useSiteConfig, type CustomRow, type RowKey } from "./lib/customization";
 import { useHeroBanners } from "./lib/heroBanners";
-import {
-  fetchAllMovies,
-  insertMovies,
-  deleteMovieById,
-  deleteMoviesByPlaylist,
-  updateMovieThumbnail,
-} from "./lib/moviesRepo";
+import { movieImageSources } from "./lib/media";
+import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
 
 
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
@@ -56,6 +54,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const cfg = useSiteConfig();
   const heroBannerOverrides = useHeroBanners();
+  const collectionCovers = useCollectionCovers();
 
   const rowMeta = (key: RowKey) => {
     const r = cfg.rows.find((x) => x.key === key);
@@ -76,12 +75,33 @@ function App() {
     setIsAdmin(false);
   }, []);
 
-  // Load movies from Supabase on mount
+  // Load movies from Supabase on mount — hydrate from cache first for instant paint
   useEffect(() => {
-    fetchAllMovies().then(({ uploaded, synced }) => {
-      setUploadedMovies(uploaded);
-      setSyncedMovies(synced);
-    });
+    try {
+      const cached = localStorage.getItem("vid:moviesCache:v2");
+      if (cached) {
+        const { uploaded, synced } = JSON.parse(cached);
+        if (Array.isArray(uploaded) && Array.isArray(synced)) {
+          setUploadedMovies(uploaded);
+          setSyncedMovies(synced);
+        }
+      }
+    } catch {}
+
+    import("./lib/moviesRepo").then(({ fetchAllMovies }) => fetchAllMovies())
+      .then(({ uploaded, synced }) => {
+        setUploadedMovies(uploaded);
+        setSyncedMovies(synced);
+        try {
+          localStorage.setItem(
+            "vid:moviesCache:v2",
+            JSON.stringify({ uploaded, synced })
+          );
+        } catch {}
+      })
+      .catch(() => {});
+
+    return undefined;
   }, []);
 
   const allMovies = useMemo(
@@ -118,6 +138,8 @@ function App() {
       const first = flatEps[0];
       let hash = 0;
       for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+      const playlistId = first.playlistId;
+      const coverOverride = playlistId ? collectionCovers[playlistId] : undefined;
       out.push({
         ...first,
         id: Math.abs(hash) + 1_000_000_000,
@@ -127,10 +149,13 @@ function App() {
         isCollection: true,
         episodes: flatEps,
         seasons,
+        ...(coverOverride
+          ? { image: coverOverride, thumbnailUrl: coverOverride, backdrop: coverOverride }
+          : {}),
       });
     });
     return out;
-  }, [syncedMovies]);
+  }, [syncedMovies, collectionCovers]);
 
   // What we show in rows / categories (collections instead of individual synced episodes)
   const displayItems = useMemo(
@@ -170,6 +195,7 @@ function App() {
 
   const handlePlaylistSync = useCallback(async (movies: Movie[]) => {
     setShowPlaylistSync(false);
+    const { insertMovies } = await import("./lib/moviesRepo");
     const saved = await insertMovies(movies, "synced");
     const toAdd = saved.length > 0 ? saved : movies;
     setSyncedMovies((prev) => [...toAdd, ...prev]);
@@ -229,6 +255,7 @@ function App() {
   const handleUpload = useCallback(async (movies: Movie | Movie[]) => {
     const arr = Array.isArray(movies) ? movies : [movies];
     setShowUploadModal(false);
+    const { insertMovies } = await import("./lib/moviesRepo");
     const saved = await insertMovies(arr, "uploaded");
     const toAdd = saved.length > 0 ? saved : arr;
     setUploadedMovies((prev) => [...toAdd, ...prev]);
@@ -243,6 +270,7 @@ function App() {
     if (movie.isCollection && movie.episodes && movie.episodes.length > 0) {
       const pid = movie.episodes[0].playlistId;
       const epIds = new Set(movie.episodes.map((e) => e.id));
+      const { deleteMovieById, deleteMoviesByPlaylist } = await import("./lib/moviesRepo");
       if (pid) {
         await deleteMoviesByPlaylist(pid);
       } else {
@@ -265,6 +293,7 @@ function App() {
       return;
     }
     // Single item (uploaded or standalone synced).
+    const { deleteMovieById } = await import("./lib/moviesRepo");
     await deleteMovieById(movie.id);
     setUploadedMovies((prev) => prev.filter((m) => m.id !== movie.id));
     setSyncedMovies((prev) => prev.filter((m) => m.id !== movie.id));
@@ -277,16 +306,59 @@ function App() {
   }, []);
 
   // Admin-only: replace an existing item's displayed thumbnail image.
+  // For collections (series), we store a per-playlist cover override
+  // (localStorage) that is applied when building the derived collection —
+  // no episode row in the DB is touched, so every episode thumbnail stays
+  // exactly as it was. For standalone items, we still patch the underlying
+  // row (state + cache + DB) as before.
   const handleUpdateThumbnail = useCallback(
-    async (movieId: number, newUrl: string) => {
+    async (target: Movie, newUrl: string) => {
+      const isCollection = !!(target.isCollection && target.episodes?.length);
+      const syntheticId = target.id;
+
+      if (isCollection) {
+        const playlistId = target.episodes?.[0]?.playlistId;
+        if (!playlistId) return;
+        setCollectionCover(playlistId, newUrl);
+        setSelectedMovie((prev) =>
+          prev && prev.id === syntheticId
+            ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
+            : prev
+        );
+        setThumbnailEditMovie((prev) =>
+          prev && prev.id === syntheticId
+            ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
+            : prev
+        );
+        return;
+      }
+
+      const dbId = target.id;
       const patch = (m: Movie): Movie =>
-        m.id === movieId ? { ...m, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl } : m;
-      setUploadedMovies((prev) => prev.map(patch));
-      setSyncedMovies((prev) => prev.map(patch));
+        m.id === dbId ? { ...m, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl } : m;
+      let nextUploaded: Movie[] = [];
+      let nextSynced: Movie[] = [];
+      setUploadedMovies((prev) => (nextUploaded = prev.map(patch)));
+      setSyncedMovies((prev) => (nextSynced = prev.map(patch)));
       setMyList((prev) => prev.map(patch));
-      setSelectedMovie((prev) => (prev ? patch(prev) : prev));
-      setThumbnailEditMovie((prev) => (prev ? patch(prev) : prev));
-      await updateMovieThumbnail(movieId, newUrl);
+      setSelectedMovie((prev) =>
+        prev && prev.id === dbId
+          ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
+          : prev
+      );
+      setThumbnailEditMovie((prev) =>
+        prev && prev.id === dbId
+          ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
+          : prev
+      );
+      try {
+        localStorage.setItem(
+          "vid:moviesCache:v2",
+          JSON.stringify({ uploaded: nextUploaded, synced: nextSynced })
+        );
+      } catch {}
+      const { updateMovieThumbnail } = await import("./lib/moviesRepo");
+      await updateMovieThumbnail(dbId, newUrl);
     },
     []
   );
@@ -370,6 +442,7 @@ function App() {
           onSelectMovie={setSelectedMovie}
           onPlay={handlePlay}
           onAdd={async (movie: Movie) => {
+            const { insertMovies } = await import("./lib/moviesRepo");
             const saved = await insertMovies([movie], "uploaded");
             const toAdd = saved[0] ?? movie;
             setUploadedMovies((prev) => [toAdd, ...prev]);
@@ -445,9 +518,10 @@ function App() {
                   onClick={() => setSelectedMovie(movie)}
                 >
                   <div className="relative overflow-hidden rounded-md aspect-video bg-gray-800">
-                    <img
-                      src={movie.image}
+                    <SmartImage
+                      src={movieImageSources(movie)}
                       alt={movie.title}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
@@ -531,82 +605,82 @@ function App() {
 
       </main>
 
-      {selectedMovie && (
-        <MovieModal
-          movie={selectedMovie}
-          onClose={() => setSelectedMovie(null)}
-          onPlay={handlePlay}
-          isInMyList={isInMyList(selectedMovie.id)}
-          isLiked={isLiked(selectedMovie.id)}
-          onToggleMyList={() => toggleMyList(selectedMovie)}
-          onToggleLike={() => toggleLike(selectedMovie.id)}
-          onSelectMovie={setSelectedMovie}
-          allMovies={allMovies}
-          canDelete={isAdmin}
-          onDelete={handleDelete}
-          canEditThumbnail={isAdmin}
-          onEditThumbnail={setThumbnailEditMovie}
-        />
-      )}
+      <Suspense fallback={null}>
+        {selectedMovie && (
+          <MovieModal
+            movie={selectedMovie}
+            onClose={() => setSelectedMovie(null)}
+            onPlay={handlePlay}
+            isInMyList={isInMyList(selectedMovie.id)}
+            isLiked={isLiked(selectedMovie.id)}
+            onToggleMyList={() => toggleMyList(selectedMovie)}
+            onToggleLike={() => toggleLike(selectedMovie.id)}
+            onSelectMovie={setSelectedMovie}
+            allMovies={allMovies}
+            canDelete={isAdmin}
+            onDelete={handleDelete}
+            canEditThumbnail={isAdmin}
+            onEditThumbnail={setThumbnailEditMovie}
+          />
+        )}
 
-      {showUploadModal && (
-        <UploadModal
-          onClose={() => setShowUploadModal(false)}
-          onUpload={handleUpload}
-        />
-      )}
+        {showUploadModal && (
+          <UploadModal
+            onClose={() => setShowUploadModal(false)}
+            onUpload={handleUpload}
+          />
+        )}
 
-      {showPlaylistSync && (
-        <PlaylistSync
-          onClose={() => setShowPlaylistSync(false)}
-          onSync={handlePlaylistSync}
-          existingIds={existingYtIds}
-        />
-      )}
+        {showPlaylistSync && (
+          <PlaylistSync
+            onClose={() => setShowPlaylistSync(false)}
+            onSync={handlePlaylistSync}
+            existingIds={existingYtIds}
+          />
+        )}
 
-      {showAiAssistant && (
-        <AiAssistant
-          onClose={() => setShowAiAssistant(false)}
-          onAdd={handleUpload}
-        />
-      )}
+        {showAiAssistant && (
+          <AiAssistant
+            onClose={() => setShowAiAssistant(false)}
+            onAdd={handleUpload}
+          />
+        )}
 
-      {showAdminEditor && (
-        <AdminRowsEditor
-          onClose={() => setShowAdminEditor(false)}
-          availableMovies={displayItems}
-        />
-      )}
+        {showAdminEditor && (
+          <AdminRowsEditor
+            onClose={() => setShowAdminEditor(false)}
+            availableMovies={displayItems}
+          />
+        )}
 
-      {thumbnailEditMovie && (
-        <ThumbnailEditor
-          movie={thumbnailEditMovie}
-          onClose={() => setThumbnailEditMovie(null)}
-          onSave={(url) => handleUpdateThumbnail(thumbnailEditMovie.id, url)}
-        />
-      )}
+        {thumbnailEditMovie && (
+          <ThumbnailEditor
+            movie={thumbnailEditMovie}
+            onClose={() => setThumbnailEditMovie(null)}
+            onSave={(url) => handleUpdateThumbnail(thumbnailEditMovie, url)}
+          />
+        )}
 
+        {playingMovie && (
+          <PlayerOverlay
+            movie={playingMovie}
+            onClose={() => setPlayingMovie(null)}
+            episodes={(() => {
+              const pid = playingMovie.playlistId;
+              if (!pid) return undefined;
+              const siblings = syncedMovies
+                .filter((m) => m.playlistId === pid)
+                .sort(
+                  (a, b) =>
+                    (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
+                    (a.episodeNumber || 0) - (b.episodeNumber || 0)
+                );
+              return siblings.length > 1 ? siblings : undefined;
+            })()}
+          />
+        )}
+      </Suspense>
 
-
-
-      {playingMovie && (
-        <PlayerOverlay
-          movie={playingMovie}
-          onClose={() => setPlayingMovie(null)}
-          episodes={(() => {
-            const pid = playingMovie.playlistId;
-            if (!pid) return undefined;
-            const siblings = syncedMovies
-              .filter((m) => m.playlistId === pid)
-              .sort(
-                (a, b) =>
-                  (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
-                  (a.episodeNumber || 0) - (b.episodeNumber || 0)
-              );
-            return siblings.length > 1 ? siblings : undefined;
-          })()}
-        />
-      )}
 
       
     </div>

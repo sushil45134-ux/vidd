@@ -1,5 +1,7 @@
 import { Play, Plus, Check, ThumbsUp } from "lucide-react";
 import type { Movie } from "../data";
+import { movieImageSources } from "../lib/media";
+import SmartImage from "./SmartImage";
 
 interface SearchResultsProps {
   results: Movie[];
@@ -62,9 +64,10 @@ export default function SearchResults({
               className="relative overflow-hidden rounded-md aspect-video bg-gray-800 cursor-pointer"
               onClick={() => onSelectMovie(movie)}
             >
-              <img
-                src={movie.image}
+              <SmartImage
+                src={movieImageSources(movie)}
                 alt={movie.title}
+                loading="lazy"
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300" />

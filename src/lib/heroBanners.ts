@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface HeroBanner {
   movieId: number;
@@ -9,7 +8,7 @@ export interface HeroBanner {
   badge?: string;
 }
 
-const KEY = "vid:hero-banners";
+const KEY = "vid:hero-banners:v2";
 const EVENT = "vid:hero-banners-changed";
 
 // ---------- local cache (offline / instant load) ----------
@@ -61,9 +60,10 @@ function bannerToRow(b: HeroBanner, sort: number) {
 
 async function fetchRemote(): Promise<HeroBanner[] | null> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase
       .from("hero_banners")
-      .select("*")
+      .select("movie_id,banner_image,title,description,badge,sort_order")
       .order("sort_order", { ascending: true });
     if (error) {
       console.warn("[heroBanners] fetch error", error);
@@ -76,8 +76,10 @@ async function fetchRemote(): Promise<HeroBanner[] | null> {
   }
 }
 
+
 async function upsertRemote(entry: HeroBanner, sort: number): Promise<boolean> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { error } = await supabase
       .from("hero_banners")
       .upsert(bannerToRow(entry, sort), { onConflict: "movie_id" });
@@ -94,6 +96,7 @@ async function upsertRemote(entry: HeroBanner, sort: number): Promise<boolean> {
 
 async function deleteRemote(movieId: number): Promise<boolean> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { error } = await supabase.from("hero_banners").delete().eq("movie_id", movieId);
     if (error) {
       console.warn("[heroBanners] delete error", error);
@@ -108,6 +111,7 @@ async function deleteRemote(movieId: number): Promise<boolean> {
 
 async function replaceRemote(list: HeroBanner[]): Promise<boolean> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     // Simple strategy: upsert all with fresh sort_order; delete rows that were removed.
     const { data: existing, error: fetchErr } = await supabase
       .from("hero_banners")
