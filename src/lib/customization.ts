@@ -173,9 +173,13 @@ async function saveRemoteConfig(cfg: SiteConfig): Promise<boolean> {
       custom_rows: cfg.customRows,
       updated_at: new Date().toISOString(),
     });
+    if (error) {
+      console.warn("[site_config] save error", error);
+      return false;
+    }
     return !error;
-  } catch {
-    // Local saving still works if the shared settings table is unavailable.
+  } catch (error) {
+    console.warn("[site_config] save exception", error);
     return false;
   }
 }
@@ -210,15 +214,21 @@ export function loadConfig(): SiteConfig {
   }
 }
 
-export function saveConfig(cfg: SiteConfig, options?: SaveConfigOptions) {
+export async function saveConfig(cfg: SiteConfig, options?: SaveConfigOptions): Promise<boolean> {
   const next = preserveCustomRows(cfg, options);
   rememberCustomRows(next.customRows);
-  localStorage.setItem(KEY, JSON.stringify(next));
   localStorage.setItem(PENDING_REMOTE_SAVE_KEY, new Date().toISOString());
-  void saveRemoteConfig(next).then((ok) => {
-    if (ok) localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
-  });
+  const saved = await saveRemoteConfig(next);
+  if (!saved) {
+    alert(
+      "Changes public website par save nahi hue. Supabase site_config table ki RLS/GRANT policy check karo, phir dobara save karo."
+    );
+    return false;
+  }
+  localStorage.setItem(KEY, JSON.stringify(next));
+  localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
   window.dispatchEvent(new Event(EVENT));
+  return true;
 }
 
 export function resetConfig() {
@@ -235,15 +245,9 @@ export function useSiteConfig(): SiteConfig {
     setCfg(local);
     loadRemoteConfigOnce().then((remote) => {
       if (!alive || !remote) return;
-      const localHasRows = hasCustomRows(local);
       const remoteHasRows = hasCustomRows(remote);
-      if (localHasRows && (!remoteHasRows || !isRemoteNewer(remote, pendingRemoteSaveAt))) {
-        void saveRemoteConfig(local).then((ok) => {
-          if (ok) localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
-        });
-        return;
-      }
-      if (remoteHasRows || !localHasRows) {
+      const shouldUseRemote = remoteHasRows || !hasCustomRows(local) || isRemoteNewer(remote, pendingRemoteSaveAt);
+      if (shouldUseRemote) {
         localStorage.setItem(KEY, JSON.stringify(remote));
         setCfg(remote);
       }

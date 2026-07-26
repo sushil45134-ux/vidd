@@ -47,7 +47,7 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
   function persist(next: CustomRow[]) {
     setRows(next);
     const cfg = loadConfig();
-    saveConfig({ ...cfg, customRows: next }, { allowEmptyCustomRows: true });
+    void saveConfig({ ...cfg, customRows: next }, { allowEmptyCustomRows: true });
   }
 
   function addRow() {

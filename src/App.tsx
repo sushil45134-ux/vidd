@@ -306,11 +306,10 @@ function App() {
   }, []);
 
   // Admin-only: replace an existing item's displayed thumbnail image.
-  // For collections (series), we store a per-playlist cover override
-  // (localStorage) that is applied when building the derived collection —
-  // no episode row in the DB is touched, so every episode thumbnail stays
-  // exactly as it was. For standalone items, we still patch the underlying
-  // row (state + cache + DB) as before.
+  // For collections (series), the cover is saved to Supabase first and only
+  // then mirrored into local cache/UI. That prevents a local-only fake update
+  // that disappears on phones or another Chrome profile. No episode row in the
+  // DB is touched, so every episode thumbnail stays exactly as it was.
   const handleUpdateThumbnail = useCallback(
     async (target: Movie, newUrl: string) => {
       const isCollection = !!(target.isCollection && target.episodes?.length);
@@ -319,7 +318,13 @@ function App() {
       if (isCollection) {
         const playlistId = target.episodes?.[0]?.playlistId;
         if (!playlistId) return;
-        setCollectionCover(playlistId, newUrl);
+        const saved = await setCollectionCover(playlistId, newUrl);
+        if (!saved) {
+          alert(
+            "Series cover Supabase mein save nahi hua. Kripya collection_covers table ki RLS/GRANT policy check karo, phir dobara try karo."
+          );
+          return;
+        }
         setSelectedMovie((prev) =>
           prev && prev.id === syntheticId
             ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
@@ -336,6 +341,14 @@ function App() {
       const dbId = target.id;
       const patch = (m: Movie): Movie =>
         m.id === dbId ? { ...m, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl } : m;
+      const { updateMovieThumbnail } = await import("./lib/moviesRepo");
+      const saved = await updateMovieThumbnail(dbId, newUrl);
+      if (!saved) {
+        alert(
+          "Poster public website par save nahi hua. Supabase movies table ki RLS/GRANT policy check karo, phir dobara try karo."
+        );
+        return;
+      }
       let nextUploaded: Movie[] = [];
       let nextSynced: Movie[] = [];
       setUploadedMovies((prev) => (nextUploaded = prev.map(patch)));
@@ -357,8 +370,6 @@ function App() {
           JSON.stringify({ uploaded: nextUploaded, synced: nextSynced })
         );
       } catch {}
-      const { updateMovieThumbnail } = await import("./lib/moviesRepo");
-      await updateMovieThumbnail(dbId, newUrl);
     },
     []
   );

@@ -25,6 +25,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
   );
   const [badge, setBadge] = useState(existing?.badge || "⭐ FEATURED");
   const [urlInput, setUrlInput] = useState("");
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onFile = async (f: File) => {
@@ -39,30 +40,33 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
     }
   };
 
-  const save = () => {
+  const save = async () => {
     if (!bannerImage.trim()) {
       alert("Please add a banner image first.");
       return;
     }
+    setSaving(true);
     try {
-      upsertHeroBanner({
+      const saved = await upsertHeroBanner({
         movieId: movie.id,
         bannerImage: bannerImage.trim(),
         title: title.trim() || undefined,
         description: description.trim() || undefined,
         badge: badge.trim() || undefined,
       });
-      onClose();
+      if (saved) onClose();
     } catch {
       // saveHeroBanners already alerted
+    } finally {
+      setSaving(false);
     }
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!existing) return onClose();
     if (window.confirm("Remove this from the hero banner?")) {
-      removeHeroBanner(movie.id);
-      onClose();
+      const removed = await removeHeroBanner(movie.id);
+      if (removed) onClose();
     }
   };
 
@@ -223,9 +227,10 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
             </button>
             <button
               onClick={save}
+              disabled={saving}
               className="h-10 px-5 rounded-full bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-white text-sm font-bold shadow-lg shadow-[#ee0979]/20"
             >
-              {existing ? "Update banner" : "Set as hero"}
+              {saving ? "Saving..." : existing ? "Update banner" : "Set as hero"}
             </button>
           </div>
         </div>

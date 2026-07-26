@@ -153,22 +153,43 @@ export function loadHeroBanners(): HeroBanner[] {
   return readLocal();
 }
 
-export function saveHeroBanners(list: HeroBanner[]) {
+export async function saveHeroBanners(list: HeroBanner[]): Promise<boolean> {
+  const saved = await replaceRemote(list);
+  if (!saved) {
+    alert(
+      "Hero banners public website par save nahi hue. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara save karo."
+    );
+    return false;
+  }
   writeLocal(list);
-  void replaceRemote(list);
+  return true;
 }
 
-export function upsertHeroBanner(entry: HeroBanner) {
+export async function upsertHeroBanner(entry: HeroBanner): Promise<boolean> {
   const list = readLocal().filter((b) => b.movieId !== entry.movieId);
   const next = [entry, ...list];
+  const saved = await upsertRemote(entry, 0);
+  if (!saved) {
+    alert(
+      "Hero banner public website par save nahi hua. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara save karo."
+    );
+    return false;
+  }
   writeLocal(next);
-  void upsertRemote(entry, 0);
+  return true;
 }
 
-export function removeHeroBanner(movieId: number) {
+export async function removeHeroBanner(movieId: number): Promise<boolean> {
   const next = readLocal().filter((b) => b.movieId !== movieId);
+  const deleted = await deleteRemote(movieId);
+  if (!deleted) {
+    alert(
+      "Hero banner public website se remove nahi hua. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara try karo."
+    );
+    return false;
+  }
   writeLocal(next);
-  void deleteRemote(movieId);
+  return true;
 }
 
 export function useHeroBanners(): HeroBanner[] {

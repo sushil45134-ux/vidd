@@ -64,6 +64,12 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
       onClose();
       return;
     }
+    if (movie.isCollection && preview.startsWith("data:")) {
+      alert(
+        "Series cover ko phone aur dusre browser par dikhane ke liye image URL paste karke save karo. File upload browser-local data banata hai."
+      );
+      return;
+    }
     setSaving(true);
     try {
       await onSave(preview);
