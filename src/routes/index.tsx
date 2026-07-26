@@ -1,24 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
+import App from "../App";
+import previewAsset from "../assets/vid-og-thumbnail.jpg.asset.json";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
+const previewImageUrl = `https://id-preview--064af4ad-946f-41f8-807e-2d2af0d045c3.lovable.app${previewAsset.url}`;
+
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "vid — Streaming Library" },
+      { name: "description", content: "Watch and organize your uploaded videos, synced playlists, and custom streaming rows in vid." },
+      { property: "og:title", content: "vid — Streaming Library" },
+      { property: "og:description", content: "Watch and organize your uploaded videos, synced playlists, and custom streaming rows in vid." },
+      { property: "og:type", content: "website" },
+      { property: "og:image", content: previewImageUrl },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: previewImageUrl },
+    ],
+  }),
+  component: App,
 });
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
