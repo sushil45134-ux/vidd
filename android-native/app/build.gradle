@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'com.vidd.app'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId 'com.vidd.app'   // wrapper wali hi ID → purani app ke upar update hogi
         minSdk 26
-        targetSdk 34
+        targetSdk 35
         versionCode 2                  // wrapper v1 se upar → aaram se upgrade
         versionName '2.0'
     }
