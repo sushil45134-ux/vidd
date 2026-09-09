@@ -16,7 +16,22 @@ android {
         versionName '1.0'    // user ko dikhne wala version
     }
 
+    // Fixed debug key — har build same signature se sign hogi (update aaram se).
+    signingConfigs {
+        debug {
+            storeFile file('../debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     buildTypes {
+        debug {
+            if (file('../debug.keystore').exists()) {
+                signingConfig signingConfigs.debug
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

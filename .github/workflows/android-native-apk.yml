@@ -8,6 +8,9 @@ on:
     paths: ["android-native/**", ".github/workflows/android-native-apk.yml"]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,6 +31,20 @@ jobs:
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Debug keystore banao (sirf pehli baar)
+        working-directory: android-native
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -keystore debug.keystore -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10950 \
+              -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+            echo "KEYSTORE_NEW=1" >> "$GITHUB_ENV"
+            echo "Naya keystore bana — repo me save hoga."
+          else
+            echo "Keystore pehle se hai — same signature reuse hogi."
+          fi
 
       - name: Gradle download karo
         run: |
@@ -86,6 +103,15 @@ jobs:
           name: vid-native-apk
           path: android-native/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Keystore repo me save karo (sirf pehli baar)
+        if: env.KEYSTORE_NEW == '1'
+        run: |
+          git config user.name "arena-agent"
+          git config user.email "arena-agent@users.noreply.github.com"
+          git add android-native/debug.keystore
+          git commit -m "Add shared debug keystore (stable APK signature)" || true
+          git push origin HEAD:${{ github.ref_name }} || echo "keystore push skipped"
 
       - name: Fail ho to report upload karo
         if: failure()

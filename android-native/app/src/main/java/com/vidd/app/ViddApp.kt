@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 class ViddApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        CrashReport.install(this)
         Store.init(this)
         Notify.channels(this)
 

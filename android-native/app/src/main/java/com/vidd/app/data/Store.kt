@@ -62,8 +62,9 @@ object Store {
         appCtx.dataStore.data.map { it[MY_LIST] ?: emptySet() }.first()
 
     // ---------- Likes ----------
-    val liked: Flow<Set<String>> =
-        appCtxSafe().dataStore.data.map { it[LIKED] ?: emptySet() }
+    val liked: Flow<Set<String>> by lazy {
+        appCtx.dataStore.data.map { it[LIKED] ?: emptySet() }
+    }
 
     suspend fun toggleLiked(id: Long) {
         appCtx.dataStore.edit { p ->
@@ -74,8 +75,9 @@ object Store {
     }
 
     // ---------- Downloads ----------
-    val downloads: Flow<Map<String, DlMeta>> =
-        appCtxSafe().dataStore.data.map { parseDlMap(it[DOWNLOADS]) }
+    val downloads: Flow<Map<String, DlMeta>> by lazy {
+        appCtx.dataStore.data.map { parseDlMap(it[DOWNLOADS]) }
+    }
 
     suspend fun downloadsNow(): Map<String, DlMeta> =
         appCtx.dataStore.data.map { parseDlMap(it[DOWNLOADS]) }.first()
@@ -143,6 +145,4 @@ object Store {
     suspend fun setLastSeen(createdAt: String) {
         appCtx.dataStore.edit { it[LAST_SEEN] = createdAt }
     }
-
-    private fun appCtxSafe(): Context = appCtx
 }
