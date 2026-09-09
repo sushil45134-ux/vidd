@@ -40,7 +40,7 @@ jobs:
         working-directory: android-native
         run: |
           set -o pipefail
-          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+          gradle assembleDebug --no-daemon 2>&1 | tee build.log
 
       - name: Error annotations banao (debug ke liye)
         if: failure()
