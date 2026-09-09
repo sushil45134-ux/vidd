@@ -38,7 +38,42 @@ jobs:
 
       - name: Native APK banao
         working-directory: android-native
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Error annotations banao (debug ke liye)
+        if: failure()
+        working-directory: android-native
+        run: |
+          python3 - <<'PYEOF'
+          import re
+          try:
+              log = open('build.log', errors='replace').read()
+          except Exception as ex:
+              print(f"::error::build.log nahi mila: {ex}")
+              raise SystemExit(0)
+          errs = []
+          for line in log.splitlines():
+              s = line.strip()
+              low = s.lower()
+              if (s.startswith('e: ') or '.kt:' in s or '.java:' in s
+                      or 'FAILED' in s or 'Execution failed' in s
+                      or 'Caused by:' in s or 'Unresolved reference' in s
+                      or 'error:' in low or 'what went wrong' in low):
+                  if s and len(s) > 3:
+                      errs.append(s[:2500])
+          if not errs:
+              errs = [l.strip()[:2500] for l in log.splitlines()[-15:] if l.strip()]
+          seen, out = set(), []
+          for e in errs:
+              if e not in seen:
+                  seen.add(e)
+                  out.append(e)
+          for e in out[:10]:
+              e = e.replace('%', '%25').replace('\n', '%0A').replace('\r', '%0D')
+              print(f"::error::{e}")
+          PYEOF
 
       - name: APK upload karo (download ke liye)
         uses: actions/upload-artifact@v4
