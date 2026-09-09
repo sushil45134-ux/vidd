@@ -7,5 +7,5 @@
          Yahaan apni LIVE website ka poora link likho (https samet).
          Udaaharan:  https://vidd.lovable.app
          Link badalne ke baad dobara build karo (ya push karo → auto APK ban jayega). -->
-    <string name="site_url">https://APKI-WEBSITE-KA-LINK-YAHA-LIKHO.example.com</string>
+    <string name="site_url">https://vidd-zeta.vercel.app</string>
 </resources>

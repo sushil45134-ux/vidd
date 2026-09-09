@@ -24,11 +24,19 @@ jobs:
       - name: Android SDK lagao
         uses: android-actions/setup-android@v3
 
+      - name: SDK packages pakka karo (platform + build-tools)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
       - name: Gradle download karo
         run: |
           curl -sL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
           echo "/tmp/gradle-8.7/bin" >> "$GITHUB_PATH"
+          /tmp/gradle-8.7/bin/gradle --version
 
       - name: APK banao
         working-directory: android-app
@@ -40,3 +48,11 @@ jobs:
           name: vid-app-debug-apk
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Fail ho to report upload karo
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: android-app/app/build/reports
+          if-no-files-found: warn

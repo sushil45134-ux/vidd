@@ -28,10 +28,9 @@ App ko batana padega ki kaunsi website kholni hai. Sirf **1 line** badalni hai:
 Yahaan apni live website ka link likho, jaise:
 
 ```xml
-<string name="site_url">https://vidd.lovable.app</string>
+<string name="site_url">https://vidd-zeta.vercel.app</string>
 ```
-
-Link lagane ke baad dobara push karo → naya APK ban jayega.
+(ye link lagaya ja chuka hai ✅ — aage kabhi website ka link badle to yahi line badalni hai)
 
 ## Android Studio Se Khud Build Karna Ho To
 
