@@ -85,6 +85,9 @@ fun DetailsScreen(
         else -> {
             val m = movie!!
             val playable = m.playable
+            val more = remember(m, st.display) {
+                st.display.filter { it.id != m.id && it.genre.any { g -> m.genre.contains(g) } }.take(10)
+            }
             LazyColumn(Modifier.fillMaxSize().background(Color.Black)) {
                 item {
                     // Backdrop + back button
@@ -184,9 +187,6 @@ fun DetailsScreen(
                 }
 
                 // More like this
-                val more = remember(m, st.display) {
-                    st.display.filter { it.id != m.id && it.genre.any { g -> m.genre.contains(g) } }.take(10)
-                }
                 if (more.isNotEmpty()) {
                     item { SectionRow("More Like This", more, false, onDetails, onPlay) }
                 }
