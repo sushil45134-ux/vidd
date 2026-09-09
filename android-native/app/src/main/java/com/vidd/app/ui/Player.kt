@@ -108,7 +108,7 @@ fun PlayerScreen(id: Long, onBack: () -> Unit, onEpisode: (Long) -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (landscape) {
             // Poori screen sirf player
-            PlayerView(movie, local?.let { Uri.fromFile(it).toString() }, Modifier.fillMaxSize())
+            PlayerBox(movie, local?.let { Uri.fromFile(it).toString() }, Modifier.fillMaxSize())
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 item {
@@ -130,7 +130,7 @@ fun PlayerScreen(id: Long, onBack: () -> Unit, onEpisode: (Long) -> Unit) {
                     }
                 }
                 item {
-                    PlayerView(movie, local?.let { Uri.fromFile(it).toString() }, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+                    PlayerBox(movie, local?.let { Uri.fromFile(it).toString() }, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
                 }
                 // Prev / Next
                 if (prev != null || next != null) {
@@ -217,7 +217,7 @@ fun PlayerScreen(id: Long, onBack: () -> Unit, onEpisode: (Long) -> Unit) {
 
 /** Sahi player chuno: offline file → YouTube → direct video → embed. */
 @Composable
-private fun PlayerView(movie: Movie, localUri: String?, modifier: Modifier) {
+private fun PlayerBox(movie: Movie, localUri: String?, modifier: Modifier) {
     when {
         localUri != null -> ExoScreen(localUri, modifier)
         movie.youtubeId != null -> YtScreen(movie.youtubeId!!, modifier)
