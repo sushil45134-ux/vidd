@@ -1,0 +1,11 @@
+# Android / Gradle — ye files Git me nahi jayengi
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
