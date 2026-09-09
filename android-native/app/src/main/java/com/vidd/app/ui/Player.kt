@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -40,9 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,9 +60,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.pierfrancescoSoffritti.androidyoutubeplayer.core.player.YouTubePlayer
-import com.pierfrancescoSoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
-import com.pierfrancescoSoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.vidd.app.data.Down
 import com.vidd.app.data.Movie
 import com.vidd.app.data.Repo
@@ -259,28 +255,29 @@ private fun ExoScreen(url: String, modifier: Modifier) {
     )
 }
 
+/** YouTube video — website jaisa IFrame player (bina kisi library ke). */
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YtScreen(videoId: String, modifier: Modifier) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var view by remember { mutableStateOf<YouTubePlayerView?>(null) }
+    val html = remember(videoId) {
+        """<html><body style="margin:0;background:#000">
+        <iframe width="100%" height="100%"
+        src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0&playsinline=1"
+        frameborder="0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        allowfullscreen></iframe></body></html>"""
+    }
     AndroidView(
         factory = { ctx ->
-            YouTubePlayerView(ctx).apply {
-                lifecycle.addObserver(this)
-                addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
-                    override fun onReady(player: YouTubePlayer) {
-                        player.loadVideo(videoId, 0f)
-                    }
-                })
-            }.also { view = it }
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                webChromeClient = WebChromeClient()
+                loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "utf-8", null)
+            }
         },
         modifier = modifier.background(Color.Black),
     )
-    DisposableEffect(lifecycle) {
-        onDispose {
-            view?.let { v -> runCatching { lifecycle.removeObserver(v); v.release() } }
-        }
-    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -298,6 +295,7 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
+                webChromeClient = WebChromeClient()
                 loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
             }
         },
