@@ -1,5 +1,7 @@
 # vid — Native Android App (Kotlin + Jetpack Compose) 🚀
 
+> **v2.0.1** — startup crash fixed + stable signature (ab har update seedha install hoga).
+
 Ye aapki website ka **proper native app** hai — 100% Kotlin me likha hua,
 Netflix-style premium UI ke saath. Data wahi Supabase se aata hai jo website
 use karti hai, isliye website par jo video add karoge wo app me bhi dikhega.
