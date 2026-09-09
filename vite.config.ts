@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      // Accept any host header so the app is reachable through sandbox/preview
+      // proxies (dev server only — never used for the production build).
+      allowedHosts: true,
+    },
+  },
 });
