@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose khud rang sambhalta hai — ye sirf status bar + splash ke liye -->
+    <style name="Theme.VidNative" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowBackground">@color/black</item>
+    </style>
+
+    <style name="Theme.VidNative.Splash" parent="Theme.VidNative">
+        <item name="android:windowBackground">@drawable/splash_bg</item>
+    </style>
+</resources>
