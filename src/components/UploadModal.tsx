@@ -2,6 +2,16 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Upload, Film, Play, Image, Trash2, Check, Link, Globe } from "lucide-react";
 import type { Movie } from "../data";
 import { youtubeThumbnailSources } from "../lib/media";
+import {
+  isCloudLink,
+  isMegaFolderLink,
+  parseCloudLink,
+  parseDriveLink,
+  parseMegaLink,
+  splitLinkList,
+  type CloudEpisode,
+  type CloudProvider,
+} from "../lib/cloudLinks";
 
 interface UploadModalProps {
   onClose: () => void;
@@ -168,6 +178,22 @@ function detectPlatform(input: string): PlatformResult | null {
     color: "bg-orange-600", icon: "🌐",
   };
 
+  // ── MEGA ───────────────────────────────────────────────────
+  const megaLink = parseMegaLink(url);
+  if (megaLink) return {
+    platform: "MEGA", id: megaLink.fileId,
+    embedUrl: megaLink.embedUrl,
+    thumbnail: "", color: "bg-red-600", icon: "📦",
+  };
+
+  // ── Google Drive ───────────────────────────────────────────
+  const driveLink = parseDriveLink(url);
+  if (driveLink) return {
+    platform: "Google Drive", id: driveLink.fileId,
+    embedUrl: driveLink.embedUrl,
+    thumbnail: "", color: "bg-green-600", icon: "📁",
+  };
+
   // ── Generic iframe / direct embed URL ──────────────────────
   // If it looks like a URL with a video embed path
   if (/^https?:\/\/.+/i.test(url) && (
@@ -197,33 +223,66 @@ const PLATFORMS = [
   { name: "Rumble", examples: ["rumble.com/embed/..."], color: "text-green-400" },
   { name: "Streamable", examples: ["streamable.com/..."], color: "text-teal-400" },
   { name: "Facebook", examples: ["facebook.com/.../videos/..."], color: "text-blue-500" },
+  { name: "Google Drive", examples: ["drive.google.com/file/d/.../view"], color: "text-green-400" },
+  { name: "MEGA", examples: ["mega.nz/file/...#key", "mega.nz/embed/...#key"], color: "text-red-400" },
   { name: "Any embed", examples: ["Paste any <iframe> embed code"], color: "text-gray-400" },
 ];
 
-type SourceTab = "file" | "embed" | "drive";
+type CloudTab = CloudProvider; // "drive" | "mega"
+type SourceTab = "file" | "embed" | CloudTab;
 
-/* ── Google Drive helpers ─────────────────────────────────────── */
-interface DriveEpisode {
-  id: string;
-  fileId: string;
-  title: string;
-  url: string;
+/* ── Cloud series (Google Drive / MEGA) helpers ───────────────── */
+interface CloudTabConfig {
+  /** Display name used in badges and platform labels. */
+  name: string;
+  /** Value stored on Movie.embedPlatform. */
+  platform: string;
+  placeholder: string;
+  tip: string;
+  invalidError: string;
+  folderError?: string;
 }
 
-function extractDriveFileId(input: string): string | null {
-  const trimmed = input.trim();
-  const patterns = [
-    /drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/,
-    /drive\.google\.com\/open\?id=([A-Za-z0-9_-]+)/,
-    /docs\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/,
-    /drive\.google\.com\/uc\?.*id=([A-Za-z0-9_-]+)/,
-  ];
-  for (const p of patterns) {
-    const m = trimmed.match(p);
-    if (m) return m[1];
+const CLOUD_TABS: Record<CloudTab, CloudTabConfig> = {
+  drive: {
+    name: "Google Drive",
+    platform: "Google Drive",
+    placeholder:
+      "Paste all Google Drive video links here — one per line:\n\nhttps://drive.google.com/file/d/FILE_ID_1/view\nhttps://drive.google.com/file/d/FILE_ID_2/view\nhttps://drive.google.com/file/d/FILE_ID_3/view\n...",
+    tip: 'Open your Google Drive folder → select all videos → right-click → "Get link" → copy all links and paste them here at once. Each link becomes one episode.',
+    invalidError: "Could not extract file ID. Make sure you paste Google Drive file links.",
+  },
+  mega: {
+    name: "MEGA",
+    platform: "MEGA",
+    placeholder:
+      "Paste all MEGA video links here — one per line:\n\nhttps://mega.nz/file/HANDLE_1#KEY_1\nhttps://mega.nz/file/HANDLE_2#KEY_2\nhttps://mega.nz/embed/HANDLE_3#KEY_3\n...",
+    tip: "Open your MEGA folder → right-click a video → \"Get link\" (or \"Embed code\") → copy the link with its #key and paste all episode links here. Only MP4/WebM videos can be embedded, and the link must stay shared.",
+    invalidError:
+      "Could not read that MEGA link. Paste file links like https://mega.nz/file/HANDLE#KEY (the #key part is required).",
+    folderError:
+      "MEGA folder links can't be expanded into episodes. Open the folder, copy each video's own link and paste those instead.",
+  },
+};
+
+function CloudIcon({ provider, className }: { provider: CloudTab; className?: string }) {
+  if (provider === "mega") {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M3 5h4.2L12 12.2 16.8 5H21v14h-3.4v-8.2l-4 6h-3.2l-4-6V19H3z" />
+      </svg>
+    );
   }
-  if (/^[A-Za-z0-9_-]{20,}$/.test(trimmed)) return trimmed;
-  return null;
+  return (
+    <svg className={className} viewBox="0 0 87.3 78" fill="currentColor" aria-hidden="true">
+      <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" />
+      <path d="M43.65 25.15L29.9 1.35C28.55 2.15 27.4 3.25 26.6 4.65L1.2 48.2C.4 49.6 0 51.15 0 52.7h27.5l16.15-27.55z" />
+      <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.85L46.1 76.8h27.45z" />
+      <path d="M43.65 25.15L57.4 1.35C56.05.55 54.5.15 52.95.15h-18.6c-1.55 0-3.1.4-4.5 1.2l13.8 23.8z" />
+      <path d="M59.8 53H27.5l-13.75 23.8c1.4.8 2.95 1.2 4.5 1.2h50.5c1.55 0 3.1-.4 4.5-1.2L59.8 53z" />
+      <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z" />
+    </svg>
+  );
 }
 
 
@@ -246,11 +305,18 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const [detected, setDetected] = useState<PlatformResult | null>(null);
   const [embedError, setEmbedError] = useState("");
 
-  // Drive series state
-  const [driveInput, setDriveInput] = useState("");
-  const [driveEpisodes, setDriveEpisodes] = useState<DriveEpisode[]>([]);
-  const [driveError, setDriveError] = useState("");
+  // Cloud series state (Google Drive / MEGA share links)
+  const [cloudInputs, setCloudInputs] = useState<Record<CloudTab, string>>({ drive: "", mega: "" });
+  const [cloudEpisodes, setCloudEpisodes] = useState<Record<CloudTab, CloudEpisode[]>>({ drive: [], mega: [] });
+  const [cloudErrors, setCloudErrors] = useState<Record<CloudTab, string>>({ drive: "", mega: "" });
   const [seriesTitle, setSeriesTitle] = useState("");
+
+  // The active cloud tab, when the user picked the Drive or MEGA source tab.
+  const cloudTab: CloudTab | null = sourceTab === "drive" || sourceTab === "mega" ? sourceTab : null;
+  const cloudConfig = cloudTab ? CLOUD_TABS[cloudTab] : null;
+  const cloudEps = cloudTab ? cloudEpisodes[cloudTab] : [];
+  const cloudInput = cloudTab ? cloudInputs[cloudTab] : "";
+  const cloudError = cloudTab ? cloudErrors[cloudTab] : "";
 
   // Shared details
   const [, setThumbnailFile] = useState<File | null>(null);
@@ -334,46 +400,54 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
 
   const hasSource = sourceTab === "file" ? !!videoFile && !isProcessing
     : sourceTab === "embed" ? !!detected
-    : driveEpisodes.length > 0;
+    : cloudEpisodes[sourceTab].length > 0;
 
-  // ── Drive episode handlers ─────────────────────────────────
-  const addDriveLink = () => {
-    const val = driveInput.trim();
+  // ── Cloud (Drive / MEGA) episode handlers ──────────────────
+  const addCloudLinks = (tab: CloudTab) => {
+    const config = CLOUD_TABS[tab];
+    const val = cloudInputs[tab].trim();
     if (!val) return;
     // Support pasting multiple links (one per line, comma, or space separated)
-    const lines = val.split(/[\n,\s]+/).map(l => l.trim()).filter(Boolean);
-    const newEps: DriveEpisode[] = [];
+    const lines = splitLinkList(val);
+    const existing = cloudEpisodes[tab];
+    const newEps: CloudEpisode[] = [];
     let badLink = "";
+    let folderLink = false;
     for (const line of lines) {
-      if (!line.includes("drive.google.com") && !line.includes("docs.google.com") && !/^[A-Za-z0-9_-]{20,}$/.test(line)) continue;
-      const fileId = extractDriveFileId(line);
-      if (!fileId) { badLink = line; continue; }
-      if (driveEpisodes.some(e => e.fileId === fileId) || newEps.some(e => e.fileId === fileId)) continue;
+      if (!isCloudLink(tab, line)) continue;
+      if (tab === "mega" && isMegaFolderLink(line)) { folderLink = true; continue; }
+      const parsed = parseCloudLink(tab, line);
+      if (!parsed) { badLink = line; continue; }
+      if (existing.some(e => e.fileId === parsed.fileId) || newEps.some(e => e.fileId === parsed.fileId)) continue;
       newEps.push({
         id: `${Date.now()}-${Math.random()}`,
-        fileId,
-        title: `Episode ${driveEpisodes.length + newEps.length + 1}`,
-        url: `https://drive.google.com/file/d/${fileId}/preview`,
+        fileId: parsed.fileId,
+        title: `Episode ${existing.length + newEps.length + 1}`,
+        url: parsed.embedUrl,
       });
     }
-    if (newEps.length === 0 && badLink) { setDriveError("Could not extract file ID. Make sure you paste Google Drive file links."); return; }
-    if (newEps.length === 0 && lines.length > 0) { setDriveError("No new valid links found. Links may be duplicates or invalid."); return; }
-    setDriveEpisodes(prev => [...prev, ...newEps]);
-    setDriveInput("");
-    setDriveError("");
+    if (newEps.length === 0 && folderLink && config.folderError) { setCloudErrors(prev => ({ ...prev, [tab]: config.folderError! })); return; }
+    if (newEps.length === 0 && badLink) { setCloudErrors(prev => ({ ...prev, [tab]: config.invalidError })); return; }
+    if (newEps.length === 0 && lines.length > 0) { setCloudErrors(prev => ({ ...prev, [tab]: "No new valid links found. Links may be duplicates or invalid." })); return; }
+    setCloudEpisodes(prev => ({ ...prev, [tab]: [...prev[tab], ...newEps] }));
+    setCloudInputs(prev => ({ ...prev, [tab]: "" }));
+    setCloudErrors(prev => ({ ...prev, [tab]: "" }));
   };
 
-  const removeDriveEp = (id: string) => setDriveEpisodes(prev => prev.filter(e => e.id !== id));
-  const updateDriveEpTitle = (id: string, newTitle: string) => setDriveEpisodes(prev => prev.map(e => e.id === id ? { ...e, title: newTitle } : e));
+  const removeCloudEp = (tab: CloudTab, id: string) =>
+    setCloudEpisodes(prev => ({ ...prev, [tab]: prev[tab].filter(e => e.id !== id) }));
+  const updateCloudEpTitle = (tab: CloudTab, id: string, newTitle: string) =>
+    setCloudEpisodes(prev => ({ ...prev, [tab]: prev[tab].map(e => e.id === id ? { ...e, title: newTitle } : e) }));
 
   // ── Submit ─────────────────────────────────────────────────
   const handleSubmit = () => {
-    if (sourceTab === "drive") {
-      // Series mode — create multiple movies
-      if (driveEpisodes.length === 0) return;
+    if (cloudTab) {
+      // Series mode — create one movie per episode link
+      const episodes = cloudEpisodes[cloudTab];
+      if (episodes.length === 0) return;
       const sTitle = seriesTitle.trim() || "My Series";
       const fallbackImg = "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
-      const movies: Movie[] = driveEpisodes.map((ep, i) => ({
+      const movies: Movie[] = episodes.map((ep, i) => ({
         id: Date.now() + i,
         title: `${sTitle} - ${ep.title}`,
         description: description.trim() || `${sTitle}, ${ep.title}`,
@@ -386,7 +460,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
         cast: ["User Upload"],
         creator: "You",
         embedUrl: ep.url,
-        embedPlatform: "Google Drive",
+        embedPlatform: CLOUD_TABS[cloudTab].platform,
         thumbnailUrl: thumbnailUrl || undefined,
       }));
       setStep("done");
@@ -473,7 +547,12 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           <div className="p-10 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 rounded-full bg-green-600 flex items-center justify-center mb-4 animate-bounce"><Check size={32} className="text-white" /></div>
             <h3 className="text-white text-xl font-bold mb-2">Added Successfully!</h3>
-            <p className="text-gray-400 text-sm"><span className="text-white font-semibold">{title}</span> has been added to your library.</p>
+            <p className="text-gray-400 text-sm">
+              <span className="text-white font-semibold">{cloudTab ? seriesTitle.trim() || "My Series" : title}</span>
+              {cloudTab && cloudEpisodes[cloudTab].length > 1
+                ? ` — ${cloudEpisodes[cloudTab].length} episodes —`
+                : ""} has been added to your library.
+            </p>
           </div>
         )}
 
@@ -490,11 +569,13 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "embed" ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}>
                 <Globe size={14} /> Embed
               </button>
-              <button onClick={() => setSourceTab("drive")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "drive" ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}>
-                <svg className="w-3.5 h-3.5" viewBox="0 0 87.3 78" fill="currentColor"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z"/><path d="M43.65 25.15L29.9 1.35C28.55 2.15 27.4 3.25 26.6 4.65L1.2 48.2C.4 49.6 0 51.15 0 52.7h27.5l16.15-27.55z"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.85L46.1 76.8h27.45z"/><path d="M43.65 25.15L57.4 1.35C56.05.55 54.5.15 52.95.15h-18.6c-1.55 0-3.1.4-4.5 1.2l13.8 23.8z"/><path d="M59.8 53H27.5l-13.75 23.8c1.4.8 2.95 1.2 4.5 1.2h50.5c1.55 0 3.1-.4 4.5-1.2L59.8 53z"/><path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z"/></svg>
-                Drive Series
-              </button>
+              {(["drive", "mega"] as CloudTab[]).map((tab) => (
+                <button key={tab} onClick={() => setSourceTab(tab)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === tab ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}>
+                  <CloudIcon provider={tab} className="w-3.5 h-3.5" />
+                  {tab === "drive" ? "Drive" : "MEGA"}
+                </button>
+              ))}
             </div>
 
             {/* ── FILE TAB ── */}
@@ -557,7 +638,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                         <textarea
                           value={embedInput}
                           onChange={(e) => handleEmbedInput(e.target.value)}
-                          placeholder={'https://www.youtube.com/watch?v=...\nhttps://vimeo.com/123456\nhttps://www.dailymotion.com/video/...\nor paste any <iframe> embed code'}
+                          placeholder={'https://www.youtube.com/watch?v=...\nhttps://vimeo.com/123456\nhttps://mega.nz/file/HANDLE#KEY\nor paste any <iframe> embed code'}
                           className="w-full bg-[#333] border border-gray-600 rounded px-4 py-3 pl-10 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500 resize-none min-h-[80px]"
                           rows={3}
                         />
@@ -623,8 +704,8 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
               </div>
             )}
 
-            {/* ── GOOGLE DRIVE SERIES TAB ── */}
-            {sourceTab === "drive" && (
+            {/* ── CLOUD SERIES TAB (Google Drive / MEGA) ── */}
+            {cloudTab && cloudConfig && (
               <div>
                 {/* Series title */}
                 <div className="mb-4">
@@ -636,41 +717,46 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                 {/* Add links input */}
                 <div className="mb-4">
                   <label className="text-gray-300 text-sm font-medium mb-2 block">
-                    Google Drive Video Links
+                    {cloudConfig.name} Video Links
                     <span className="text-gray-500 text-xs ml-2">(paste all episode links at once)</span>
                   </label>
                   <div className="flex gap-2">
-                    <textarea value={driveInput} onChange={(e) => { setDriveInput(e.target.value); setDriveError(""); }}
-                      placeholder={"Paste all Google Drive video links here — one per line:\n\nhttps://drive.google.com/file/d/FILE_ID_1/view\nhttps://drive.google.com/file/d/FILE_ID_2/view\nhttps://drive.google.com/file/d/FILE_ID_3/view\n..."}
+                    <textarea value={cloudInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCloudInputs(prev => ({ ...prev, [cloudTab]: value }));
+                        setCloudErrors(prev => ({ ...prev, [cloudTab]: "" }));
+                      }}
+                      placeholder={cloudConfig.placeholder}
                       className="flex-1 bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500 resize-none min-h-[100px]"
                       rows={5} />
-                    <button onClick={addDriveLink}
+                    <button onClick={() => addCloudLinks(cloudTab)}
                       className="self-end px-4 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors flex-shrink-0">
                       Add
                     </button>
                   </div>
-                  {driveError && <p className="text-red-500 text-xs mt-1">{driveError}</p>}
+                  {cloudError && <p className="text-red-500 text-xs mt-1">{cloudError}</p>}
                   <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
-                    💡 <span className="text-gray-400">Tip:</span> Open your Google Drive folder → select all videos → right-click → "Get link" → copy all links and paste them here at once. Each link becomes one episode.
+                    💡 <span className="text-gray-400">Tip:</span> {cloudConfig.tip}
                   </p>
                 </div>
 
                 {/* Episode list */}
-                {driveEpisodes.length > 0 && (
+                {cloudEps.length > 0 && (
                   <div className="mb-2">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-300 text-sm font-medium">{driveEpisodes.length} Episode{driveEpisodes.length > 1 ? "s" : ""}</p>
-                      <button onClick={() => setDriveEpisodes([])} className="text-red-500 text-xs hover:text-red-400">Clear all</button>
+                      <p className="text-gray-300 text-sm font-medium">{cloudEps.length} Episode{cloudEps.length > 1 ? "s" : ""}</p>
+                      <button onClick={() => setCloudEpisodes(prev => ({ ...prev, [cloudTab]: [] }))} className="text-red-500 text-xs hover:text-red-400">Clear all</button>
                     </div>
                     <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                      {driveEpisodes.map((ep, i) => (
+                      {cloudEps.map((ep, i) => (
                         <div key={ep.id} className="flex items-center gap-3 bg-[#222] rounded-lg px-3 py-2.5 group">
                           <span className="text-gray-500 text-xs font-mono w-6 text-center flex-shrink-0">{i + 1}</span>
-                          <svg className="w-4 h-4 text-green-500 flex-shrink-0" viewBox="0 0 87.3 78" fill="currentColor"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z"/><path d="M43.65 25.15L29.9 1.35C28.55 2.15 27.4 3.25 26.6 4.65L1.2 48.2C.4 49.6 0 51.15 0 52.7h27.5l16.15-27.55z"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.85L46.1 76.8h27.45z"/><path d="M43.65 25.15L57.4 1.35C56.05.55 54.5.15 52.95.15h-18.6c-1.55 0-3.1.4-4.5 1.2l13.8 23.8z"/><path d="M59.8 53H27.5l-13.75 23.8c1.4.8 2.95 1.2 4.5 1.2h50.5c1.55 0 3.1-.4 4.5-1.2L59.8 53z"/><path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z"/></svg>
-                          <input type="text" value={ep.title} onChange={(e) => updateDriveEpTitle(ep.id, e.target.value)}
+                          <CloudIcon provider={cloudTab} className={`w-4 h-4 flex-shrink-0 ${cloudTab === "mega" ? "text-red-500" : "text-green-500"}`} />
+                          <input type="text" value={ep.title} onChange={(e) => updateCloudEpTitle(cloudTab, ep.id, e.target.value)}
                             className="flex-1 bg-transparent text-white text-sm outline-none border-b border-transparent focus:border-gray-500 min-w-0" />
                           <span className="text-gray-600 text-[10px] font-mono hidden md:block">{ep.fileId.slice(0, 8)}...</span>
-                          <button onClick={() => removeDriveEp(ep.id)} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => removeCloudEp(cloudTab, ep.id)} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -679,11 +765,11 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                   </div>
                 )}
 
-                {driveEpisodes.length === 0 && (
+                {cloudEps.length === 0 && (
                   <div className="bg-[#111] rounded-lg p-6 text-center">
-                    <svg className="w-10 h-10 mx-auto mb-3 text-gray-600" viewBox="0 0 87.3 78" fill="currentColor"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z"/><path d="M43.65 25.15L29.9 1.35C28.55 2.15 27.4 3.25 26.6 4.65L1.2 48.2C.4 49.6 0 51.15 0 52.7h27.5l16.15-27.55z"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.85L46.1 76.8h27.45z"/><path d="M43.65 25.15L57.4 1.35C56.05.55 54.5.15 52.95.15h-18.6c-1.55 0-3.1.4-4.5 1.2l13.8 23.8z"/><path d="M59.8 53H27.5l-13.75 23.8c1.4.8 2.95 1.2 4.5 1.2h50.5c1.55 0 3.1-.4 4.5-1.2L59.8 53z"/><path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z"/></svg>
+                    <CloudIcon provider={cloudTab} className="w-10 h-10 mx-auto mb-3 text-gray-600" />
                     <p className="text-gray-400 text-sm mb-1">No episodes added yet</p>
-                    <p className="text-gray-600 text-xs">Paste Google Drive video links above to add episodes</p>
+                    <p className="text-gray-600 text-xs">Paste {cloudConfig.name} video links above to add episodes</p>
                   </div>
                 )}
               </div>
@@ -692,11 +778,11 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
             {/* Actions */}
             <div className="flex justify-end mt-6 gap-3">
               <button onClick={onClose} className="px-5 py-2 rounded text-gray-300 text-sm hover:text-white transition-colors">Cancel</button>
-              {sourceTab === "drive" ? (
+              {cloudTab ? (
                 <button onClick={() => setStep("details")}
-                  disabled={driveEpisodes.length === 0 || !seriesTitle.trim()}
+                  disabled={cloudEps.length === 0 || !seriesTitle.trim()}
                   className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Next: Add Details ({driveEpisodes.length} episode{driveEpisodes.length !== 1 ? "s" : ""})
+                  Next: Add Details ({cloudEps.length} episode{cloudEps.length !== 1 ? "s" : ""})
                 </button>
               ) : (
                 <button onClick={() => {
@@ -717,10 +803,14 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           <div className="p-6 space-y-5">
             {/* Source badge */}
             <div className="flex items-center gap-2">
-              {sourceTab === "drive" ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border border-green-600/30 bg-green-600/10 text-green-400">
-                  <svg className="w-3 h-3" viewBox="0 0 87.3 78" fill="currentColor"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z"/><path d="M43.65 25.15L29.9 1.35C28.55 2.15 27.4 3.25 26.6 4.65L1.2 48.2C.4 49.6 0 51.15 0 52.7h27.5l16.15-27.55z"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.85L46.1 76.8h27.45z"/><path d="M43.65 25.15L57.4 1.35C56.05.55 54.5.15 52.95.15h-18.6c-1.55 0-3.1.4-4.5 1.2l13.8 23.8z"/><path d="M59.8 53H27.5l-13.75 23.8c1.4.8 2.95 1.2 4.5 1.2h50.5c1.55 0 3.1-.4 4.5-1.2L59.8 53z"/><path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z"/></svg>
-                  Google Drive Series • {driveEpisodes.length} episodes
+              {cloudTab ? (
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+                  cloudTab === "mega"
+                    ? "border-red-600/30 bg-red-600/10 text-red-400"
+                    : "border-green-600/30 bg-green-600/10 text-green-400"
+                }`}>
+                  <CloudIcon provider={cloudTab} className="w-3 h-3" />
+                  {CLOUD_TABS[cloudTab].name} Series • {cloudEps.length} episode{cloudEps.length !== 1 ? "s" : ""}
                 </span>
               ) : (
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
@@ -750,8 +840,8 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
               <input ref={thumbnailInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleThumbnailSelect(f); }} />
             </div>
 
-            {/* Title (not for drive — series title is already set) */}
-            {sourceTab !== "drive" && (
+            {/* Title (not for Drive/MEGA series — series title is already set) */}
+            {!cloudTab && (
               <div>
                 <label className="text-gray-300 text-sm font-medium mb-2 block">Title <span className="text-red-500">*</span></label>
                 <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter title..."
@@ -799,9 +889,9 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
               <button onClick={() => setStep("upload")} className="px-5 py-2 rounded text-gray-300 text-sm hover:text-white transition-colors">← Back</button>
               <div className="flex gap-3">
                 <button onClick={onClose} className="px-5 py-2 rounded text-gray-300 text-sm hover:text-white transition-colors">Cancel</button>
-                <button onClick={handleSubmit} disabled={sourceTab === "drive" ? driveEpisodes.length === 0 : !title.trim()}
+                <button onClick={handleSubmit} disabled={cloudTab ? cloudEps.length === 0 : !title.trim()}
                   className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
-                  <Upload size={16} /> {sourceTab === "drive" ? `Add ${driveEpisodes.length} Episode${driveEpisodes.length !== 1 ? "s" : ""}` : "Add & Play"}
+                  <Upload size={16} /> {cloudTab ? `Add ${cloudEps.length} Episode${cloudEps.length !== 1 ? "s" : ""}` : "Add & Play"}
                 </button>
               </div>
             </div>

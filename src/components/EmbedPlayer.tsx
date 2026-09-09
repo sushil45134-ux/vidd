@@ -201,7 +201,7 @@ function isDailymotionLastFiveSeconds(data: unknown): boolean {
 /**
  * Generic player for non-YouTube sources (Vimeo, Dailymotion, Odysee,
  * BitChute, Rumble, Bilibili, Twitch, Streamable, Facebook, Google Drive,
- * arbitrary iframe embeds, and uploaded/blob video files).
+ * MEGA, arbitrary iframe embeds, and uploaded/blob video files).
  */
 export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;

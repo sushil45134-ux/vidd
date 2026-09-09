@@ -31,7 +31,7 @@ export default function PlayerOverlay({
   const current = queue[idx] || movie;
 
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
-  // Bilibili, Twitch, Streamable, Facebook, Google Drive, generic iframe).
+  // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).
   if (!current.youtubeId && current.embedUrl) {
     return (
       <EmbedPlayer src={current.embedUrl} kind="iframe" onClose={onClose} />
