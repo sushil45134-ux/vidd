@@ -268,7 +268,7 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
     // load karo — WebView use browser ki tarah chalata hai. Yeh sabse pakka
     // tareeka hai: na height ka issue, na origin/postMessage ka.
     val embedUrl = remember(videoId) {
-        "https://www.youtube-nocookie.com/embed/$videoId" +
+        "https://www.youtube.com/embed/$videoId" +
             "?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3" +
             "&origin=https%3A%2F%2Fwww.youtube.com"
     }
@@ -321,7 +321,7 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
                         }
                     }
                     loadedFor = embedUrl
-                    loadUrl(embedUrl)
+                    loadUrl(embedUrl, mapOf("Referer" to "https://www.youtube.com/"))
                 }
             },
             update = { wv ->
@@ -329,7 +329,7 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
                 if (loadedFor != embedUrl) {
                     loadedFor = embedUrl
                     loadError = false
-                    wv.loadUrl(embedUrl)
+                    wv.loadUrl(embedUrl, mapOf("Referer" to "https://www.youtube.com/"))
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -339,7 +339,7 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
             PlayerWebError(
                 onRetry = {
                     loadError = false
-                    webRef?.loadUrl(embedUrl)
+                    webRef?.loadUrl(embedUrl, mapOf("Referer" to "https://www.youtube.com/"))
                 },
                 onOpenBrowser = {
                     runCatching {
@@ -401,14 +401,14 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
                         }
                     }
                     loadedFor = embedUrl
-                    loadUrl(embedUrl)
+                    loadUrl(embedUrl, mapOf("Referer" to "https://www.youtube.com/"))
                 }
             },
             update = { wv ->
                 if (loadedFor != embedUrl && embedUrl.isNotEmpty()) {
                     loadedFor = embedUrl
                     loadError = false
-                    wv.loadUrl(embedUrl)
+                    wv.loadUrl(embedUrl, mapOf("Referer" to "https://www.youtube.com/"))
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -418,7 +418,7 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
             PlayerWebError(
                 onRetry = {
                     loadError = false
-                    webRef?.loadUrl(embedUrl)
+                    webRef?.loadUrl(embedUrl, mapOf("Referer" to "https://www.youtube.com/"))
                 },
                 onOpenBrowser = {
                     runCatching {
