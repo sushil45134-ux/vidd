@@ -268,8 +268,9 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
     // load karo — WebView use browser ki tarah chalata hai. Yeh sabse pakka
     // tareeka hai: na height ka issue, na origin/postMessage ka.
     val embedUrl = remember(videoId) {
-        "https://www.youtube.com/embed/$videoId" +
-            "?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3"
+        "https://www.youtube-nocookie.com/embed/$videoId" +
+            "?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3" +
+            "&origin=https%3A%2F%2Fwww.youtube.com"
     }
     var loadError by remember(videoId) { mutableStateOf(false) }
     var webRef by remember { mutableStateOf<WebView?>(null) }
