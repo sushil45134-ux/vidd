@@ -7,6 +7,8 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebViewClient
 import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -255,16 +257,36 @@ private fun ExoScreen(url: String, modifier: Modifier) {
     )
 }
 
-/** YouTube video — website jaisa IFrame player (bina kisi library ke). */
+/** YouTube video — website jaisa IFrame Player API (bina kisi library ke). */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YtScreen(videoId: String, modifier: Modifier) {
+    // Purana plain <iframe height="100%">: body ki height na hone se iframe
+    // 150px ki patli strip ban jata tha aur video chalta nahi dikhta tha.
+    // Ab html/body full-height + IFrame Player API + autoplay onReady.
     val html = remember(videoId) {
-        """<html><body style="margin:0;background:#000">
-        <iframe width="100%" height="100%"
-        src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0&playsinline=1"
-        frameborder="0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        allowfullscreen></iframe></body></html>"""
+        """<!DOCTYPE html>
+        <html><head><style>
+        html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}
+        #yt{position:absolute;top:0;left:0;width:100%;height:100%}
+        </style></head>
+        <body>
+        <div id="yt"></div>
+        <script src="https://www.youtube.com/iframe_api"></script>
+        <script>
+        function onYouTubeIframeAPIReady(){
+          new YT.Player('yt', {
+            videoId: '$videoId',
+            width: '100%', height: '100%',
+            playerVars: {
+              autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1,
+              iv_load_policy: 3, origin: 'https://www.youtube.com'
+            },
+            events: { onReady: function(e){ e.target.playVideo(); } }
+          });
+        }
+        </script>
+        </body></html>"""
     }
     AndroidView(
         factory = { ctx ->
@@ -272,6 +294,22 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                // Player ke links WebView ke bahar na jaayein
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: WebResourceRequest
+                    ): Boolean {
+                        val host = request.url.host ?: return false
+                        return !(host.endsWith("youtube.com") ||
+                            host.endsWith("youtube-nocookie.com") ||
+                            host.endsWith("ytimg.com") ||
+                            host.endsWith("googlevideo.com") ||
+                            host.endsWith("googleapis.com"))
+                    }
+                }
                 webChromeClient = WebChromeClient()
                 loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "utf-8", null)
             }
@@ -283,11 +321,24 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun EmbedScreen(movie: Movie, modifier: Modifier) {
-    val html = remember(movie.embedUrl) {
-        """<html><body style="margin:0;background:#000">
-        <iframe width="100%" height="100%" src="${movie.embedUrl}"
-        frameborder="0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+    // Base URL null nahi — null origin par kai providers (Dailymotion etc.)
+    // playback block kar dete hain. Embed ke apne origin se load karo.
+    val embedUrl = movie.embedUrl ?: ""
+    val html = remember(embedUrl) {
+        """<!DOCTYPE html>
+        <html><head><style>
+        html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}
+        iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+        </style></head>
+        <body><iframe src="$embedUrl"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
         allowfullscreen></iframe></body></html>"""
+    }
+    val base = remember(embedUrl) {
+        runCatching {
+            val u = Uri.parse(embedUrl)
+            "${u.scheme ?: "https"}://${u.host ?: "www.dailymotion.com"}"
+        }.getOrDefault("https://www.dailymotion.com")
     }
     AndroidView(
         factory = { ctx ->
@@ -296,7 +347,7 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
                 webChromeClient = WebChromeClient()
-                loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
+                loadDataWithBaseURL(base, html, "text/html", "utf-8", null)
             }
         },
         modifier = modifier.background(Color.Black),

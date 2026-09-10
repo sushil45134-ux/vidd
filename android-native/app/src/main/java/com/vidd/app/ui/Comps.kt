@@ -35,7 +35,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import com.vidd.app.data.Movie
 
 // ---------------------------------------------------------------------------
@@ -64,6 +68,25 @@ private fun decodeDataUrl(url: String): android.graphics.Bitmap? {
     } catch (_: Exception) { null }
 }
 
+/**
+ * YouTube thumbnails: DB me mostly hqdefault (480x360, upar-neeche black
+ * bars) pada hai — phone par blur/katela lagta hai. maxresdefault (1280x720)
+ * pehle try karo, phir sd → hq → mq. Coil error par agla chala lega.
+ */
+private val YT_HQ_RE =
+    Regex("^(https?://(?:img\\.youtube\\.com|i\\d?\\.ytimg\\.com)/vi/([A-Za-z0-9_-]{6,})/)hqdefault\\.jpg.*$")
+
+private fun thumbCandidates(url: String): List<String> {
+    val m = YT_HQ_RE.find(url) ?: return listOf(url)
+    val base = m.groupValues[1]
+    return listOf(
+        base + "maxresdefault.jpg",
+        base + "sddefault.jpg",
+        url,
+        base + "mqdefault.jpg",
+    ).distinct()
+}
+
 @Composable
 fun ViddImage(
     url: String,
@@ -71,6 +94,8 @@ fun ViddImage(
     modifier: Modifier = Modifier,
     scale: ContentScale = ContentScale.Crop,
 ) {
+    val candidates = remember(url) { thumbCandidates(url) }
+    var attempt by remember(url) { mutableIntStateOf(0) }
     Box(modifier.background(Color(0xFF1C1C1C))) {
         if (url.startsWith("data:")) {
             val bmp = remember(url) { decodeDataUrl(url) }
@@ -84,10 +109,16 @@ fun ViddImage(
             }
         } else {
             AsyncImage(
-                model = url,
+                model = candidates[attempt],
                 contentDescription = desc,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = scale,
+                onState = { state ->
+                    // 404 ya network error → agla (chhota) variant try karo
+                    if (state is AsyncImagePainter.State.Error && attempt < candidates.lastIndex) {
+                        attempt++
+                    }
+                },
             )
         }
     }
@@ -107,9 +138,10 @@ fun PosterCard(
         ViddImage(
             url = movie.image,
             desc = movie.title,
+            // 16:9 — thumbnails landscape hote hain (2:3 me bhaari crop hota tha)
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f)
+                .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(8.dp)),
         )
         Text(
