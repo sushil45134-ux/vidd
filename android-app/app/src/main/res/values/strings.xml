@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phone me app ke neeche dikhne wala naam -->
+    <string name="app_name">vid</string>
+
+    <!-- ⭐⭐⭐ SABSE ZARURI LINE ⭐⭐⭐
+         Yahaan apni LIVE website ka poora link likho (https samet).
+         Udaaharan:  https://vidd.lovable.app
+         Link badalne ke baad dobara build karo (ya push karo → auto APK ban jayega). -->
+    <string name="site_url">https://vidd-zeta.vercel.app</string>
+</resources>

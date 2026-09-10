@@ -62,7 +62,7 @@ export function VideoPlayer({
   currentQueueIndex,
   onJumpTo,
 }: VideoPlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(80);
   const [progress, setProgress] = useState(0);
@@ -86,6 +86,7 @@ export function VideoPlayer({
   const [activeSubtitle, setActiveSubtitle] = useState<string | null>(null);
 
   const playerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const ytPlayerRef = useRef<any>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
@@ -103,22 +104,42 @@ export function VideoPlayer({
     setCurrentTime("0:00");
     setDuration("0:00");
 
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    const existing = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
-    if (!existing) {
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    // Load the YouTube IFrame API script once per page. Never depend on other
+    // <script> tags existing — append to <head> directly.
+    const API_SRC = "https://www.youtube.com/iframe_api";
+    if (!document.querySelector(`script[src="${API_SRC}"]`)) {
+      const tag = document.createElement("script");
+      tag.src = API_SRC;
+      document.head.appendChild(tag);
     }
 
+    let cancelled = false;
+    let mountNode: HTMLDivElement | null = null;
+    let autoplayCheckTimer: ReturnType<typeof setTimeout> | undefined;
+
     const initPlayer = () => {
+      if (cancelled || !containerRef.current) return;
       if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
         ytPlayerRef.current.loadVideoById(videoId);
         if (autoPlay) ytPlayerRef.current.playVideo();
         return;
       }
-      const player = new (window as any).YT.Player("yt-player", {
+      // YT.Player REPLACES the element it is given with an <iframe>. If we
+      // passed our React-rendered div by id, the div would be consumed: after
+      // destroy() (React StrictMode's double-invoked effects, or the
+      // key-remounts from PlayerOverlay) the element is gone and the next
+      // `new YT.Player("yt-player", …)` throws "element not found" — the
+      // video then never loads (infinite spinner). Instead, mount the player
+      // on a disposable node React does not manage, created fresh per effect
+      // run, so remounts always have a valid target.
+      mountNode = document.createElement("div");
+      mountNode.style.width = "100%";
+      mountNode.style.height = "100%";
+      containerRef.current.appendChild(mountNode);
+      const player = new (window as any).YT.Player(mountNode, {
         videoId,
+        width: "100%",
+        height: "100%",
         playerVars: {
           autoplay: autoPlay ? 1 : 0,
           controls: 0,
@@ -136,11 +157,27 @@ export function VideoPlayer({
         },
         events: {
           onReady: (event: any) => {
+            if (cancelled) return;
             const p = event.target;
             ytPlayerRef.current = p;
             p.setVolume(volume);
             if (autoPlay) p.playVideo();
             setIsBuffering(false);
+
+            // If the browser blocks programmatic autoplay (common on first
+            // visit), YouTube may not fire any state event — make sure the
+            // spinner clears and the center play button becomes clickable.
+            autoplayCheckTimer = setTimeout(() => {
+              if (cancelled || hasStartedRef.current) return;
+              try {
+                const st = p.getPlayerState?.();
+                // 1 = playing, 3 = buffering — the video is genuinely on its
+                // way; leave the UI alone.
+                if (st === 1 || st === 3) return;
+              } catch (_) {}
+              setIsBuffering(false);
+              setIsPlaying(false);
+            }, 2500);
 
             try {
               const title = p.getVideoData && p.getVideoData()?.title;
@@ -201,6 +238,11 @@ export function VideoPlayer({
               setIsPlaying(false);
             } else if (event.data === YT.PlayerState.BUFFERING) {
               setIsBuffering(true);
+            } else if (event.data === YT.PlayerState.UNSTARTED) {
+              // Player is idle (e.g. autoplay was blocked) — never leave the
+              // spinner running or claim we are playing.
+              setIsPlaying(false);
+              setIsBuffering(false);
             } else if (event.data === YT.PlayerState.ENDED) {
               setIsPlaying(false);
               setProgress(100);
@@ -210,6 +252,19 @@ export function VideoPlayer({
         },
       });
       ytPlayerRef.current = player;
+      // The API replaces mountNode with an <iframe> that does NOT inherit our
+      // styles/classes — size it explicitly so it fills the crop wrapper.
+      try {
+        const iframe = containerRef.current?.querySelector("iframe");
+        if (iframe) {
+          iframe.style.width = "100%";
+          iframe.style.height = "100%";
+          iframe.style.position = "absolute";
+          iframe.style.top = "0";
+          iframe.style.left = "0";
+          iframe.style.border = "0";
+        }
+      } catch (_) {}
     };
 
     if ((window as any).YT && (window as any).YT.Player) {
@@ -219,11 +274,18 @@ export function VideoPlayer({
     }
 
     return () => {
+      cancelled = true;
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      if (autoplayCheckTimer) clearTimeout(autoplayCheckTimer);
       const inst = ytPlayerRef.current;
       ytPlayerRef.current = null;
       if (inst && typeof inst.destroy === "function") {
         try { inst.destroy(); } catch (_) {}
+      }
+      // Remove anything the player left behind (iframe / mount node) so the
+      // next mount starts from a clean container.
+      if (containerRef.current) {
+        try { containerRef.current.innerHTML = ""; } catch (_) {}
       }
     };
   }, [videoId]);
@@ -384,7 +446,7 @@ export function VideoPlayer({
         <div className="absolute inset-0 flex items-center justify-center bg-black">
           <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
             <div className="absolute" style={{ top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }}>
-              <div id="yt-player" className="w-full h-full" />
+              <div ref={containerRef} className="w-full h-full" />
             </div>
           </div>
         </div>

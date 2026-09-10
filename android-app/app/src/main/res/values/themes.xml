@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Normal theme (bina top bar ke, poori screen website ke liye) -->
+    <style name="Theme.Vidd" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/red</item>
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowBackground">@color/black</item>
+    </style>
+
+    <!-- Splash theme — app khulte hi turant logo dikhe -->
+    <style name="Theme.Vidd.Splash" parent="Theme.Vidd">
+        <item name="android:windowBackground">@drawable/splash_bg</item>
+    </style>
+</resources>

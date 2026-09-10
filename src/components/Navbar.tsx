@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, X, Upload, RefreshCw, Sparkles, LogOut, Settings } from "lucide-react";
+import { Search, Bell, X, Upload, RefreshCw, Sparkles, LogOut, Settings, Download } from "lucide-react";
 import type { Category } from "../data";
 import { useSiteConfig } from "../lib/customization";
+import { usePwaInstall } from "../hooks/usePwaInstall";
 import Logo from "./Logo";
 
 
@@ -54,6 +55,7 @@ export default function Navbar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cfg = useSiteConfig();
+  const { canInstall, promptInstall } = usePwaInstall();
 
   useEffect(() => {
     if (searchOpen && inputRef.current) inputRef.current.focus();
@@ -148,6 +150,17 @@ export default function Navbar({
                     <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#ff6a00]" />
                   </button>
                 </div>
+
+                {canInstall && (
+                  <button
+                    onClick={() => void promptInstall()}
+                    className="h-8 px-3 ml-1 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition active:scale-95"
+                    title="Install vid as an app"
+                  >
+                    <Download size={13} />
+                    <span className="hidden sm:inline">Install App</span>
+                  </button>
+                )}
 
                 {isAdmin ? (
                   <>

@@ -369,7 +369,7 @@ export default function PlaylistSync({ onClose, onSync, existingIds }: PlaylistS
                           }`}>
                             {(isSelected || isExisting) && <Check size={12} className="text-white" />}
                           </div>
-                          <img src={`https://img.youtube.com/vi/${v.videoId}/default.jpg`} alt="" className="w-16 h-9 object-cover rounded flex-shrink-0 bg-gray-800" />
+                          <img src={`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`} alt="" className="w-16 h-9 object-cover rounded flex-shrink-0 bg-gray-800" />
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm truncate ${isExisting ? "text-gray-500" : "text-white"}`}>{v.title}</p>
                             <p className="text-gray-500 text-[10px]">{isExisting ? "Already in library" : v.author}</p>

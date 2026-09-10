@@ -85,6 +85,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "theme-color", content: "#0b0b0f" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      {
+        name: "apple-mobile-web-app-status-bar-style",
+        content: "black-translucent",
+      },
+      { name: "apple-mobile-web-app-title", content: "vid" },
     ],
     links: [
       {
@@ -92,6 +100,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      {
+        rel: "apple-touch-icon",
+        href: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -116,6 +130,22 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    // Register the PWA service worker (installable app on Android/desktop).
+    if ("serviceWorker" in navigator) {
+      const register = () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {
+          /* not fatal — app still works without offline support */
+        });
+      };
+      if (document.readyState === "complete") register();
+      else {
+        window.addEventListener("load", register, { once: true });
+        return () => window.removeEventListener("load", register);
+      }
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
