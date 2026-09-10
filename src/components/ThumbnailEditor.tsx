@@ -54,7 +54,9 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
       URL.revokeObjectURL(blobRef.current);
       blobRef.current = null;
     }
-    const yt = `https://img.youtube.com/vi/${movie.youtubeId}/hqdefault.jpg`;
+    // Prefer the highest-res thumbnail YouTube provides (1280×720); the
+    // display layer falls back through sd/hq if maxres is unavailable.
+    const yt = `https://img.youtube.com/vi/${movie.youtubeId}/maxresdefault.jpg`;
     setPreview(yt);
     setUrl(yt);
   };
