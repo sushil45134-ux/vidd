@@ -259,18 +259,60 @@ private fun ExoScreen(url: String, modifier: Modifier) {
     )
 }
 
-/** YouTube video — seedha YouTube ka apna embed page (WebView me browser jaisa). */
+/**
+ * YouTube / embed ke liye chhota HTML page (iframe ke saath).
+ *
+ * WebView me embed URL seedha loadUrl() karne par YouTube ab
+ * "Error 153 — video player configuration error" dikhata hai, kyunki
+ * top-level embed page ke paas koi valid referrer/origin nahi hota.
+ * Isliye hum loadDataWithBaseURL() se ek https origin ke saath apna page
+ * load karte hain jisme iframe + referrerpolicy="strict-origin-when-cross-origin"
+ * hai — bilkul waise jaise website par chalta hai.
+ */
+private fun embedPageHtml(src: String): String = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+      html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}
+      iframe{position:fixed;top:0;left:0;width:100%;height:100%;border:0}
+    </style>
+    </head>
+    <body>
+    <iframe src="$src"
+      frameborder="0"
+      allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen></iframe>
+    </body>
+    </html>
+""".trimIndent()
+
+/** Embed page ko pakka https origin ke saath load karo (Error 153 ka fix). */
+@SuppressLint("SetJavaScriptEnabled")
+private fun WebView.loadEmbed(src: String, packageName: String) {
+    loadDataWithBaseURL(
+        "https://$packageName/", // base origin — isi se YouTube ko valid referrer milta hai
+        embedPageHtml(src),
+        "text/html",
+        "utf-8",
+        null,
+    )
+}
+
+/** YouTube video — HTML page ke andar iframe (Error 153 ka pakka fix). */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YtScreen(videoId: String, modifier: Modifier) {
     val ctx = LocalContext.current
-    // Custom HTML + IFrame API ke bajaye YouTube ka official embed URL seedha
-    // load karo — WebView use browser ki tarah chalata hai. Yeh sabse pakka
-    // tareeka hai: na height ka issue, na origin/postMessage ka.
+    // youtube-nocookie.com (privacy-enhanced embed domain) — kai devices par
+    // isi se Error 153 nahi aata. Baaki params pehle jaise hi.
     val embedUrl = remember(videoId) {
-        "https://www.youtube.com/embed/$videoId" +
+        "https://www.youtube-nocookie.com/embed/$videoId" +
             "?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3"
     }
+    val watchUrl = "https://www.youtube.com/watch?v=$videoId"
     var loadError by remember(videoId) { mutableStateOf(false) }
     var webRef by remember { mutableStateOf<WebView?>(null) }
     var loadedFor by remember { mutableStateOf<String?>(null) }
@@ -320,7 +362,7 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
                         }
                     }
                     loadedFor = embedUrl
-                    loadUrl(embedUrl)
+                    loadEmbed(embedUrl, ctx.packageName)
                 }
             },
             update = { wv ->
@@ -328,7 +370,7 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
                 if (loadedFor != embedUrl) {
                     loadedFor = embedUrl
                     loadError = false
-                    wv.loadUrl(embedUrl)
+                    wv.loadEmbed(embedUrl, ctx.packageName)
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -338,11 +380,12 @@ private fun YtScreen(videoId: String, modifier: Modifier) {
             PlayerWebError(
                 onRetry = {
                     loadError = false
-                    webRef?.loadUrl(embedUrl)
+                    webRef?.loadEmbed(embedUrl, ctx.packageName)
                 },
                 onOpenBrowser = {
                     runCatching {
-                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(embedUrl)))
+                        // Browser me embed nahi, poora watch page kholo
+                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(watchUrl)))
                     }
                 },
             )
@@ -400,14 +443,14 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
                         }
                     }
                     loadedFor = embedUrl
-                    loadUrl(embedUrl)
+                    loadEmbed(embedUrl, ctx.packageName)
                 }
             },
             update = { wv ->
                 if (loadedFor != embedUrl && embedUrl.isNotEmpty()) {
                     loadedFor = embedUrl
                     loadError = false
-                    wv.loadUrl(embedUrl)
+                    wv.loadEmbed(embedUrl, ctx.packageName)
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -417,7 +460,7 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
             PlayerWebError(
                 onRetry = {
                     loadError = false
-                    webRef?.loadUrl(embedUrl)
+                    webRef?.loadEmbed(embedUrl, ctx.packageName)
                 },
                 onOpenBrowser = {
                     runCatching {
