@@ -4,7 +4,7 @@ name: Build Native App APK
 
 on:
   push:
-    branches: ["arena/01a089b0-vidd", "arena/01a0869b-vidd", "main"]
+    branches: ["arena/01a08a0c-vidd", "arena/01a089b0-vidd", "arena/01a0869b-vidd", "main"]
     paths: ["android-native/**", ".github/workflows/android-native-apk.yml"]
   workflow_dispatch: {}
 
