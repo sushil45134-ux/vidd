@@ -1,10 +1,11 @@
 # Native Kotlin app ka APK auto-build.
 # APK milega: Actions tab → is run → Artifacts → vid-native-apk
+# aur seedha public link: Releases → "Vidd Android App (APK)" → Vidd.apk
 name: Build Native App APK
 
 on:
   push:
-    branches: ["arena/01a089b0-vidd", "arena/01a0869b-vidd", "main"]
+    branches: ["arena/01a089b0-vidd", "arena/01a0869b-vidd", "arena/01a08a36-vidd", "main"]
     paths: ["android-native/**", ".github/workflows/android-native-apk.yml"]
   workflow_dispatch: {}
 
@@ -103,6 +104,35 @@ jobs:
           name: vid-native-apk
           path: android-native/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Release me APK daalo (seedha download link)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=android-native/app/build/outputs/apk/debug/app-debug.apk
+          VER=$(grep -o "versionName '[^']*'" android-native/app/build.gradle | head -1 | cut -d"'" -f2)
+          CODE=$(grep -o "versionCode [0-9]*" android-native/app/build.gradle | head -1 | awk '{print $2}')
+          cp "$APK" /tmp/Vidd.apk
+          NOTES="Vidd Android app ka ready-to-install APK.
+
+          **Version:** $VER (versionCode $CODE)
+
+          **Is build me:**
+          - YouTube Error 153 fix — videos ab native app me bhi chalengi
+          - Dailymotion / Streamable embeds ka bhi safe playback
+
+          **Install kaise karein:** niche Assets list se Vidd.apk download karo, phone me kholo, 'Unknown sources install' allow karo — bas. Purane version ke upar seedha install ho jayega (same signature)."
+          if gh release view apk-latest > /dev/null 2>&1; then
+            gh release upload apk-latest /tmp/Vidd.apk --clobber
+            gh release edit apk-latest --latest --title "Vidd Android App (APK)" --notes "$NOTES"
+          else
+            gh release create apk-latest /tmp/Vidd.apk \
+              --target "$GITHUB_SHA" \
+              --title "Vidd Android App (APK)" \
+              --notes "$NOTES" \
+              --latest
+          fi
 
       - name: Keystore repo me save karo (sirf pehli baar)
         if: env.KEYSTORE_NEW == '1'
