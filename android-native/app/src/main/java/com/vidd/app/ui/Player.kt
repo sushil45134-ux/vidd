@@ -43,6 +43,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -257,101 +259,208 @@ private fun ExoScreen(url: String, modifier: Modifier) {
     )
 }
 
-/** YouTube video — website jaisa IFrame Player API (bina kisi library ke). */
+/** YouTube video — seedha YouTube ka apna embed page (WebView me browser jaisa). */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun YtScreen(videoId: String, modifier: Modifier) {
-    // Purana plain <iframe height="100%">: body ki height na hone se iframe
-    // 150px ki patli strip ban jata tha aur video chalta nahi dikhta tha.
-    // Ab html/body full-height + IFrame Player API + autoplay onReady.
-    val html = remember(videoId) {
-        """<!DOCTYPE html>
-        <html><head><style>
-        html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}
-        #yt{position:absolute;top:0;left:0;width:100%;height:100%}
-        </style></head>
-        <body>
-        <div id="yt"></div>
-        <script src="https://www.youtube.com/iframe_api"></script>
-        <script>
-        function onYouTubeIframeAPIReady(){
-          new YT.Player('yt', {
-            videoId: '$videoId',
-            width: '100%', height: '100%',
-            playerVars: {
-              autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1,
-              iv_load_policy: 3, origin: 'https://www.youtube.com'
-            },
-            events: { onReady: function(e){ e.target.playVideo(); } }
-          });
-        }
-        </script>
-        </body></html>"""
+    val ctx = LocalContext.current
+    // Custom HTML + IFrame API ke bajaye YouTube ka official embed URL seedha
+    // load karo — WebView use browser ki tarah chalata hai. Yeh sabse pakka
+    // tareeka hai: na height ka issue, na origin/postMessage ka.
+    val embedUrl = remember(videoId) {
+        "https://www.youtube.com/embed/$videoId" +
+            "?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3"
     }
-    AndroidView(
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.loadWithOverviewMode = true
-                settings.useWideViewPort = true
-                // Player ke links WebView ke bahar na jaayein
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView,
-                        request: WebResourceRequest
-                    ): Boolean {
-                        val host = request.url.host ?: return false
-                        return !(host.endsWith("youtube.com") ||
-                            host.endsWith("youtube-nocookie.com") ||
-                            host.endsWith("ytimg.com") ||
-                            host.endsWith("googlevideo.com") ||
-                            host.endsWith("googleapis.com"))
+    var loadError by remember(videoId) { mutableStateOf(false) }
+    var webRef by remember { mutableStateOf<WebView?>(null) }
+    var loadedFor by remember { mutableStateOf<String?>(null) }
+
+    Box(modifier.background(Color.Black)) {
+        AndroidView(
+            factory = { c ->
+                WebView(c).apply {
+                    webRef = this
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    settings.loadWithOverviewMode = true
+                    settings.useWideViewPort = true
+                    webChromeClient = WebChromeClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest
+                        ): Boolean {
+                            val host = request.url.host ?: return false
+                            val internal = host.endsWith("youtube.com") ||
+                                host.endsWith("youtube-nocookie.com") ||
+                                host.endsWith("ytimg.com") ||
+                                host.endsWith("googlevideo.com") ||
+                                host.endsWith("googleapis.com") ||
+                                host.endsWith("gstatic.com") ||
+                                host.endsWith("googleusercontent.com") ||
+                                host.endsWith("ggpht.com") ||
+                                host.endsWith("google.com")
+                            if (internal) return false // player ke andar hi khule
+                            // Baaki bahar ke links browser me bhejo
+                            runCatching {
+                                ctx.startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                            }
+                            return true
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: WebResourceRequest,
+                            error: android.webkit.WebResourceError
+                        ) {
+                            // Sirf main page fail ho to error dikhao (ads/images
+                            // ka fail ignore karo)
+                            if (request.isForMainFrame) loadError = true
+                        }
                     }
+                    loadedFor = embedUrl
+                    loadUrl(embedUrl)
                 }
-                webChromeClient = WebChromeClient()
-                loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "utf-8", null)
-            }
-        },
-        modifier = modifier.background(Color.Black),
-    )
+            },
+            update = { wv ->
+                // Episode badle to naya video load karo
+                if (loadedFor != embedUrl) {
+                    loadedFor = embedUrl
+                    loadError = false
+                    wv.loadUrl(embedUrl)
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        if (loadError) {
+            PlayerWebError(
+                onRetry = {
+                    loadError = false
+                    webRef?.loadUrl(embedUrl)
+                },
+                onOpenBrowser = {
+                    runCatching {
+                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(embedUrl)))
+                    }
+                },
+            )
+        }
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun EmbedScreen(movie: Movie, modifier: Modifier) {
-    // Base URL null nahi — null origin par kai providers (Dailymotion etc.)
-    // playback block kar dete hain. Embed ke apne origin se load karo.
-    val embedUrl = movie.embedUrl ?: ""
-    val html = remember(embedUrl) {
-        """<!DOCTYPE html>
-        <html><head><style>
-        html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}
-        iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
-        </style></head>
-        <body><iframe src="$embedUrl"
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        allowfullscreen></iframe></body></html>"""
+    val ctx = LocalContext.current
+    // Embed ka apna URL seedha load karo (apne origin se) — Dailymotion,
+    // BitChute, Streamable sab apne embed page ke liye design kiye hote hain.
+    val embedUrl = remember(movie.embedUrl) {
+        movie.embedUrl?.replaceFirst("http://", "https://") ?: ""
     }
-    val base = remember(embedUrl) {
-        runCatching {
-            val u = Uri.parse(embedUrl)
-            "${u.scheme ?: "https"}://${u.host ?: "www.dailymotion.com"}"
-        }.getOrDefault("https://www.dailymotion.com")
+    val allowedHost = remember(embedUrl) {
+        runCatching { Uri.parse(embedUrl).host }.getOrNull()
     }
-    AndroidView(
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                webChromeClient = WebChromeClient()
-                loadDataWithBaseURL(base, html, "text/html", "utf-8", null)
-            }
-        },
-        modifier = modifier.background(Color.Black),
-    )
+    var loadError by remember(embedUrl) { mutableStateOf(false) }
+    var webRef by remember { mutableStateOf<WebView?>(null) }
+    var loadedFor by remember { mutableStateOf<String?>(null) }
+
+    Box(modifier.background(Color.Black)) {
+        AndroidView(
+            factory = { c ->
+                WebView(c).apply {
+                    webRef = this
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    webChromeClient = WebChromeClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest
+                        ): Boolean {
+                            val host = request.url.host ?: return false
+                            val internal = allowedHost != null &&
+                                (host.equals(allowedHost, ignoreCase = true) ||
+                                    host.endsWith(".$allowedHost", ignoreCase = true))
+                            if (internal) return false
+                            runCatching {
+                                ctx.startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                            }
+                            return true
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: WebResourceRequest,
+                            error: android.webkit.WebResourceError
+                        ) {
+                            if (request.isForMainFrame) loadError = true
+                        }
+                    }
+                    loadedFor = embedUrl
+                    loadUrl(embedUrl)
+                }
+            },
+            update = { wv ->
+                if (loadedFor != embedUrl && embedUrl.isNotEmpty()) {
+                    loadedFor = embedUrl
+                    loadError = false
+                    wv.loadUrl(embedUrl)
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        if (loadError) {
+            PlayerWebError(
+                onRetry = {
+                    loadError = false
+                    webRef?.loadUrl(embedUrl)
+                },
+                onOpenBrowser = {
+                    runCatching {
+                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(embedUrl)))
+                    }
+                },
+            )
+        }
+    }
+}
+
+/** WebView load fail ho to retry / browser me kholo. */
+@Composable
+private fun PlayerWebError(onRetry: () -> Unit, onOpenBrowser: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().background(Color.Black).padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("😕", fontSize = 40.sp)
+        Spacer(Modifier.height(8.dp))
+        Text("Video load nahi hua", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text("Internet check karke dobara try karo", color = ViddGray, fontSize = 12.sp)
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = ViddRed),
+        ) {
+            Icon(Icons.Filled.PlayArrow, null, tint = Color.White)
+            Spacer(Modifier.width(6.dp))
+            Text("Dobara Try Karo", color = Color.White)
+        }
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = onOpenBrowser,
+            colors = ButtonDefaults.buttonColors(containerColor = ViddCard),
+        ) {
+            Icon(Icons.Filled.OpenInNew, null, tint = Color.White)
+            Spacer(Modifier.width(6.dp))
+            Text("Browser Me Kholo", color = Color.White)
+        }
+    }
 }
 
 @Composable
