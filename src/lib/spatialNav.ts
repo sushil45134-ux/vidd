@@ -50,7 +50,10 @@ function center(el: HTMLElement): Box | null {
 }
 
 function focusableElements(): HTMLElement[] {
-  const nodes = document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+  // VideoPlayer adds this scope only via isTvBrowser(). Keep remote focus
+  // off the obscured catalogue and inside the player/recovery controls.
+  const scope = document.querySelector("[data-tv-player-scope]") || document;
+  const nodes = scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
   const out: HTMLElement[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const el = nodes[i];
@@ -181,7 +184,9 @@ export function initSpatialNavigation(): () => void {
       // the browser keep its default (exiting the app on a second press).
       try {
         window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-      } catch (_) {}
+      } catch (_) {
+        /* Older TV engines may not construct KeyboardEvent. */
+      }
       return;
     }
 
