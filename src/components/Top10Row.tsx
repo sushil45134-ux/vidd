@@ -34,13 +34,32 @@ export default function Top10Row({ title, movies, onSelectMovie }: Top10RowProps
   };
 
   const scroll = (direction: "left" | "right") => {
-    if (rowRef.current) {
-      const scrollAmount = rowRef.current.clientWidth * 0.8;
-      rowRef.current.scrollBy({
+    const el = rowRef.current;
+    if (!el) return;
+    const scrollAmount = el.clientWidth * 0.8;
+    if (!isTv) {
+      el.scrollBy({
         left: direction === "left" ? -scrollAmount : scrollAmount,
         behavior: "smooth",
       });
+      return;
     }
+    // Instant, card-snapped paging for Tizen (mirrors MovieRow).
+    const children = el.children;
+    let pitch = 0;
+    if (children.length >= 2) {
+      const first = children[0] as HTMLElement;
+      const second = children[1] as HTMLElement;
+      pitch = second.offsetLeft - first.offsetLeft;
+    }
+    if (pitch <= 0 && children.length >= 1) {
+      pitch = (children[0] as HTMLElement).offsetWidth || 0;
+    }
+    if (pitch <= 0) pitch = scrollAmount;
+    const steps = Math.max(1, Math.round(scrollAmount / pitch));
+    const max = Math.max(0, el.scrollWidth - el.clientWidth);
+    const target = el.scrollLeft + (direction === "left" ? -steps * pitch : steps * pitch);
+    el.scrollLeft = Math.max(0, Math.min(max, Math.round(target)));
   };
 
   const numberStyles = ["text-[120px] md:text-[180px]"];
@@ -66,7 +85,7 @@ export default function Top10Row({ title, movies, onSelectMovie }: Top10RowProps
         <div
           ref={rowRef}
           onScroll={handleScroll}
-          className="flex gap-2 overflow-x-scroll scroll-smooth py-4 px-1"
+          className={`flex gap-2 overflow-x-scroll ${isTv ? "" : "scroll-smooth"} py-4 px-1`}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {movies.slice(0, 10).map((movie, index) => (

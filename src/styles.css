@@ -520,3 +520,33 @@
 .tv-layout .inline-flex.gap-y-1\.5 > * + * {
   margin-top: 0.375rem;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * TV render cost (Samsung Tizen 5.5 / Chromium 69)
+ *
+ * Animations, backdrop blur and transitions are compositor work the Tizen
+ * SoC cannot absorb while it is also decoding posters and re-rendering rows
+ * on D-pad input. Reduced-motion-style values (instead of `animation: none`)
+ * keep finite animations terminating correctly — dialogs, toasts and Radix
+ * presence logic still reach their end state — while infinite ones (spinners,
+ * skeleton shimmer) stop burning CPU. backdrop-filter is the single most
+ * expensive effect on this engine and buys nothing on a 10-foot UI.
+ * All scoped to .tv-layout; desktop keeps every effect.
+ * ══════════════════════════════════════════════════════════════════════ */
+.tv-layout *,
+.tv-layout *::before,
+.tv-layout *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Deterministic row paging: the scroll-smooth utility would animate even a
+ * direct scrollLeft write (MovieRow's TV path) and the spatial-nav
+ * scrollIntoView calls, so it is neutralised wholesale on TV. */
+.tv-layout .scroll-smooth {
+  scroll-behavior: auto !important;
+}

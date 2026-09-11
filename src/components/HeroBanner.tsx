@@ -3,6 +3,7 @@ import { Play, Info, Upload, RefreshCw, Eye, EyeOff } from "lucide-react";
 import type { Movie } from "../data";
 import { useSiteConfig, loadConfig, saveConfig } from "../lib/customization";
 import { movieImageSources } from "../lib/media";
+import { isTvBrowser } from "../lib/browser";
 import Logo from "./Logo";
 import SmartImage from "./SmartImage";
 
@@ -34,6 +35,10 @@ export default function HeroBanner({
 
   useEffect(() => {
     if (movies.length <= 1) return;
+    // Auto-rotation swaps a full-screen hero image every 8s on hardware that
+    // struggles with the first paint already. On TVs the banner only changes
+    // when the viewer picks a dot; desktop keeps the interval.
+    if (isTvBrowser()) return;
     const t = setInterval(() => setIndex((i) => (i + 1) % movies.length), 8000);
     return () => clearInterval(t);
   }, [movies.length]);
@@ -124,63 +129,63 @@ export default function HeroBanner({
       )}
 
       {overlayVisible && (
-      <div className="relative z-10 h-full flex items-end pb-28 md:pb-36 px-4 md:px-12 max-w-[1800px] mx-auto">
-        <div className="max-w-2xl animate-fade-in" key={`c-${item.id}`}>
-          <div className="flex items-center gap-3 mb-3 flex-wrap">
-            <span className="px-2 py-0.5 bg-[#ff6a00] text-black text-[10px] font-black rounded tracking-wider">
-              {cfg.heroBadge}
-            </span>
-            {item.rating && (
-              <span className="px-2 py-0.5 bg-white/15 backdrop-blur-sm text-white text-[10px] font-bold rounded">
-                {item.rating}
+        <div className="relative z-10 h-full flex items-end pb-28 md:pb-36 px-4 md:px-12 max-w-[1800px] mx-auto">
+          <div className="max-w-2xl animate-fade-in" key={`c-${item.id}`}>
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              <span className="px-2 py-0.5 bg-[#ff6a00] text-black text-[10px] font-black rounded tracking-wider">
+                {cfg.heroBadge}
               </span>
-            )}
-            {item.year ? <span className="text-white/60 text-xs">{item.year}</span> : null}
-            {item.match ? (
-              <span className="text-green-400 text-xs font-bold">{item.match}% Match</span>
-            ) : null}
-          </div>
-
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-white leading-[1.05] mb-4 tracking-tight">
-            {title}
-          </h1>
-
-          <p className="text-sm md:text-base text-white/70 leading-relaxed mb-6 line-clamp-3 max-w-xl">
-            {description}
-          </p>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={() => onPlay(item)}
-              className="h-11 md:h-12 px-6 md:px-7 rounded-md bg-white hover:bg-white/90 text-black font-bold text-sm flex items-center gap-2.5 shadow-xl transition active:scale-95"
-            >
-              <Play size={18} fill="black" />
-              Play
-            </button>
-            <button
-              onClick={() => onMoreInfo(item)}
-              className="h-11 md:h-12 px-6 md:px-7 rounded-md bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-bold text-sm flex items-center gap-2.5 transition active:scale-95"
-            >
-              <Info size={18} />
-              More Info
-            </button>
-          </div>
-
-          {movies.length > 1 && (
-            <div className="flex items-center gap-2 mt-6">
-              {movies.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setIndex(i)}
-                  className={`h-1 rounded-full transition-all ${
-                    i === index ? "w-8 bg-[#ff6a00]" : "w-3 bg-white/30 hover:bg-white/50"
-                  }`}
-                />
-              ))}
+              {item.rating && (
+                <span className="px-2 py-0.5 bg-white/15 backdrop-blur-sm text-white text-[10px] font-bold rounded">
+                  {item.rating}
+                </span>
+              )}
+              {item.year ? <span className="text-white/60 text-xs">{item.year}</span> : null}
+              {item.match ? (
+                <span className="text-green-400 text-xs font-bold">{item.match}% Match</span>
+              ) : null}
             </div>
-          )}
+
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-white leading-[1.05] mb-4 tracking-tight">
+              {title}
+            </h1>
+
+            <p className="text-sm md:text-base text-white/70 leading-relaxed mb-6 line-clamp-3 max-w-xl">
+              {description}
+            </p>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => onPlay(item)}
+                className="h-11 md:h-12 px-6 md:px-7 rounded-md bg-white hover:bg-white/90 text-black font-bold text-sm flex items-center gap-2.5 shadow-xl transition active:scale-95"
+              >
+                <Play size={18} fill="black" />
+                Play
+              </button>
+              <button
+                onClick={() => onMoreInfo(item)}
+                className="h-11 md:h-12 px-6 md:px-7 rounded-md bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white font-bold text-sm flex items-center gap-2.5 transition active:scale-95"
+              >
+                <Info size={18} />
+                More Info
+              </button>
+            </div>
+
+            {movies.length > 1 && (
+              <div className="flex items-center gap-2 mt-6">
+                {movies.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setIndex(i)}
+                    className={`h-1 rounded-full transition-all ${
+                      i === index ? "w-8 bg-[#ff6a00]" : "w-3 bg-white/30 hover:bg-white/50"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       )}
     </div>
   );
