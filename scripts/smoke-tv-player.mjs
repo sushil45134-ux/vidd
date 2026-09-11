@@ -394,7 +394,7 @@ window.smokeRoot.render(
   await expectHidden(0, "paused keeps the controls visible");
   assert.equal(await page.getByLabel("Video progress").isVisible(), true);
   await page.evaluate(() => window.emitState(1)); // PLAYING
-  for (const title of ["Settings", "Subtitles / CC", "Queue"]) {
+  for (const title of ["Settings", "Subtitles / CC"]) {
     const button = page.locator(`button[title="${title}"]`);
     await button.click();
     await page.clock.runFor(6000);
@@ -402,6 +402,12 @@ window.smokeRoot.render(
     await button.click();
     await settle();
   }
+  // The queue sidebar covers its own toggle, so close it with the panel's X.
+  await page.locator('button[title="Queue"]').click();
+  await page.clock.runFor(6000);
+  await expectHidden(0, "open queue keeps the controls visible");
+  await page.locator(".absolute.right-0.w-80 button").first().click();
+  await settle();
   await page.clock.runFor(600);
   await expectHidden(0, "closing the menus leaves playback controls usable");
 
