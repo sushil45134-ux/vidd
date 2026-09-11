@@ -237,11 +237,17 @@ window.smokeRoot.render(
   }))
     assert.equal(vars[key], value, key);
   assert.equal(await page.locator(".animate-spin").count(), 0);
-  const tvCrop = await page.evaluate(() =>
-    window.api.iframe.parentElement.parentElement.getAttribute("style"),
+  // Chromium serialises the inline style as the `inset` shorthand, so read the
+  // longhand values back through CSSOM.
+  const tvCrop = await page.evaluate(() => {
+    const style = window.api.iframe.parentElement.parentElement.style;
+    return { top: style.top, bottom: style.bottom, left: style.left, right: style.right };
+  });
+  assert.deepEqual(
+    tvCrop,
+    { top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" },
+    "TV custom iframe reuses the desktop edge crop",
   );
-  assert.match(tvCrop, /top: -60px/, "TV reuses the desktop edge crop");
-  assert.match(tvCrop, /left: -2px/);
   assert.deepEqual(
     await page.evaluate(() => window.calls),
     [["volume", 80]],
