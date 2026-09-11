@@ -354,6 +354,10 @@ export const TV_BOOT_SCRIPT = String.raw`
       this._observed = [];
     };
     TVIntersectionObserver.prototype.takeRecords = function () { return []; };
+    /* SmartImage checks this marker and skips the shim, so TV posters use
+     * their real viewport logic instead of loading everything through a fake
+     * that always reports "intersecting". */
+    TVIntersectionObserver.__tvBootShim = true;
     defineValue(g, "IntersectionObserver", TVIntersectionObserver);
   }
 

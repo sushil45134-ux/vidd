@@ -49,6 +49,9 @@ export default function MovieRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
+  // Tizen 5.5 animates every scroll on its slow compositor, so smooth
+  // scrolling makes row paging feel laggy and lands on half-cut cards.
+  const isTv = isTvBrowser();
 
   const handleScroll = () => {
     if (rowRef.current) {
@@ -59,13 +62,33 @@ export default function MovieRow({
   };
 
   const scroll = (direction: "left" | "right") => {
-    if (rowRef.current) {
-      const scrollAmount = rowRef.current.clientWidth * 0.8;
-      rowRef.current.scrollBy({
+    const el = rowRef.current;
+    if (!el) return;
+    const scrollAmount = el.clientWidth * 0.8;
+    if (!isTv) {
+      el.scrollBy({
         left: direction === "left" ? -scrollAmount : scrollAmount,
         behavior: "smooth",
       });
+      return;
     }
+    // TV path: one synchronous scrollLeft write — instant, no animation
+    // frames, and snapped to whole card steps so paging stays deterministic.
+    const children = el.children;
+    let pitch = 0;
+    if (children.length >= 2) {
+      const first = children[0] as HTMLElement;
+      const second = children[1] as HTMLElement;
+      pitch = second.offsetLeft - first.offsetLeft;
+    }
+    if (pitch <= 0 && children.length >= 1) {
+      pitch = (children[0] as HTMLElement).offsetWidth || 0;
+    }
+    if (pitch <= 0) pitch = scrollAmount;
+    const steps = Math.max(1, Math.round(scrollAmount / pitch));
+    const max = Math.max(0, el.scrollWidth - el.clientWidth);
+    const target = el.scrollLeft + (direction === "left" ? -steps * pitch : steps * pitch);
+    el.scrollLeft = Math.max(0, Math.min(max, Math.round(target)));
   };
 
   return (
@@ -91,7 +114,11 @@ export default function MovieRow({
         <div
           ref={rowRef}
           onScroll={handleScroll}
-          className="flex gap-1.5 overflow-x-scroll scrollbar-hide scroll-smooth py-4 px-1"
+          // scroll-smooth would animate even a direct scrollLeft write, so it
+          // must not exist on TV rows at all.
+          className={`flex gap-1.5 overflow-x-scroll scrollbar-hide ${
+            isTv ? "" : "scroll-smooth"
+          } py-4 px-1`}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {movies.map((movie) => (

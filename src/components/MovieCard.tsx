@@ -35,10 +35,21 @@ export default function MovieCard({
   onEditThumbnail,
 }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  // TVs have no hover: keep the action row (Play / My List / Like / Info)
-  // permanently visible so every action stays reachable with the remote.
+  const [isFocused, setIsFocused] = useState(false);
+  // TVs have no hover. Rendering the full action row (Play / My List / Like /
+  // Info / …) on every card permanently multiplies the TV's initial DOM and
+  // forces the D-pad to tab through dozens of off-screen buttons, so on TVs
+  // the action row is materialized only for the currently focused card.
+  // Desktop keeps the pure hover behaviour.
   const isTv = isTvBrowser();
-  const showHoverDetails = (isHovered && !isTv) || isTv;
+  const showHoverDetails = isTv ? isFocused : isHovered;
+
+  const handleCardFocus = () => setIsFocused(true);
+  const handleCardBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    // Moving between the card's own buttons must not tear the row down.
+    const next = e.relatedTarget as Node | null;
+    if (!e.currentTarget.contains(next)) setIsFocused(false);
+  };
 
   const handleCardKeyDown = (e: React.KeyboardEvent) => {
     // Activate the card only when the card itself (not an inner button)
@@ -65,11 +76,14 @@ export default function MovieCard({
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocus={handleCardFocus}
+      onBlur={handleCardBlur}
       onClick={onClick}
       tabIndex={0}
       role="button"
       aria-label={`${movie.title} — open details`}
       onKeyDown={handleCardKeyDown}
+      data-tv-card-focused={isTv && isFocused ? "1" : undefined}
     >
       <div
         className={`movie-card-surface relative overflow-hidden rounded-md transition-all duration-300 ${
