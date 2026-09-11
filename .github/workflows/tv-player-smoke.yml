@@ -1,21 +1,25 @@
 name: TV player smoke
 
 # Runs the real-browser TV player smoke test (scripts/smoke-tv-player.mjs).
-# Local sandboxes often cannot download Chromium or its system libraries, so
-# the assertions are executed here on a full ubuntu runner instead.
+# Local sandboxes often cannot download Chromium or its system libraries, and
+# the Actions log/blob hosts are not always reachable from them either, so the
+# job posts its own output back onto the pull request as a comment.
 on:
-  push:
-    branches:
-      - "arena/**"
-      - main
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout (full history — the desktop baseline is read via git show)
         uses: actions/checkout@v4
@@ -36,16 +40,60 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit 2>&1 | tee checks.txt
+          echo "tsc --noEmit: PASS" | tee -a checks.txt
 
       - name: Build
-        run: npm run build
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tail -n 20 | tee -a checks.txt
+          echo "npm run build: PASS" | tee -a checks.txt
 
       - name: Lint changed files
-        run: npx eslint src/components/VideoPlayer.tsx scripts/smoke-tv-player.mjs
+        run: |
+          set -euo pipefail
+          npx eslint src/components/VideoPlayer.tsx scripts/smoke-tv-player.mjs 2>&1 | tee -a checks.txt
+          echo "eslint (changed files): PASS" | tee -a checks.txt
 
       - name: Prettier check changed files
-        run: npx prettier --check src/components/VideoPlayer.tsx src/styles.css scripts/smoke-tv-player.mjs
+        run: |
+          set -euo pipefail
+          npx prettier --check src/components/VideoPlayer.tsx src/styles.css scripts/smoke-tv-player.mjs 2>&1 | tee -a checks.txt
 
-      - name: Browser smoke test (TV auto-hide, D-pad wake, focus restore, fallbacks, desktop parity)
-        run: node scripts/smoke-tv-player.mjs
+      - name: Browser smoke test (auto-hide, D-pad wake, focus restore, fallbacks, desktop parity)
+        id: smoke
+        run: |
+          set -euo pipefail
+          node scripts/smoke-tv-player.mjs 2>&1 | tee smoke.txt
+
+      - name: Publish results to the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### TV player CI — \`${GITHUB_SHA::7}\`"
+            echo
+            echo "Job result: **${{ job.status }}** · smoke test step: **${{ steps.smoke.outcome }}**"
+            echo
+            echo "<details><summary>tsc / build / eslint / prettier</summary>"
+            echo
+            echo '```'
+            cat checks.txt 2>/dev/null || echo "(no checks output)"
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details open><summary>Browser smoke test output</summary>"
+            echo
+            echo '```'
+            tail -n 90 smoke.txt 2>/dev/null || echo "(smoke test did not produce output)"
+            echo '```'
+            echo "</details>"
+          } > results.md
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file results.md
+          else
+            cat results.md
+          fi

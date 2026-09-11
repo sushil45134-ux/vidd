@@ -302,12 +302,18 @@ window.smokeRoot.render(
   );
 
   // ── TV-only auto-hide (windowed playback, controls still mounted) ──────
-  const hiddenCount = () => page.locator('[data-tv-autohide="hidden"]').count();
-  const seekCount = async () =>
-    (await page.evaluate(() => window.calls)).filter(([call]) => call === "seek").length;
+  // The fake clock freezes in-page timers/rAF, and React's passive effects run
+  // in a later macrotask, so settle with a real (Node-side) wait before
+  // reading the DOM instead of polling from inside the page.
+  const settle = () => page.waitForTimeout(80);
+  const hiddenLocator = page.locator('[data-tv-autohide="hidden"]');
+  const seekCalls = () => page.evaluate(() => window.calls.filter(([c]) => c === "seek").length);
+  const expectHidden = async (expected, label) => {
+    await settle();
+    assert.equal(await hiddenLocator.count(), expected, label);
+  };
 
-  assert.equal(
-    await hiddenCount(),
+  await expectHidden(
     4,
     "controls, timeline, gradients and the via-YouTube label hide after 3s idle",
   );
@@ -324,9 +330,11 @@ window.smokeRoot.render(
     "parked focus draws no outline around the video",
   );
 
-  // The first D-pad press only reveals — no seek, no play/pause, no fullscreen.
+  // The first D-pad press only reveals: no seek, no play/pause, no fullscreen.
   const callsBeforeWake = await page.evaluate(() => window.calls.length);
+  const seeksBefore = await seekCalls();
   await page.keyboard.press("ArrowUp");
+  await settle();
   assert.equal(
     await page.evaluate(() => window.calls.length),
     callsBeforeWake,
@@ -337,56 +345,59 @@ window.smokeRoot.render(
     false,
     "wake press does not toggle fullscreen",
   );
-  assert.equal(await hiddenCount(), 0, "controls revealed");
+  await expectHidden(0, "D-pad press revealed the controls");
   assert.equal(
     await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
     "Seek forward 10 seconds",
     "focus restored to the exact previously focused button",
   );
-  // The next press acts normally.
-  const seeksBefore = await seekCount();
+  // The press after the wake acts normally.
   await page.keyboard.press("Enter");
-  assert.equal(await seekCount(), seeksBefore + 1, "the next press activates the button");
+  await settle();
+  assert.equal(await seekCalls(), seeksBefore + 1, "the next press activates the button");
 
-  // OK/Enter behaves the same way as the D-pad: hide again, wake, then act.
-  await page.clock.runFor(600);
+  // OK/Enter wakes the same way: hide again, wake with OK, then act.
   await page.clock.runFor(3001);
-  assert.equal(await hiddenCount(), 4, "inactivity hides the controls again");
+  await expectHidden(4, "inactivity hides the controls again");
   await page.keyboard.press("Enter");
-  assert.equal(await seekCount(), seeksBefore + 1, "OK only wakes — it does not activate");
-  assert.equal(await hiddenCount(), 0, "OK revealed the controls");
+  await settle();
+  assert.equal(await seekCalls(), seeksBefore + 1, "OK only wakes — it does not activate");
+  await expectHidden(0, "OK revealed the controls");
   assert.equal(
     await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
     "Seek forward 10 seconds",
     "focus restored after the OK wake",
   );
   await page.keyboard.press("Enter");
-  assert.equal(await seekCount(), seeksBefore + 2, "the press after the wake acts normally");
+  await settle();
+  assert.equal(await seekCalls(), seeksBefore + 2, "the press after the OK wake acts normally");
 
   // Mouse movement reveals the controls and restarts the inactivity timer.
   await page.clock.runFor(3001);
-  assert.equal(await hiddenCount(), 4);
+  await expectHidden(4, "idle again before the mouse check");
   await page.mouse.move(960, 400);
-  assert.equal(await hiddenCount(), 0, "mouse movement reveals the controls");
+  await expectHidden(0, "mouse movement reveals the controls");
   await page.clock.runFor(2500);
-  assert.equal(await hiddenCount(), 0, "mouse movement resets the inactivity timer");
+  await expectHidden(0, "mouse movement resets the inactivity timer");
   await page.clock.runFor(700);
-  assert.equal(await hiddenCount(), 4, "and the timer runs again afterwards");
+  await expectHidden(4, "and the timer runs again afterwards");
 
   // Paused / buffering / open menus must never hide the controls.
   await page.evaluate(() => window.emitState(2)); // PAUSED
   await page.clock.runFor(6000);
-  assert.equal(await hiddenCount(), 0, "paused keeps the controls visible");
+  await expectHidden(0, "paused keeps the controls visible");
   assert.equal(await page.getByLabel("Video progress").isVisible(), true);
   await page.evaluate(() => window.emitState(1)); // PLAYING
   for (const title of ["Settings", "Subtitles / CC", "Queue"]) {
     const button = page.locator(`button[title="${title}"]`);
     await button.click();
     await page.clock.runFor(6000);
-    assert.equal(await hiddenCount(), 0, `open ${title} keeps the controls visible`);
+    await expectHidden(0, `open ${title} keeps the controls visible`);
     await button.click();
+    await settle();
   }
   await page.clock.runFor(600);
+  await expectHidden(0, "closing the menus leaves playback controls usable");
 
   assert.equal(await page.locator("[data-tv-player-open]").count(), 0);
   assert.equal(await page.locator("iframe").getAttribute("tabindex"), "-1");
