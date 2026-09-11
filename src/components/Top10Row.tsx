@@ -82,7 +82,7 @@ export default function Top10Row({ title, movies, onSelectMovie }: Top10RowProps
               </span>
 
               {/* Movie Poster */}
-              <div className="relative w-[200px] md:w-[260px] aspect-video rounded overflow-hidden z-10 group-hover/card:scale-105 transition-transform duration-300">
+              <div className="legacy-media relative w-[200px] md:w-[260px] rounded overflow-hidden z-10 group-hover/card:scale-105 transition-transform duration-300">
                 <SmartImage
                   src={movieImageSources(movie)}
                   alt={movie.title}

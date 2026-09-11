@@ -73,7 +73,7 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
               className="group bg-[#1a1a1a] rounded-lg overflow-hidden hover:bg-[#222] transition-colors border border-gray-800 hover:border-gray-700 cursor-pointer"
               onClick={() => onSelectMovie(m)}
             >
-              <div className="relative aspect-video bg-gray-900">
+              <div className="legacy-media relative bg-gray-900">
                 <SmartImage
                   src={movieImageSources(m)}
                   alt={m.title}

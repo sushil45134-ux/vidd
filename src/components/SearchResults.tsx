@@ -61,7 +61,7 @@ export default function SearchResults({
         {results.map((movie) => (
           <div key={movie.id} className="group">
             <div
-              className="relative overflow-hidden rounded-md aspect-video bg-gray-800 cursor-pointer"
+              className="legacy-media relative overflow-hidden rounded-md bg-gray-800 cursor-pointer"
               onClick={() => onSelectMovie(movie)}
             >
               <SmartImage

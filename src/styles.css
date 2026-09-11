@@ -142,3 +142,156 @@
     color: var(--color-foreground);
   }
 }
+
+/*
+ * Chromium 69 does not understand aspect-ratio or oklch. The app is mostly
+ * black-on-black, but these fallbacks keep shared semantic utilities usable
+ * when a Tizen TV renders the root shell or an error page.
+ */
+@supports not (background-color: oklch(1 0 0)) {
+  :root {
+    --background: #ffffff;
+    --foreground: #111827;
+    --card: #ffffff;
+    --card-foreground: #111827;
+    --popover: #ffffff;
+    --popover-foreground: #111827;
+    --primary: #111827;
+    --primary-foreground: #f8fafc;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #111827;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f1f5f9;
+    --accent-foreground: #111827;
+    --destructive: #dc2626;
+    --destructive-foreground: #f8fafc;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #94a3b8;
+    --chart-1: #f97316;
+    --chart-2: #14b8a6;
+    --chart-3: #2563eb;
+    --chart-4: #eab308;
+    --chart-5: #f59e0b;
+    --sidebar: #f8fafc;
+    --sidebar-foreground: #111827;
+    --sidebar-primary: #2563eb;
+    --sidebar-primary-foreground: #f8fafc;
+    --sidebar-accent: #f1f5f9;
+    --sidebar-accent-foreground: #111827;
+    --sidebar-border: #e2e8f0;
+    --sidebar-ring: #94a3b8;
+  }
+
+  .dark {
+    --background: #111827;
+    --foreground: #f8fafc;
+    --card: #1f2937;
+    --card-foreground: #f8fafc;
+    --popover: #1f2937;
+    --popover-foreground: #f8fafc;
+    --primary: #e2e8f0;
+    --primary-foreground: #1f2937;
+    --secondary: #374151;
+    --secondary-foreground: #f8fafc;
+    --muted: #374151;
+    --muted-foreground: #94a3b8;
+    --accent: #374151;
+    --accent-foreground: #f8fafc;
+    --destructive: #f87171;
+    --destructive-foreground: #f8fafc;
+    --border: rgba(255, 255, 255, 0.1);
+    --input: rgba(255, 255, 255, 0.15);
+    --ring: #64748b;
+    --chart-1: #3b82f6;
+    --chart-2: #34d399;
+    --chart-3: #f59e0b;
+    --chart-4: #c084fc;
+    --chart-5: #fb7185;
+    --sidebar: #1f2937;
+    --sidebar-foreground: #f8fafc;
+    --sidebar-primary: #3b82f6;
+    --sidebar-primary-foreground: #f8fafc;
+    --sidebar-accent: #374151;
+    --sidebar-accent-foreground: #f8fafc;
+    --sidebar-border: rgba(255, 255, 255, 0.1);
+    --sidebar-ring: #64748b;
+  }
+}
+
+/* Padding-ratio frame: unlike aspect-ratio this works in Tizen 5.5. */
+.legacy-media {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%;
+  overflow: hidden;
+}
+
+.legacy-media > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Samsung TV / Tizen 5.5 layout. Use fixed geometry so the old browser does
+ * not have to calculate aspect-ratio, hover transforms, or fluid card widths. */
+.tv-layout .movie-card {
+  width: 300px;
+  min-width: 300px;
+}
+
+.tv-layout .movie-card.movie-card-large {
+  width: 360px;
+  min-width: 360px;
+}
+
+.tv-layout .movie-card-surface,
+.tv-layout .movie-card-surface:hover,
+.tv-layout .movie-card:hover {
+  transform: none !important;
+  transition: none !important;
+  box-shadow: none !important;
+}
+
+.tv-layout .movie-card-media,
+.tv-layout .tv-card-media {
+  height: 169px;
+  padding-bottom: 0;
+}
+
+.tv-layout .movie-card-large .movie-card-media {
+  height: 203px;
+}
+
+.tv-layout .tv-category-grid {
+  grid-template-columns: repeat(auto-fill, 300px);
+  gap: 24px;
+  justify-content: start;
+}
+
+.tv-layout .tv-category-card {
+  width: 300px;
+}
+
+/* This also covers search, discover, modal previews and Top 10 thumbnails. */
+.tv-layout .group:hover img,
+.tv-layout .movie-card-media:hover img {
+  transform: none !important;
+}
+
+.tv-layout button,
+.tv-layout input,
+.tv-layout select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Chromium 69 ignores scrollbar-width. Keep the horizontal rows clean with
+ * the older WebKit selector as well. */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

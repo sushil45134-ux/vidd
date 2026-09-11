@@ -396,7 +396,7 @@ function SeasonCard({ season, onOpen }: { season: Season; onOpen: () => void }) 
       onClick={onOpen}
       className="group relative text-left rounded-lg overflow-hidden bg-white/5 ring-1 ring-white/5 hover:ring-[#f47521]/60 transition-all"
     >
-      <div className="relative aspect-video">
+      <div className="legacy-media relative">
         <SmartImage
           src={first ? movieImageSources(first) : undefined}
           alt={`Season ${season.seasonNumber}`}
@@ -440,7 +440,7 @@ function EpisodeCard({
       className="group relative shrink-0 w-64 cursor-pointer"
       onClick={current ? onPlay : onSelect}
     >
-      <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5">
+      <div className="legacy-media relative rounded-lg overflow-hidden bg-white/5">
         <SmartImage
           src={movieImageSources(movie)}
           alt={movie.title}
@@ -507,7 +507,7 @@ function SimilarCard({
       className="group relative shrink-0 w-56 cursor-pointer"
       onClick={onSelect}
     >
-      <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5">
+      <div className="legacy-media relative rounded-lg overflow-hidden bg-white/5">
         <SmartImage src={movieImageSources(movie)} alt={movie.title} loading="lazy" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <button
