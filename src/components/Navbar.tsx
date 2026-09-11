@@ -1,5 +1,22 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, X, Upload, RefreshCw, Sparkles, LogOut, Settings, Download } from "lucide-react";
+import {
+  Search,
+  Bell,
+  X,
+  Upload,
+  RefreshCw,
+  Sparkles,
+  LogOut,
+  Settings,
+  Download,
+  Home,
+  Compass,
+  Bookmark,
+  Clapperboard,
+  Drama,
+  Palette,
+  Tv,
+} from "lucide-react";
 import type { Category } from "../data";
 import { useSiteConfig } from "../lib/customization";
 import { usePwaInstall } from "../hooks/usePwaInstall";
@@ -22,18 +39,18 @@ interface NavbarProps {
 }
 
 
-const tabs: { label: string; category: Category }[] = [
-  { label: "Home", category: "home" },
-  { label: "Discover", category: "discover" },
-  { label: "My List", category: "mylist" },
+const tabs = [
+  { label: "Home", category: "home" as Category, icon: Home },
+  { label: "Discover", category: "discover" as Category, icon: Compass },
+  { label: "My List", category: "mylist" as Category, icon: Bookmark },
 ];
 
-const categories: { label: string; icon: string; category: Category }[] = [
-  { label: "Movies", icon: "🎬", category: "movies" },
-  { label: "Anime", icon: "⛩️", category: "anime" },
-  { label: "Cartoon", icon: "🎨", category: "cartoon" },
-  { label: "TV Shows", icon: "📺", category: "tvshows" },
-  { label: "New", icon: "✨", category: "new" },
+const categories = [
+  { label: "Movies", icon: Clapperboard, category: "movies" as Category },
+  { label: "Anime", icon: Drama, category: "anime" as Category },
+  { label: "Cartoon", icon: Palette, category: "cartoon" as Category },
+  { label: "TV Shows", icon: Tv, category: "tvshows" as Category },
+  { label: "New", icon: Sparkles, category: "new" as Category },
 ];
 
 export default function Navbar({
@@ -194,34 +211,41 @@ export default function Navbar({
 
         {/* Row 2: Tabs + Categories */}
         <div className="h-7 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
-          {tabs.map(t => (
-            <button
-              key={t.category}
-              onClick={() => { onCategoryChange(t.category); onSearch(""); setMobileOpen(false); }}
-              className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition ${
-                isActive(t.category)
-                  ? "bg-white/10 text-white"
-                  : "text-white/50 hover:text-white"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.category}
+                onClick={() => { onCategoryChange(tab.category); onSearch(""); setMobileOpen(false); }}
+                className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                  isActive(tab.category)
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white"
+                }`}
+              >
+                <Icon size={13} strokeWidth={2.2} aria-hidden="true" />
+                {tab.label}
+              </button>
+            );
+          })}
           <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
-          {categories.map(cat => (
-            <button
-              key={cat.category}
-              onClick={() => { onCategoryChange(cat.category); onSearch(""); setMobileOpen(false); }}
-              className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-                isActive(cat.category)
-                  ? "bg-gradient-to-r from-[#ff6a00]/20 to-[#ee0979]/20 text-[#ff6a00] ring-1 ring-[#ff6a00]/30"
-                  : "text-white/50 hover:text-white"
-              }`}
-            >
-              <span className="text-xs">{cat.icon}</span>
-              {cat.label}
-            </button>
-          ))}
+          {categories.map((category) => {
+            const Icon = category.icon;
+            return (
+              <button
+                key={category.category}
+                onClick={() => { onCategoryChange(category.category); onSearch(""); setMobileOpen(false); }}
+                className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+                  isActive(category.category)
+                    ? "bg-gradient-to-r from-[#ff6a00]/20 to-[#ee0979]/20 text-[#ff6a00] ring-1 ring-[#ff6a00]/30"
+                    : "text-white/50 hover:text-white"
+                }`}
+              >
+                <Icon size={13} strokeWidth={2.2} aria-hidden="true" />
+                {category.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </nav>

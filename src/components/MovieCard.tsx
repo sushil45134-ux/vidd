@@ -3,6 +3,7 @@ import { Play, Plus, Check, ThumbsUp, ChevronDown, Trash2, Image as ImageIcon } 
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
+import { isSamsungTvBrowser } from "../lib/browser";
 
 interface MovieCardProps {
   movie: Movie;
@@ -35,6 +36,7 @@ export default function MovieCard({
   onEditThumbnail,
 }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const showHoverDetails = isHovered && !isSamsungTvBrowser();
 
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -48,7 +50,7 @@ export default function MovieCard({
 
   return (
     <div
-      className={`relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
+      className={`movie-card ${isLarge ? "movie-card-large" : ""} relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
         isLarge ? "w-[280px] md:w-[360px]" : "w-[220px] md:w-[300px]"
       }`}
       onMouseEnter={() => setIsHovered(true)}
@@ -56,24 +58,25 @@ export default function MovieCard({
       onClick={onClick}
     >
       <div
-        className={`relative overflow-hidden rounded-md transition-all duration-300 ${
-          isHovered ? "scale-110 z-30 shadow-2xl shadow-black/80" : "scale-100 z-10"
+        className={`movie-card-surface relative overflow-hidden rounded-md transition-all duration-300 ${
+          showHoverDetails ? "scale-110 z-30 shadow-2xl shadow-black/80" : "scale-100 z-10"
         }`}
       >
-        <SmartImage
-          src={movieImageSources(movie)}
-          alt={movie.title}
-          loading="lazy"
-          className="w-full aspect-video object-cover transition-all duration-300"
-        />
+        <div className="legacy-media movie-card-media">
+          <SmartImage
+            src={movieImageSources(movie)}
+            alt={movie.title}
+            loading="lazy"
+            className="w-full h-full object-cover transition-all duration-300"
+          />
 
-
-
-        {isHovered && (
+          {showHoverDetails && (
           <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-transparent" />
         )}
 
-        {isHovered && (
+        </div>
+
+        {showHoverDetails && (
           <div className="bg-[#181818] p-3 rounded-b-md">
             <div className="flex items-center gap-2 mb-2">
               <button
@@ -175,7 +178,7 @@ export default function MovieCard({
         )}
       </div>
 
-      {!isHovered && (
+      {!showHoverDetails && (
         <p className="text-gray-300 text-xs mt-1 truncate px-0.5">{movie.title}</p>
       )}
     </div>

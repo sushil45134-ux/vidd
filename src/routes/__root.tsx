@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { isSamsungTvBrowser } from "../lib/browser";
 
 function NotFoundComponent() {
   return (
@@ -132,6 +133,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    // Tizen 5.5 does not support several desktop-only hover/CSS behaviours.
+    // Expose one stable class for TV-specific layout rules without changing
+    // the desktop/mobile experience.
+    document.documentElement.classList.toggle("tv-layout", isSamsungTvBrowser());
+
     // Register the PWA service worker (installable app on Android/desktop).
     if ("serviceWorker" in navigator) {
       const register = () => {

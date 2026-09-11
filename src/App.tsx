@@ -521,14 +521,14 @@ function App() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {getCategoryMovies().map((movie) => (
                 <div
                   key={movie.id}
-                  className="group cursor-pointer"
+                  className="tv-category-card group cursor-pointer"
                   onClick={() => setSelectedMovie(movie)}
                 >
-                  <div className="relative overflow-hidden rounded-md aspect-video bg-gray-800">
+                  <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800">
                     <SmartImage
                       src={movieImageSources(movie)}
                       alt={movie.title}

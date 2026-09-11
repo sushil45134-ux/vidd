@@ -103,11 +103,11 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
         </div>
 
         <div className="p-5 space-y-4">
-          <div className="aspect-video w-full rounded-md overflow-hidden bg-black/60 ring-1 ring-white/10">
+          <div className="legacy-media w-full rounded-md overflow-hidden bg-black/60 ring-1 ring-white/10">
             {preview ? (
               <SmartImage src={[preview, ...movieImageSources(movie)]} alt="Preview" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-white/40 text-xs">
+              <div className="absolute inset-0 flex items-center justify-center text-white/40 text-xs">
                 No preview
               </div>
             )}
