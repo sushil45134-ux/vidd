@@ -18,5 +18,11 @@ export default defineConfig({
       // proxies (dev server only — never used for the production build).
       allowedHosts: true,
     },
+    // Samsung Tizen TVs are commonly a few browser generations behind
+    // desktop Chrome. Transpile optional chaining, async syntax, etc. instead
+    // of shipping Vite's modern-browser default bundle to those browsers.
+    build: {
+      target: "es2015",
+    },
   },
 });
