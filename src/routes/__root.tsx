@@ -127,8 +127,10 @@ function RootShell({ children }: { children: ReactNode }) {
       <body>
         {/* Must run BEFORE the app bundle: an inline classic script executes
             before any deferred module script, so globalThis & friends exist
-            on Chromium 69 (Tizen 5.5) before the Supabase client evaluates. */}
-        <script dangerouslySetInnerHTML={{ __html: TV_BOOT_SCRIPT }} />
+            on Chromium 69 (Tizen 5.5) before the Supabase client evaluates.
+            src/server.ts also injects this tag for SSR responses that do not
+            come through this shell; the marker keeps those paths idempotent. */}
+        <script data-tv-boot="1" dangerouslySetInnerHTML={{ __html: TV_BOOT_SCRIPT }} />
         {children}
         <Scripts />
       </body>

@@ -387,6 +387,13 @@
   bottom: 0;
 }
 
+.tv-layout .inset-1 {
+  top: 0.25rem;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
+}
+
 .tv-layout .inset-2 {
   top: 0.5rem;
   right: 0.5rem;
@@ -394,77 +401,122 @@
   left: 0.5rem;
 }
 
-.tv-layout .flex.gap-0\.5 > * + * {
+.tv-layout .-inset-2 {
+  top: -0.5rem;
+  right: -0.5rem;
+  bottom: -0.5rem;
+  left: -0.5rem;
+}
+
+.tv-layout .inset-4 {
+  top: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+}
+
+/* Both flex and inline-flex need the same sibling-margin fallback. */
+.tv-layout .flex.gap-px > * + *,
+.tv-layout .inline-flex.gap-px > * + * {
+  margin-left: 1px;
+}
+.tv-layout .flex.gap-0\.5 > * + *,
+.tv-layout .inline-flex.gap-0\.5 > * + * {
   margin-left: 0.125rem;
 }
-.tv-layout .flex.gap-1 > * + * {
+.tv-layout .flex.gap-1 > * + *,
+.tv-layout .inline-flex.gap-1 > * + * {
   margin-left: 0.25rem;
 }
-.tv-layout .flex.gap-1\.5 > * + * {
+.tv-layout .flex.gap-1\.5 > * + *,
+.tv-layout .inline-flex.gap-1\.5 > * + * {
   margin-left: 0.375rem;
 }
-.tv-layout .flex.gap-2 > * + * {
+.tv-layout .flex.gap-2 > * + *,
+.tv-layout .inline-flex.gap-2 > * + * {
   margin-left: 0.5rem;
 }
-.tv-layout .flex.gap-2\.5 > * + * {
+.tv-layout .flex.gap-2\.5 > * + *,
+.tv-layout .inline-flex.gap-2\.5 > * + * {
   margin-left: 0.625rem;
 }
-.tv-layout .flex.gap-3 > * + * {
+.tv-layout .flex.gap-3 > * + *,
+.tv-layout .inline-flex.gap-3 > * + * {
   margin-left: 0.75rem;
 }
-.tv-layout .flex.gap-4 > * + * {
+.tv-layout .flex.gap-4 > * + *,
+.tv-layout .inline-flex.gap-4 > * + * {
   margin-left: 1rem;
 }
-.tv-layout .flex.gap-5 > * + * {
+.tv-layout .flex.gap-5 > * + *,
+.tv-layout .inline-flex.gap-5 > * + * {
   margin-left: 1.25rem;
 }
-.tv-layout .flex.gap-8 > * + * {
+.tv-layout .flex.gap-8 > * + *,
+.tv-layout .inline-flex.gap-8 > * + * {
   margin-left: 2rem;
 }
 
-.tv-layout .flex.flex-col.gap-0\.5 > * + * {
+.tv-layout .flex.flex-col.gap-px > * + *,
+.tv-layout .inline-flex.flex-col.gap-px > * + * {
+  margin-left: 0;
+  margin-top: 1px;
+}
+.tv-layout .flex.flex-col.gap-0\.5 > * + *,
+.tv-layout .inline-flex.flex-col.gap-0\.5 > * + * {
   margin-left: 0;
   margin-top: 0.125rem;
 }
-.tv-layout .flex.flex-col.gap-1 > * + * {
+.tv-layout .flex.flex-col.gap-1 > * + *,
+.tv-layout .inline-flex.flex-col.gap-1 > * + * {
   margin-left: 0;
   margin-top: 0.25rem;
 }
-.tv-layout .flex.flex-col.gap-1\.5 > * + * {
+.tv-layout .flex.flex-col.gap-1\.5 > * + *,
+.tv-layout .inline-flex.flex-col.gap-1\.5 > * + * {
   margin-left: 0;
   margin-top: 0.375rem;
 }
-.tv-layout .flex.flex-col.gap-2 > * + * {
+.tv-layout .flex.flex-col.gap-2 > * + *,
+.tv-layout .inline-flex.flex-col.gap-2 > * + * {
   margin-left: 0;
   margin-top: 0.5rem;
 }
-.tv-layout .flex.flex-col.gap-2\.5 > * + * {
+.tv-layout .flex.flex-col.gap-2\.5 > * + *,
+.tv-layout .inline-flex.flex-col.gap-2\.5 > * + * {
   margin-left: 0;
   margin-top: 0.625rem;
 }
-.tv-layout .flex.flex-col.gap-3 > * + * {
+.tv-layout .flex.flex-col.gap-3 > * + *,
+.tv-layout .inline-flex.flex-col.gap-3 > * + * {
   margin-left: 0;
   margin-top: 0.75rem;
 }
-.tv-layout .flex.flex-col.gap-4 > * + * {
+.tv-layout .flex.flex-col.gap-4 > * + *,
+.tv-layout .inline-flex.flex-col.gap-4 > * + * {
   margin-left: 0;
   margin-top: 1rem;
 }
-.tv-layout .flex.flex-col.gap-5 > * + * {
+.tv-layout .flex.flex-col.gap-5 > * + *,
+.tv-layout .inline-flex.flex-col.gap-5 > * + * {
   margin-left: 0;
   margin-top: 1.25rem;
 }
-.tv-layout .flex.flex-col.gap-8 > * + * {
+.tv-layout .flex.flex-col.gap-8 > * + *,
+.tv-layout .inline-flex.flex-col.gap-8 > * + * {
   margin-left: 0;
   margin-top: 2rem;
 }
 
-.tv-layout .flex.gap-x-4 > * + * {
+.tv-layout .flex.gap-x-4 > * + *,
+.tv-layout .inline-flex.gap-x-4 > * + * {
   margin-left: 1rem;
 }
-.tv-layout .flex.gap-y-1 > * + * {
+.tv-layout .flex.gap-y-1 > * + *,
+.tv-layout .inline-flex.gap-y-1 > * + * {
   margin-top: 0.25rem;
 }
-.tv-layout .flex.gap-y-1\.5 > * + * {
+.tv-layout .flex.gap-y-1\.5 > * + *,
+.tv-layout .inline-flex.gap-y-1\.5 > * + * {
   margin-top: 0.375rem;
 }
