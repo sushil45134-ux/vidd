@@ -2,6 +2,16 @@ import { Play, Plus, Check, ThumbsUp } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
+import { isTvBrowser } from "../lib/browser";
+
+const IS_TV = isTvBrowser();
+
+function handleCardKeyDown(e: React.KeyboardEvent, action: () => void) {
+  if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+    e.preventDefault();
+    action();
+  }
+}
 
 interface SearchResultsProps {
   results: Movie[];
@@ -29,16 +39,14 @@ export default function SearchResults({
       <h2 className="text-gray-400 text-sm mb-6">
         {results.length > 0 ? (
           <>
-            Showing results for{" "}
-            <span className="text-white font-semibold">"{query}"</span>
+            Showing results for <span className="text-white font-semibold">"{query}"</span>
             <span className="text-gray-500 ml-2">
               ({results.length} {results.length === 1 ? "result" : "results"})
             </span>
           </>
         ) : (
           <>
-            No results found for{" "}
-            <span className="text-white font-semibold">"{query}"</span>
+            No results found for <span className="text-white font-semibold">"{query}"</span>
           </>
         )}
       </h2>
@@ -63,6 +71,10 @@ export default function SearchResults({
             <div
               className="legacy-media relative overflow-hidden rounded-md bg-gray-800 cursor-pointer"
               onClick={() => onSelectMovie(movie)}
+              tabIndex={0}
+              role="button"
+              aria-label={`${movie.title} — open details`}
+              onKeyDown={(e) => handleCardKeyDown(e, () => onSelectMovie(movie))}
             >
               <SmartImage
                 src={movieImageSources(movie)}
@@ -73,7 +85,9 @@ export default function SearchResults({
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300" />
 
               {/* Hover action buttons */}
-              <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/80 to-transparent">
+              <div
+                className={`absolute bottom-0 left-0 right-0 p-3 transition-opacity duration-300 bg-gradient-to-t from-black/80 to-transparent ${IS_TV ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <button
                     onClick={(e) => {
@@ -125,9 +139,7 @@ export default function SearchResults({
               </div>
             </div>
             <p className="text-gray-300 text-sm mt-2 truncate">{movie.title}</p>
-            <p className="text-gray-500 text-xs truncate">
-              {movie.genre.join(" • ")}
-            </p>
+            <p className="text-gray-500 text-xs truncate">{movie.genre.join(" • ")}</p>
           </div>
         ))}
       </div>

@@ -4,6 +4,7 @@ import type { Movie } from "../data";
 import { optimizeImageFile } from "../lib/imageOptimization";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
+import { registerTvBackHandler } from "../lib/spatialNav";
 
 interface Props {
   movie: Movie;
@@ -12,7 +13,12 @@ interface Props {
 }
 
 export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
-  const [preview, setPreview] = useState<string>(movie.thumbnailUrl || movie.image || movie.backdrop || "");
+  // TV remote BACK closes this editor before the modal underneath.
+  useEffect(() => registerTvBackHandler(onClose), [onClose]);
+
+  const [preview, setPreview] = useState<string>(
+    movie.thumbnailUrl || movie.image || movie.backdrop || "",
+  );
   const [url, setUrl] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const blobRef = useRef<string | null>(null);
@@ -68,7 +74,7 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
     }
     if (movie.isCollection && preview.startsWith("data:")) {
       alert(
-        "Series cover ko phone aur dusre browser par dikhane ke liye image URL paste karke save karo. File upload browser-local data banata hai."
+        "Series cover ko phone aur dusre browser par dikhane ke liye image URL paste karke save karo. File upload browser-local data banata hai.",
       );
       return;
     }
@@ -105,7 +111,11 @@ export default function ThumbnailEditor({ movie, onClose, onSave }: Props) {
         <div className="p-5 space-y-4">
           <div className="legacy-media w-full rounded-md overflow-hidden bg-black/60 ring-1 ring-white/10">
             {preview ? (
-              <SmartImage src={[preview, ...movieImageSources(movie)]} alt="Preview" className="w-full h-full object-cover" />
+              <SmartImage
+                src={[preview, ...movieImageSources(movie)]}
+                alt="Preview"
+                className="w-full h-full object-cover"
+              />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-white/40 text-xs">
                 No preview

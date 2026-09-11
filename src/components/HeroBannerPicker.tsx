@@ -1,13 +1,11 @@
 import { useRef, useState } from "react";
 import { X, Upload, Sparkles, Image as ImageIcon, Trash2 } from "lucide-react";
 import type { Movie } from "../data";
-import {
-  loadHeroBanners,
-  upsertHeroBanner,
-  removeHeroBanner,
-} from "../lib/heroBanners";
+import { loadHeroBanners, upsertHeroBanner, removeHeroBanner } from "../lib/heroBanners";
 import { optimizeImageFile } from "../lib/imageOptimization";
 import SmartImage from "./SmartImage";
+import { useEffect } from "react";
+import { registerTvBackHandler } from "../lib/spatialNav";
 
 interface Props {
   movie: Movie;
@@ -15,14 +13,14 @@ interface Props {
 }
 
 export default function HeroBannerPicker({ movie, onClose }: Props) {
+  // TV remote BACK closes this picker before the modal underneath.
+  useEffect(() => registerTvBackHandler(onClose), [onClose]);
+
   const existing = loadHeroBanners().find((b) => b.movieId === movie.id);
-  const defaultImg =
-    existing?.bannerImage || movie.backdrop || movie.image || "";
+  const defaultImg = existing?.bannerImage || movie.backdrop || movie.image || "";
   const [bannerImage, setBannerImage] = useState<string>(defaultImg);
   const [title, setTitle] = useState(existing?.title || movie.title);
-  const [description, setDescription] = useState(
-    existing?.description || movie.description || ""
-  );
+  const [description, setDescription] = useState(existing?.description || movie.description || "");
   const [badge, setBadge] = useState(existing?.badge || "⭐ FEATURED");
   const [urlInput, setUrlInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -82,9 +80,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <Sparkles size={18} className="text-[#ff6a00]" />
-            <h3 className="text-white font-bold text-lg">
-              Set as Hero Banner
-            </h3>
+            <h3 className="text-white font-bold text-lg">Set as Hero Banner</h3>
           </div>
           <button
             onClick={onClose}
@@ -98,11 +94,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
           {/* Live preview */}
           <div className="relative aspect-[21/9] rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
             {bannerImage ? (
-              <SmartImage
-                src={bannerImage}
-                alt="preview"
-                className="w-full h-full object-cover"
-              />
+              <SmartImage src={bannerImage} alt="preview" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-white/40">
                 <ImageIcon size={40} />
@@ -170,9 +162,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
           {/* Text overrides */}
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <label className="block text-white/60 text-xs font-semibold mb-1">
-                Badge
-              </label>
+              <label className="block text-white/60 text-xs font-semibold mb-1">Badge</label>
               <input
                 type="text"
                 value={badge}
@@ -182,9 +172,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs font-semibold mb-1">
-                Title
-              </label>
+              <label className="block text-white/60 text-xs font-semibold mb-1">Title</label>
               <input
                 type="text"
                 value={title}
@@ -193,9 +181,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="block text-white/60 text-xs font-semibold mb-1">
-                Description
-              </label>
+              <label className="block text-white/60 text-xs font-semibold mb-1">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}

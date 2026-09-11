@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Movie } from "../data";
 import MovieCard from "./MovieCard";
+import { isTvBrowser } from "../lib/browser";
 
 interface MovieRowProps {
   title: string;
@@ -20,7 +21,6 @@ interface MovieRowProps {
   onEditThumbnail?: (movie: Movie) => void;
 }
 
-
 const TITLE_SIZE_CLASS: Record<string, string> = {
   xs: "text-xs md:text-sm",
   sm: "text-sm md:text-base",
@@ -29,7 +29,6 @@ const TITLE_SIZE_CLASS: Record<string, string> = {
   xl: "text-xl md:text-2xl",
   "2xl": "text-2xl md:text-3xl",
 };
-
 
 export default function MovieRow({
   title,
@@ -47,11 +46,9 @@ export default function MovieRow({
   canEditThumbnail = false,
   onEditThumbnail,
 }: MovieRowProps) {
-
   const rowRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
-
 
   const handleScroll = () => {
     if (rowRef.current) {
@@ -74,11 +71,12 @@ export default function MovieRow({
   return (
     <div className="relative px-4 md:px-12 mb-8 group/row">
       {title && (
-        <h2 className={`text-white ${TITLE_SIZE_CLASS[titleSize] || TITLE_SIZE_CLASS.lg} font-bold mb-2 hover:text-gray-300 cursor-pointer transition-colors`}>
+        <h2
+          className={`text-white ${TITLE_SIZE_CLASS[titleSize] || TITLE_SIZE_CLASS.lg} font-bold mb-2 hover:text-gray-300 cursor-pointer transition-colors`}
+        >
           {title}
         </h2>
       )}
-
 
       <div className="relative -mx-1">
         {showLeftArrow && (
@@ -112,7 +110,6 @@ export default function MovieRow({
               canEditThumbnail={canEditThumbnail}
               onEditThumbnail={onEditThumbnail}
             />
-
           ))}
         </div>
 

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { safeLocalStorage } from "../../lib/safe-storage";
 
 // External Supabase project (BYO). Publishable/anon keys are safe in client code.
 const SUPABASE_URL = "https://yjakihgnxntjfjvarxmt.supabase.co";
@@ -13,7 +14,10 @@ export const supabase = createClient(SUPABASE_URL, apiKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    // Smart TV browsers (Tizen) throw on direct localStorage access in
+    // private mode — the safe wrapper falls back to memory storage instead
+    // of crashing the module (and the whole app) at import time.
+    storage: typeof window !== "undefined" ? safeLocalStorage : undefined,
   },
 });
 
