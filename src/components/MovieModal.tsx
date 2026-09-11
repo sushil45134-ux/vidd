@@ -1,10 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { X, Play, Bookmark, Plus, Star, ChevronRight, ChevronLeft, Trash2, Sparkles, Image as ImageIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  X,
+  Play,
+  Bookmark,
+  Plus,
+  Star,
+  ChevronRight,
+  ChevronLeft,
+  Trash2,
+  Sparkles,
+  Image as ImageIcon,
+} from "lucide-react";
 import type { Movie, Season } from "../data";
 import { movieImageSources } from "../lib/media";
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
 import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
+import { registerTvBackHandler } from "../lib/spatialNav";
+import { isTvBrowser } from "../lib/browser";
 
 interface MovieModalProps {
   movie: Movie;
@@ -21,7 +34,6 @@ interface MovieModalProps {
   canEditThumbnail?: boolean;
   onEditThumbnail?: (movie: Movie) => void;
 }
-
 
 export default function MovieModal({
   movie,
@@ -51,7 +63,7 @@ export default function MovieModal({
   const hasMultiSeason = seasons.length > 1;
   // null = show season picker; number = show that season's episodes
   const [selectedSeason, setSelectedSeason] = useState<number | null>(
-    hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null)
+    hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null),
   );
   const [selectedEpIdx, setSelectedEpIdx] = useState(0);
 
@@ -75,30 +87,39 @@ export default function MovieModal({
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
+  // TV remote BACK pops this modal off the overlay stack (player first).
+  useEffect(() => registerTvBackHandler(onClose), [onClose]);
+
+  // On TV, land focus on the primary action so the remote works right away.
+  const playButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!isTvBrowser()) return;
+    const t = setTimeout(() => playButtonRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [movie.id]);
+
   const activeSeason: Season | undefined =
     selectedSeason != null ? seasons.find((s) => s.seasonNumber === selectedSeason) : undefined;
   const episodes: Movie[] = activeSeason ? activeSeason.episodes : [];
   const currentEp: Movie = isCollection
-    ? (episodes[selectedEpIdx] || episodes[0] || movie.episodes![0])
+    ? episodes[selectedEpIdx] || episodes[0] || movie.episodes![0]
     : movie;
 
   const similarMovies = useMemo(() => {
     if (isCollection) return [];
     const g = new Set(movie.genre);
-    return allMovies
-      .filter((m) => m.id !== movie.id && m.genre.some((x) => g.has(x)))
-      .slice(0, 8);
+    return allMovies.filter((m) => m.id !== movie.id && m.genre.some((x) => g.has(x))).slice(0, 8);
   }, [movie, allMovies, isCollection]);
 
   const kind = movie.genre.some((g) => g.toLowerCase() === "anime")
     ? "Anime"
     : movie.genre.some((g) => g.toLowerCase() === "cartoon")
-    ? "Cartoon"
-    : (movie.rating || "").startsWith("TV")
-    ? "Show"
-    : "Movie";
+      ? "Cartoon"
+      : (movie.rating || "").startsWith("TV")
+        ? "Show"
+        : "Movie";
 
-  const rating = Math.max(0, Math.min(5, Math.round(((movie.match || 80) / 20))));
+  const rating = Math.max(0, Math.min(5, Math.round((movie.match || 80) / 20)));
   const votes = 100 + ((movie.id * 37) % 900);
 
   const showSeasonPicker = isCollection && hasMultiSeason && selectedSeason == null;
@@ -106,14 +127,12 @@ export default function MovieModal({
   const heroTitle = movie.title;
   const moviePoster = movieImageSources(movie, "hero");
   const episodePoster = movieImageSources(currentEp, "hero");
-  const heroImage = showSeasonPicker
-    ? moviePoster
-    : (isCollection ? episodePoster : moviePoster);
+  const heroImage = showSeasonPicker ? moviePoster : isCollection ? episodePoster : moviePoster;
   const heroDesc = showSeasonPicker
     ? `${seasons.length} seasons • ${movie.episodes!.length} episodes`
     : isCollection
-    ? `Season ${activeSeason?.seasonNumber} • Episode ${currentEp.episodeNumber || selectedEpIdx + 1}: ${currentEp.title}`
-    : movie.description;
+      ? `Season ${activeSeason?.seasonNumber} • Episode ${currentEp.episodeNumber || selectedEpIdx + 1}: ${currentEp.title}`
+      : movie.description;
 
   const episodeCount = isCollection ? movie.episodes!.length : 0;
 
@@ -133,11 +152,7 @@ export default function MovieModal({
       >
         {/* Hero */}
         <div className="relative aspect-[16/9] w-full">
-          <SmartImage
-            src={heroImage}
-            alt={heroTitle}
-            className="w-full h-full object-cover"
-          />
+          <SmartImage src={heroImage} alt={heroTitle} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-transparent to-transparent" />
 
@@ -171,10 +186,8 @@ export default function MovieModal({
           )}
 
           <div className="absolute inset-y-0 left-0 flex items-center">
-              <div className="px-6 md:px-12 max-w-2xl md:max-w-[58%] relative z-[3]">
-              <p className="text-white/70 text-xs md:text-sm mb-2">
-                You're watching {kind}
-              </p>
+            <div className="px-6 md:px-12 max-w-2xl md:max-w-[58%] relative z-[3]">
+              <p className="text-white/70 text-xs md:text-sm mb-2">You're watching {kind}</p>
               <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tight mb-3">
                 {heroTitle}
               </h2>
@@ -188,11 +201,7 @@ export default function MovieModal({
                     <Star
                       key={i}
                       size={16}
-                      className={
-                        i < rating
-                          ? "text-[#f47521] fill-[#f47521]"
-                          : "text-white/25"
-                      }
+                      className={i < rating ? "text-[#f47521] fill-[#f47521]" : "text-white/25"}
                     />
                   ))}
                 </div>
@@ -201,6 +210,7 @@ export default function MovieModal({
 
               <div className="flex items-center gap-3">
                 <button
+                  ref={playButtonRef}
                   onClick={() => {
                     if (showSeasonPicker) playFirstOfFirstSeason();
                     else onPlay(currentEp);
@@ -210,8 +220,8 @@ export default function MovieModal({
                   {showSeasonPicker
                     ? `Play S${seasons[0]?.seasonNumber} E${seasons[0]?.episodes[0]?.episodeNumber || 1}`
                     : isCollection
-                    ? `Play Episode ${currentEp.episodeNumber || selectedEpIdx + 1}`
-                    : "Continue Watching"}
+                      ? `Play Episode ${currentEp.episodeNumber || selectedEpIdx + 1}`
+                      : "Continue Watching"}
                   <span className="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center">
                     <Play size={12} fill="white" className="text-white ml-0.5" />
                   </span>
@@ -226,7 +236,11 @@ export default function MovieModal({
                   <button
                     onClick={() => {
                       const label = isCollection ? "playlist" : "video";
-                      if (window.confirm(`Delete this ${label}: "${movie.title}"? This cannot be undone.`)) {
+                      if (
+                        window.confirm(
+                          `Delete this ${label}: "${movie.title}"? This cannot be undone.`,
+                        )
+                      ) {
                         onDelete(movie);
                         onClose();
                       }
@@ -272,7 +286,6 @@ export default function MovieModal({
                     {isCollection ? "Change Series Thumbnail" : "Change Thumbnail"}
                   </button>
                 )}
-
               </div>
             </div>
           </div>
@@ -290,7 +303,9 @@ export default function MovieModal({
                     setSelectedEpIdx(0);
                   }}
                   className={`relative py-4 text-sm font-semibold whitespace-nowrap transition-colors ${
-                    selectedSeason === s.seasonNumber ? "text-[#f47521]" : "text-white/60 hover:text-white"
+                    selectedSeason === s.seasonNumber
+                      ? "text-[#f47521]"
+                      : "text-white/60 hover:text-white"
                   }`}
                 >
                   Season {s.seasonNumber}
@@ -317,8 +332,8 @@ export default function MovieModal({
             {hasMultiSeason
               ? `${seasons.length} Seasons • ${episodeCount} Episodes`
               : isCollection
-              ? `${episodeCount} Episodes`
-              : movie.duration || "Movie"}
+                ? `${episodeCount} Episodes`
+                : movie.duration || "Movie"}
           </span>
           <span className="text-white/20">|</span>
           <span>{movie.rating}</span>
@@ -379,15 +394,11 @@ export default function MovieModal({
         </div>
       </div>
       {showBannerPicker && (
-        <HeroBannerPicker
-          movie={movie}
-          onClose={() => setShowBannerPicker(false)}
-        />
+        <HeroBannerPicker movie={movie} onClose={() => setShowBannerPicker(false)} />
       )}
     </div>
   );
 }
-
 
 function SeasonCard({ season, onOpen }: { season: Season; onOpen: () => void }) {
   const first = season.episodes[0];
@@ -421,7 +432,6 @@ function SeasonCard({ season, onOpen }: { season: Season; onOpen: () => void }) 
   );
 }
 
-
 function EpisodeCard({
   movie,
   index,
@@ -439,6 +449,16 @@ function EpisodeCard({
     <div
       className="group relative shrink-0 w-64 cursor-pointer"
       onClick={current ? onPlay : onSelect}
+      tabIndex={0}
+      role="button"
+      aria-label={movie.title}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+          e.preventDefault();
+          if (current) onPlay();
+          else onSelect();
+        }
+      }}
     >
       <div className="legacy-media relative rounded-lg overflow-hidden bg-white/5">
         <SmartImage
@@ -478,9 +498,7 @@ function EpisodeCard({
             Episode {index}: {movie.title}
           </h4>
           {current && (
-            <p className="text-white/60 text-[11px] mt-0.5 line-clamp-1">
-              {movie.description}
-            </p>
+            <p className="text-white/60 text-[11px] mt-0.5 line-clamp-1">{movie.description}</p>
           )}
         </div>
         {current && (
@@ -506,22 +524,40 @@ function SimilarCard({
     <div
       className="group relative shrink-0 w-56 cursor-pointer"
       onClick={onSelect}
+      tabIndex={0}
+      role="button"
+      aria-label={movie.title}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <div className="legacy-media relative rounded-lg overflow-hidden bg-white/5">
-        <SmartImage src={movieImageSources(movie)} alt={movie.title} loading="lazy" className="w-full h-full object-cover" />
+        <SmartImage
+          src={movieImageSources(movie)}
+          alt={movie.title}
+          loading="lazy"
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <button
           onClick={(e) => {
             e.stopPropagation();
             onPlay();
           }}
-          className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-[#f47521]/90 hover:bg-[#f47521] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+          className={`absolute inset-0 m-auto w-11 h-11 rounded-full bg-[#f47521]/90 hover:bg-[#f47521] flex items-center justify-center transition-opacity ${
+            isTvBrowser() ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
         >
           <Play size={16} fill="white" className="text-white ml-0.5" />
         </button>
         <div className="absolute left-0 right-0 bottom-0 px-3 pb-2">
           <h4 className="text-white text-sm font-semibold truncate">{movie.title}</h4>
-          <p className="text-white/50 text-[11px]">{movie.year} • {movie.rating}</p>
+          <p className="text-white/50 text-[11px]">
+            {movie.year} • {movie.rating}
+          </p>
         </div>
       </div>
     </div>

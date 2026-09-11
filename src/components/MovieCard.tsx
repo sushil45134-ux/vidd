@@ -3,7 +3,7 @@ import { Play, Plus, Check, ThumbsUp, ChevronDown, Trash2, Image as ImageIcon } 
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
-import { isSamsungTvBrowser } from "../lib/browser";
+import { isTvBrowser } from "../lib/browser";
 
 interface MovieCardProps {
   movie: Movie;
@@ -20,7 +20,6 @@ interface MovieCardProps {
   onEditThumbnail?: (movie: Movie) => void;
 }
 
-
 export default function MovieCard({
   movie,
   isLarge = false,
@@ -36,8 +35,19 @@ export default function MovieCard({
   onEditThumbnail,
 }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const showHoverDetails = isHovered && !isSamsungTvBrowser();
+  // TVs have no hover: keep the action row (Play / My List / Like / Info)
+  // permanently visible so every action stays reachable with the remote.
+  const isTv = isTvBrowser();
+  const showHoverDetails = (isHovered && !isTv) || isTv;
 
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    // Activate the card only when the card itself (not an inner button)
+    // holds focus — inner buttons activate natively on Enter/Space.
+    if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+      e.preventDefault();
+      onClick();
+    }
+  };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -56,6 +66,10 @@ export default function MovieCard({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
+      tabIndex={0}
+      role="button"
+      aria-label={`${movie.title} — open details`}
+      onKeyDown={handleCardKeyDown}
     >
       <div
         className={`movie-card-surface relative overflow-hidden rounded-md transition-all duration-300 ${
@@ -71,9 +85,8 @@ export default function MovieCard({
           />
 
           {showHoverDetails && (
-          <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-transparent" />
-        )}
-
+            <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-transparent to-transparent" />
+          )}
         </div>
 
         {showHoverDetails && (
@@ -95,9 +108,7 @@ export default function MovieCard({
                   onToggleMyList();
                 }}
                 className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                  isInMyList
-                    ? "border-white bg-white/20"
-                    : "border-gray-500 hover:border-white"
+                  isInMyList ? "border-white bg-white/20" : "border-gray-500 hover:border-white"
                 }`}
                 title={isInMyList ? "Remove from My List" : "Add to My List"}
               >
@@ -113,16 +124,11 @@ export default function MovieCard({
                   onToggleLike();
                 }}
                 className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                  isLiked
-                    ? "border-white bg-white/20"
-                    : "border-gray-500 hover:border-white"
+                  isLiked ? "border-white bg-white/20" : "border-gray-500 hover:border-white"
                 }`}
                 title={isLiked ? "Unlike" : "Like"}
               >
-                <ThumbsUp
-                  size={14}
-                  className={isLiked ? "text-white fill-white" : "text-white"}
-                />
+                <ThumbsUp size={14} className={isLiked ? "text-white fill-white" : "text-white"} />
               </button>
               <button
                 onClick={(e) => {
@@ -155,7 +161,6 @@ export default function MovieCard({
                   <ImageIcon size={14} className="text-white" />
                 </button>
               )}
-
             </div>
 
             <div className="flex items-center gap-2 text-xs mb-1.5">
@@ -178,7 +183,7 @@ export default function MovieCard({
         )}
       </div>
 
-      {!showHoverDetails && (
+      {(!showHoverDetails || isTv) && (
         <p className="text-gray-300 text-xs mt-1 truncate px-0.5">{movie.title}</p>
       )}
     </div>

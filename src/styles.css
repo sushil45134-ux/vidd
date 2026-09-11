@@ -295,3 +295,68 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * TV (Samsung Tizen 5.5 / Chromium 69) remote & layout hardening
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Base font metrics: TV browsers can ship odd default sizes; keep rem
+ * identical to desktop Chrome so the layout matches a laptop. */
+.tv-layout {
+  font-size: 16px;
+}
+
+/* D-pad focus is the only pointer on a TV — make it impossible to miss. */
+.tv-layout :focus {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.tv-layout button:focus,
+.tv-layout a:focus {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+.tv-layout input:focus,
+.tv-layout textarea:focus,
+.tv-layout select:focus {
+  outline: 3px solid #ff6a00;
+  outline-offset: 0;
+}
+
+/* 10-foot UI: the 32px card action buttons are too small from a sofa;
+ * bump them without changing desktop. */
+.tv-layout .movie-card-surface button {
+  width: 40px;
+  height: 40px;
+}
+
+/* Fixed 16:9 card geometry stays put on focus (no zoom, no reflow). */
+.tv-layout .movie-card:focus .movie-card-surface,
+.tv-layout .tv-category-card:focus,
+.tv-layout .movie-card:focus,
+.tv-layout .tv-category-card:focus {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* Kill every remaining hover transform on TV (cards, posters, hero). */
+.tv-layout img,
+.tv-layout .movie-card-surface {
+  transition-property: none;
+}
+
+/* The hero eats small TV viewports (some Tizen sets report ~540px high);
+ * cap it like a laptop window instead. */
+.tv-layout .tv-hero {
+  height: 72vh;
+  min-height: 420px;
+}
+
+/* Keep rows level with the fixed 300px TV cards. */
+.tv-layout .tv-category-grid {
+  grid-template-columns: repeat(auto-fill, 300px);
+}

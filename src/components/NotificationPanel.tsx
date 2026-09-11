@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Movie } from "../data";
+import { registerTvBackHandler } from "../lib/spatialNav";
 
 interface NotificationPanelProps {
   onClose: () => void;
@@ -8,6 +9,9 @@ interface NotificationPanelProps {
 
 export default function NotificationPanel({ onClose }: NotificationPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // TV remote BACK closes the panel.
+  useEffect(() => registerTvBackHandler(onClose), [onClose]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -35,15 +39,13 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
       <div className="max-h-[400px] overflow-y-auto">
         <div className="p-8 text-center">
           <p className="text-gray-400 text-sm">No new notifications</p>
-          <p className="text-gray-600 text-xs mt-2">
-            You're all caught up!
-          </p>
+          <p className="text-gray-600 text-xs mt-2">You're all caught up!</p>
         </div>
       </div>
       <div className="px-4 py-3 border-t border-gray-700 text-center">
         <button
           onClick={onClose}
-          className="text-gray-400 text-xs hover:text-white transition-colors"
+          className="text-gray-400 text-xs hover:text-white transition-colors px-3 py-1.5 rounded-full ring-1 ring-white/10"
         >
           Close
         </button>

@@ -90,7 +90,7 @@ export default function HeroBanner({
   const description = cfg.heroDescription?.trim() || item.description;
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden">
+    <div className="tv-hero relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden">
       <div className="absolute inset-0" key={item.id}>
         <SmartImage
           src={movieImageSources(item, "hero")}

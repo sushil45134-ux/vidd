@@ -11,7 +11,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { isSamsungTvBrowser } from "../lib/browser";
+import { isTvBrowser } from "../lib/browser";
+import { TV_BOOT_SCRIPT } from "../lib/tvBoot";
+import { initSpatialNavigation } from "../lib/spatialNav";
 
 function NotFoundComponent() {
   return (
@@ -122,6 +124,10 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        {/* Must run BEFORE the app bundle: an inline classic script executes
+            before any deferred module script, so globalThis & friends exist
+            on Chromium 69 (Tizen 5.5) before the Supabase client evaluates. */}
+        <script dangerouslySetInnerHTML={{ __html: TV_BOOT_SCRIPT }} />
         {children}
         <Scripts />
       </body>
@@ -136,7 +142,24 @@ function RootComponent() {
     // Tizen 5.5 does not support several desktop-only hover/CSS behaviours.
     // Expose one stable class for TV-specific layout rules without changing
     // the desktop/mobile experience.
-    document.documentElement.classList.toggle("tv-layout", isSamsungTvBrowser());
+    const isTv = isTvBrowser();
+    document.documentElement.classList.toggle("tv-layout", isTv);
+
+    if (isTv) {
+      // TV browsers frequently report a small fixed viewport (some Tizen
+      // sets expose 960x540 CSS px). Pin the layout viewport to 1280 so the
+      // UI scales out and looks exactly like the desktop site on a laptop.
+      if (window.innerWidth > 0 && window.innerWidth < 1200) {
+        const meta = document.querySelector('meta[name="viewport"]');
+        if (meta) meta.setAttribute("content", "width=1280");
+      }
+
+      // D-pad arrows + remote BACK key support.
+      const cleanupNav = initSpatialNavigation();
+      return () => {
+        cleanupNav();
+      };
+    }
 
     // Register the PWA service worker (installable app on Android/desktop).
     if ("serviceWorker" in navigator) {
