@@ -22,11 +22,22 @@ let server;
 let browser;
 try {
   // Run identical desktop interactions against the pre-task implementation.
-  const baseline = execFileSync(
-    "git",
-    ["show", "38fe48a4a434fe82907671f99691646c4a81b758:src/components/VideoPlayer.tsx"],
-    { cwd: root, encoding: "utf8" },
-  ).replaceAll('"../lib/', '"/src/lib/');
+  // The pinned SHA is preferred; fall back to main for fresh clones that no
+  // longer carry it (override with SMOKE_BASELINE_REF).
+  const baselineRef =
+    process.env.SMOKE_BASELINE_REF ||
+    ["38fe48a4a434fe82907671f99691646c4a81b758", "origin/main", "main"].find((ref) => {
+      try {
+        execFileSync("git", ["cat-file", "-e", `${ref}^{commit}`], { cwd: root, stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  const baseline = execFileSync("git", ["show", `${baselineRef}:src/components/VideoPlayer.tsx`], {
+    cwd: root,
+    encoding: "utf8",
+  }).replaceAll('"../lib/', '"/src/lib/');
   await writeFile(resolve(fixture, "Baseline.tsx"), baseline);
   await writeFile(
     resolve(fixture, "index.html"),
@@ -48,7 +59,19 @@ const params = new URLSearchParams(location.search);
 const Component = params.has("baseline") ? Baseline : VideoPlayer;
 window.emitState = (state) => flushSync(() => window.api.emit(state));
 window.smokeRoot = createRoot(document.getElementById("root"));
-window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("paused")} onClose={() => { window.closedByPlayer = true; }} />);`,
+window.smokeRoot.render(
+  <Component
+    videoId="smoke-video"
+    autoPlay={!params.has("paused")}
+    onClose={() => { window.closedByPlayer = true; }}
+    queueItems={[
+      { youtubeId: "smoke-video", title: "Smoke video" },
+      { youtubeId: "next-video", title: "Next video" },
+    ]}
+    currentQueueIndex={0}
+    onJumpTo={() => { window.jumped = true; }}
+  />,
+);`,
   );
   server = await createServer({
     root,
@@ -169,6 +192,14 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
     assert.equal(await page.locator('iframe[src*="controls=0"]').count(), 0);
     assert.equal(await page.locator("iframe").count(), 1, "old player must be removed");
     assert.equal(await page.getByRole("button", { name: "Close video" }).isVisible(), true);
+    // The emergency embed is never cropped and keeps its own native controls.
+    const embed = await page.evaluate(() => {
+      const frame = document.querySelector('iframe[src*="controls=1"]');
+      return { style: frame.parentElement.getAttribute("style") || "", src: frame.src };
+    });
+    assert.equal(embed.style.includes("-60px"), false, "fallback iframe is not edge-cropped");
+    assert.match(embed.src, /controls=1/);
+    assert.equal(await page.locator("[data-tv-autohide]").count(), 0, "fallback never auto-hides");
   }
 
   // All emergency paths, including a constructed but never-ready player.
@@ -206,6 +237,17 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
   }))
     assert.equal(vars[key], value, key);
   assert.equal(await page.locator(".animate-spin").count(), 0);
+  // Chromium serialises the inline style as the `inset` shorthand, so read the
+  // longhand values back through CSSOM.
+  const tvCrop = await page.evaluate(() => {
+    const style = window.api.iframe.parentElement.parentElement.style;
+    return { top: style.top, bottom: style.bottom, left: style.left, right: style.right };
+  });
+  assert.deepEqual(
+    tvCrop,
+    { top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" },
+    "TV custom iframe reuses the desktop edge crop",
+  );
   assert.deepEqual(
     await page.evaluate(() => window.calls),
     [["volume", 80]],
@@ -256,25 +298,133 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
   await page.waitForFunction(() => document.fullscreenElement);
   await page.getByLabel("Exit fullscreen").click();
   await page.waitForFunction(() => !document.fullscreenElement);
+  // Deterministic restore target: focus a known button before going idle.
+  await page.getByLabel("Seek forward 10 seconds").focus();
   await page.clock.runFor(12000);
   assert.equal(
     await page.locator('iframe[src*="controls=1"]').count(),
     0,
     "ready cancels watchdog",
   );
-  assert.equal(await page.getByLabel("Pause", { exact: true }).isVisible(), true);
+
+  // ── TV-only auto-hide (windowed playback, controls still mounted) ──────
+  // The fake clock freezes in-page timers/rAF, and React's passive effects run
+  // in a later macrotask, so settle with a real (Node-side) wait before
+  // reading the DOM instead of polling from inside the page.
+  const settle = () => page.waitForTimeout(80);
+  const hiddenLocator = page.locator('[data-tv-autohide="hidden"]');
+  const seekCalls = () => page.evaluate(() => window.calls.filter(([c]) => c === "seek").length);
+  const expectHidden = async (expected, label) => {
+    await settle();
+    assert.equal(await hiddenLocator.count(), expected, label);
+  };
+
+  await expectHidden(
+    4,
+    "controls, timeline, gradients and the via-YouTube label hide after 3s idle",
+  );
+  assert.equal(await page.getByLabel("Video progress").isVisible(), false, "timeline hidden");
+  assert.equal(await page.getByLabel("Pause", { exact: true }).isVisible(), false);
+  assert.equal(
+    await page.evaluate(() => document.activeElement.hasAttribute("data-tv-focus-park")),
+    true,
+    "focus is parked on the host player",
+  );
+  assert.equal(
+    await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle),
+    "none",
+    "parked focus draws no outline around the video",
+  );
+
+  // The first D-pad press only reveals: no seek, no play/pause, no fullscreen.
+  const callsBeforeWake = await page.evaluate(() => window.calls.length);
+  const seeksBefore = await seekCalls();
+  await page.keyboard.press("ArrowUp");
+  await settle();
+  assert.equal(
+    await page.evaluate(() => window.calls.length),
+    callsBeforeWake,
+    "wake press performs no playback action",
+  );
+  assert.equal(
+    await page.evaluate(() => !!document.fullscreenElement),
+    false,
+    "wake press does not toggle fullscreen",
+  );
+  await expectHidden(0, "D-pad press revealed the controls");
+  assert.equal(
+    await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
+    "Seek forward 10 seconds",
+    "focus restored to the exact previously focused button",
+  );
+  // The press after the wake acts normally.
+  await page.keyboard.press("Enter");
+  await settle();
+  assert.equal(await seekCalls(), seeksBefore + 1, "the next press activates the button");
+
+  // OK/Enter wakes the same way: hide again, wake with OK, then act.
+  await page.clock.runFor(3001);
+  await expectHidden(4, "inactivity hides the controls again");
+  await page.keyboard.press("Enter");
+  await settle();
+  assert.equal(await seekCalls(), seeksBefore + 1, "OK only wakes — it does not activate");
+  await expectHidden(0, "OK revealed the controls");
+  assert.equal(
+    await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
+    "Seek forward 10 seconds",
+    "focus restored after the OK wake",
+  );
+  await page.keyboard.press("Enter");
+  await settle();
+  assert.equal(await seekCalls(), seeksBefore + 2, "the press after the OK wake acts normally");
+
+  // Mouse movement reveals the controls and restarts the inactivity timer.
+  await page.clock.runFor(3001);
+  await expectHidden(4, "idle again before the mouse check");
+  await page.mouse.move(960, 400);
+  await expectHidden(0, "mouse movement reveals the controls");
+  await page.clock.runFor(2500);
+  await expectHidden(0, "mouse movement resets the inactivity timer");
+  await page.clock.runFor(700);
+  await expectHidden(4, "and the timer runs again afterwards");
+
+  // Paused / buffering / open menus must never hide the controls.
+  await page.evaluate(() => window.emitState(2)); // PAUSED
+  await page.clock.runFor(6000);
+  await expectHidden(0, "paused keeps the controls visible");
+  assert.equal(await page.getByLabel("Video progress").isVisible(), true);
+  await page.evaluate(() => window.emitState(1)); // PLAYING
+  for (const title of ["Settings", "Subtitles / CC"]) {
+    const button = page.locator(`button[title="${title}"]`);
+    await button.click();
+    await page.clock.runFor(6000);
+    await expectHidden(0, `open ${title} keeps the controls visible`);
+    await button.click();
+    await settle();
+  }
+  // The queue sidebar covers its own toggle, so close it with the panel's X.
+  await page.locator('button[title="Queue"]').click();
+  await page.clock.runFor(6000);
+  await expectHidden(0, "open queue keeps the controls visible");
+  await page.locator(".absolute.right-0.w-80 button").first().click();
+  await settle();
+  await page.clock.runFor(600);
+  await expectHidden(0, "closing the menus leaves playback controls usable");
+
   assert.equal(await page.locator("[data-tv-player-open]").count(), 0);
   assert.equal(await page.locator("iframe").getAttribute("tabindex"), "-1");
   await page.evaluate(() =>
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "GoBack", keyCode: 10009 })),
   );
-  assert.equal(await page.evaluate(() => window.closedByPlayer), true);
-  await page.evaluate(() => window.emitState(3));
+  assert.equal(await page.evaluate(() => window.closedByPlayer), true, "BACK still closes");
+  await page.evaluate(() => window.emitState(3)); // BUFFERING
+  await page.clock.runFor(6000);
+  await expectHidden(0, "buffering keeps the controls visible");
   await page.clock.runFor(15001);
   await fallback(page);
   await page.close();
   console.log(
-    "PASS TV custom controls, D-pad, ranges, autoplay=false, fullscreen, BACK, buffering recovery",
+    "PASS TV custom controls, D-pad, ranges, autoplay=false, fullscreen, BACK, buffering recovery, auto-hide + wake/restore",
   );
 
   async function desktopSnapshot(baseline, paused) {
