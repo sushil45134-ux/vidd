@@ -150,8 +150,8 @@ export default function MovieModal({
         className="relative w-full max-w-6xl mx-4 bg-[#0b0b0f] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Hero */}
-        <div className="relative aspect-[16/9] w-full">
+        {/* Hero — legacy-media padding-ratio is the Chromium 69 aspect-ratio fallback */}
+        <div className="legacy-media relative aspect-[16/9] w-full">
           <SmartImage src={heroImage} alt={heroTitle} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-transparent to-transparent" />
