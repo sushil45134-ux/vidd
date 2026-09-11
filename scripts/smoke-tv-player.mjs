@@ -388,6 +388,39 @@ window.smokeRoot.render(
   await page.clock.runFor(700);
   await expectHidden(4, "and the timer runs again afterwards");
 
+  // Hidden chrome is inert, not merely transparent: nothing behind the bar
+  // may act as an invisible click target, and the key events must pass to the
+  // wake handler instead of a focused-but-hidden button.
+  const hitTag = await page.evaluate(() => {
+    const el = document.elementFromPoint(960, 1040); // bottom control strip
+    return el ? el.tagName.toLowerCase() : "none";
+  });
+  assert.equal(
+    hitTag === "button" || hitTag === "input",
+    false,
+    "hidden controls must not be invisible click targets",
+  );
+  // Remote media keys keep their direct meaning while the chrome is hidden
+  // (any input also counts as activity, so the reveal rides along).
+  const pauseCalls = () => page.evaluate(() => window.calls.filter(([c]) => c === "pause").length);
+  const pausesBefore = await pauseCalls();
+  await page.evaluate(() =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { keyCode: 19, key: "MediaPause" })),
+  );
+  await settle();
+  assert.equal(await pauseCalls(), pausesBefore + 1, "MediaPause acts directly while hidden");
+  await expectHidden(0, "media key press counts as activity and reveals the chrome");
+  // Resume from a backgrounded app/source switch must never land on a
+  // hidden bar (visibilitychange force-reveal).
+  await page.clock.runFor(3001);
+  await expectHidden(4, "idle again before the resume check");
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { get: () => false, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await settle();
+  await expectHidden(0, "app resume reveals the controls");
+
   // Paused / buffering / open menus must never hide the controls.
   await page.evaluate(() => window.emitState(2)); // PAUSED
   await page.clock.runFor(6000);
@@ -424,7 +457,8 @@ window.smokeRoot.render(
   await fallback(page);
   await page.close();
   console.log(
-    "PASS TV custom controls, D-pad, ranges, autoplay=false, fullscreen, BACK, buffering recovery, auto-hide + wake/restore",
+    "PASS TV custom controls, D-pad, ranges, autoplay=false, fullscreen, BACK, buffering recovery, " +
+      "auto-hide + wake/restore, inert-while-hidden, media keys, reveal on resume",
   );
 
   async function desktopSnapshot(baseline, paused) {
