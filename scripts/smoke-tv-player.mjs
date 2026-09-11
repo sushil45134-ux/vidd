@@ -419,7 +419,7 @@ window.smokeRoot.render(
   assert.equal(await page.evaluate(() => window.closedByPlayer), true, "BACK still closes");
   await page.evaluate(() => window.emitState(3)); // BUFFERING
   await page.clock.runFor(6000);
-  assert.equal(await hiddenCount(), 0, "buffering keeps the controls visible");
+  await expectHidden(0, "buffering keeps the controls visible");
   await page.clock.runFor(15001);
   await fallback(page);
   await page.close();
