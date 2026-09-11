@@ -573,14 +573,6 @@
 .tv-custom-player .tv-player-progress {
   height: 32px;
 }
-/* TV auto-hide parks focus on the player host container while the chrome is
- * hidden. The host is a parking spot, not a control — the 10-foot focus ring
- * must never wrap the whole video. */
-.tv-layout .tv-custom-player > div[data-tv-controls-host]:focus,
-.tv-custom-player > div[data-tv-controls-host]:focus {
-  outline: none;
-  box-shadow: none;
-}
 .tv-custom-player .tv-player-progress > div {
   top: 12px;
   height: 8px;

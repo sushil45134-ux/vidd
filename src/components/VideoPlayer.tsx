@@ -55,6 +55,7 @@ const TV_WAKE_KEYS = new Set([
   "ArrowLeft",
   "ArrowRight",
   "Enter",
+  "NumpadEnter",
   " ",
   "Spacebar",
 ]);
@@ -228,7 +229,12 @@ export function VideoPlayer({
       ) {
         return;
       }
-      const isWakeKey = TV_WAKE_KEYS.has(e.key) || e.keyCode === 13 || e.keyCode === 32;
+      // Older TV engines may surface only keyCode, so check both channels.
+      const isWakeKey =
+        TV_WAKE_KEYS.has(e.key) ||
+        e.keyCode === 13 ||
+        e.keyCode === 32 ||
+        (e.keyCode >= 37 && e.keyCode <= 40);
       if (tvControlsHiddenRef.current && isWakeKey) {
         e.preventDefault();
         e.stopPropagation();
@@ -241,6 +247,20 @@ export function VideoPlayer({
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [isTv, useSimpleEmbed, touchTvControls]);
+
+  // Resume from a source switch / app background must never land the viewer
+  // on a hidden bar: treat the app becoming visible again as activity and
+  // force a fresh countdown (bypassing the mousemove throttle).
+  useEffect(() => {
+    if (!isTv || useSimpleEmbed) return;
+    const onVisibility = () => {
+      if (document.hidden) return;
+      tvLastActivityRef.current = 0;
+      touchTvControls();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [isTv, useSimpleEmbed, touchTvControls]);
 
   // Keep focus in the host page (never the cross-origin custom-mode iframe).
