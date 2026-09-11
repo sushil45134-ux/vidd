@@ -8,9 +8,13 @@ function record(error: unknown) {
   lastCapturedError = { error, at: Date.now() };
 }
 
-if (typeof globalThis.addEventListener === "function") {
-  globalThis.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
-  globalThis.addEventListener("unhandledrejection", (event) =>
+// Do not reference globalThis directly: Samsung Tizen 5.5 (Chromium 69)
+// does not define it, and that would stop the whole application before React
+// can render. window/self works in all browsers supported by this app.
+const errorTarget = typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : null;
+if (errorTarget && typeof errorTarget.addEventListener === "function") {
+  errorTarget.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
+  errorTarget.addEventListener("unhandledrejection", (event) =>
     record((event as PromiseRejectionEvent).reason),
   );
 }
