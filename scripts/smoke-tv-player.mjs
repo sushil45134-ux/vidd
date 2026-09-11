@@ -22,9 +22,12 @@ let server;
 let browser;
 try {
   // Run identical desktop interactions against the pre-task implementation.
+  // Pinned to main before the TV auto-hide follow-up (the previous pin,
+  // 38fe48a…, predates this repo's shallow history); desktop behaviour must
+  // match this exactly.
   const baseline = execFileSync(
     "git",
-    ["show", "38fe48a4a434fe82907671f99691646c4a81b758:src/components/VideoPlayer.tsx"],
+    ["show", "d101121a26da51d73637f259f3e05412d49c72e4:src/components/VideoPlayer.tsx"],
     { cwd: root, encoding: "utf8" },
   ).replaceAll('"../lib/', '"/src/lib/');
   await writeFile(resolve(fixture, "Baseline.tsx"), baseline);
@@ -169,6 +172,14 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
     assert.equal(await page.locator('iframe[src*="controls=0"]').count(), 0);
     assert.equal(await page.locator("iframe").count(), 1, "old player must be removed");
     assert.equal(await page.getByRole("button", { name: "Close video" }).isVisible(), true);
+    // The emergency fallback must keep its native controls uncropped.
+    assert.equal(
+      await page
+        .locator('iframe[src*="controls=1"]')
+        .evaluate((el) => !!el.closest("[style*='-60px']")),
+      false,
+      "emergency fallback iframe must not be edge-cropped",
+    );
   }
 
   // All emergency paths, including a constructed but never-ready player.
@@ -205,6 +216,14 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
     autoplay: 0,
   }))
     assert.equal(vars[key], value, key);
+  // TV custom mode reuses the desktop edge crop (title/logo/watermark
+  // overlays are cross-origin and only partially covered by it). Read the
+  // longhands — engines re-serialize the inline shorthand on getAttribute.
+  const tvCrop = await page.evaluate(() => {
+    const s = window.api.iframe.parentElement.parentElement.style;
+    return [s.top, s.bottom, s.left, s.right].join(" ");
+  });
+  assert.equal(tvCrop, "-60px -60px -2px -2px", "TV custom iframe reuses the desktop edge crop");
   assert.equal(await page.locator(".animate-spin").count(), 0);
   assert.deepEqual(
     await page.evaluate(() => window.calls),
@@ -214,6 +233,14 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
   assert.equal(
     await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
     "Play",
+  );
+  // autoPlay=false: the unstarted player must keep the center Play visible
+  // and must never auto-hide.
+  await page.clock.runFor(5000);
+  assert.equal(
+    await page.getByLabel("Play", { exact: true }).first().isVisible(),
+    true,
+    "autoPlay=false keeps Play available",
   );
   await page.keyboard.press("Enter");
   await page.evaluate(() => window.emitState(1));
@@ -262,7 +289,146 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
     0,
     "ready cancels watchdog",
   );
-  assert.equal(await page.getByLabel("Pause", { exact: true }).isVisible(), true);
+  // ── TV auto-hide (windowed playback, this task's fix) ──────────────────
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    false,
+    "3s of inactivity while playing hides the TV chrome",
+  );
+  await page.waitForFunction(() => {
+    const fade = document.querySelector("[data-tv-chrome-fade]");
+    return !fade || getComputedStyle(fade).opacity === "0";
+  });
+  const hidden = await page.evaluate(() => {
+    const overlay = document.querySelector("[data-tv-controls-overlay]");
+    const host = document.querySelector("[data-tv-controls-host]");
+    const cs = (el) => getComputedStyle(el);
+    const at = document.elementFromPoint(960, 1040); // bottom control strip
+    return {
+      overlayVisibility: cs(overlay).visibility,
+      overlayAriaHidden: overlay.getAttribute("aria-hidden"),
+      hostFocused: document.activeElement === host,
+      hostOutline: cs(host).outlineStyle,
+      fades: [...document.querySelectorAll("[data-tv-chrome-fade]")].map((el) => cs(el).opacity),
+      hitOnHiddenControl: !!at && (at.tagName === "BUTTON" || at.tagName === "INPUT"),
+    };
+  });
+  assert.equal(hidden.overlayVisibility, "hidden", "hidden TV chrome is invisible, not faded");
+  assert.equal(hidden.overlayAriaHidden, "true", "hidden TV chrome leaves D-pad focus scope");
+  assert.equal(hidden.hostFocused, true, "remote focus parks on the host player");
+  assert.equal(hidden.hostOutline, "none", "parked focus paints no ring around the video");
+  assert.deepEqual(hidden.fades, ["0", "0", "0"], "gradients and via-YouTube label fade out");
+  assert.equal(hidden.hitOnHiddenControl, false, "hidden controls must not be click targets");
+  const callsBeforeWake = await page.evaluate(() => window.calls.length);
+  await page.keyboard.press("Enter"); // first OK press must only wake the chrome
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    true,
+    "first OK press reveals the hidden controls",
+  );
+  assert.equal(
+    await page.evaluate(() => window.calls.length),
+    callsBeforeWake,
+    "a wake-only press must not seek, play/pause, or toggle fullscreen",
+  );
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.getAttribute("aria-label")),
+    "Fullscreen",
+    "reveal restores focus to the previously focused button",
+  );
+  await page.keyboard.press("Enter"); // next press acts on the restored button
+  await page.waitForFunction(() => !!document.fullscreenElement);
+  // ── auto-hide also applies in fullscreen (the reported bug) ────────────
+  await page.clock.runFor(3100);
+  assert.equal(
+    await page.getByLabel("Exit fullscreen").isVisible(),
+    false,
+    "chrome auto-hides in TV fullscreen",
+  );
+  await page.keyboard.press("ArrowDown"); // first D-pad press wakes, no fullscreen exit
+  assert.equal(
+    await page.getByLabel("Exit fullscreen").isVisible(),
+    true,
+    "D-pad wakes the chrome",
+  );
+  assert.ok(
+    await page.evaluate(() => !!document.fullscreenElement),
+    "wake must not exit fullscreen",
+  );
+  await page.keyboard.press("Enter"); // act: leaves fullscreen again via the restored button
+  await page.waitForFunction(() => !document.fullscreenElement);
+  // ── mouse movement reveals and resets the inactivity timer ─────────────
+  await page.mouse.move(400, 300);
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    true,
+    "mouse move reveals",
+  );
+  await page.clock.runFor(2000);
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    true,
+    "movement resets the inactivity timer",
+  );
+  await page.clock.runFor(1100);
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    false,
+    "hides again 3s after the last movement",
+  );
+  // ── pause, buffering, and open menus must force the chrome visible ─────
+  await page.evaluate(() => window.emitState(2)); // user paused while hidden
+  assert.equal(
+    await page.getByLabel("Play", { exact: true }).first().isVisible(),
+    true,
+    "pause reveals the chrome so Play is reachable",
+  );
+  await page.evaluate(() => window.emitState(1));
+  await page.getByTitle("Settings").click();
+  await page.clock.runFor(3100);
+  assert.equal(
+    await page.getByTitle("Settings").isVisible(),
+    true,
+    "open menus keep the chrome up",
+  );
+  await page.getByTitle("Settings").click(); // closing the menu re-arms the countdown
+  await page.clock.runFor(3100);
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    false,
+    "menu close re-arms auto-hide",
+  );
+  await page.mouse.move(400, 300); // wake first (hidden chrome is unclickable by design)
+  await page.getByTitle("Subtitles / CC").click();
+  await page.evaluate(() => window.emitState(3)); // buffering + open subtitles menu
+  assert.equal(
+    await page.getByTitle("Subtitles / CC").isVisible(),
+    true,
+    "open subtitles menu keeps the chrome up",
+  );
+  await page.getByTitle("Subtitles / CC").click(); // close menu; buffering still holds it open
+  await page.evaluate(() => window.emitState(1)); // end buffering: chrome re-arms, then hides
+  await page.clock.runFor(3100);
+  assert.equal(
+    await page.getByLabel("Pause", { exact: true }).isVisible(),
+    false,
+    "buffering end re-arms auto-hide",
+  );
+  // Media keys stay direct even while the chrome is hidden (existing behavior).
+  const beforeMedia = await page.evaluate(() => window.calls.length);
+  await page.evaluate(() =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "MediaPause" })),
+  );
+  const mediaCalls = await page.evaluate(() => window.calls);
+  assert.equal(mediaCalls.length, beforeMedia + 1, "MediaPause acts without a wake round-trip");
+  assert.deepEqual(mediaCalls[mediaCalls.length - 1], ["pause"]);
+  await page.evaluate(() => window.emitState(2)); // user paused while hidden
+  assert.equal(
+    await page.getByLabel("Play", { exact: true }).first().isVisible(),
+    true,
+    "pause reveals the chrome so Play is reachable",
+  );
+  await page.evaluate(() => window.emitState(1));
   assert.equal(await page.locator("[data-tv-player-open]").count(), 0);
   assert.equal(await page.locator("iframe").getAttribute("tabindex"), "-1");
   await page.evaluate(() =>
@@ -275,6 +441,10 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
   await page.close();
   console.log(
     "PASS TV custom controls, D-pad, ranges, autoplay=false, fullscreen, BACK, buffering recovery",
+  );
+  console.log(
+    "PASS TV auto-hide: 3s inactivity hides chrome windowed+fullscreen, wake-only D-pad/OK, " +
+      "focus park/restore, invisible-while-hidden, menus/pause/buffering hold, mouse reveal",
   );
 
   async function desktopSnapshot(baseline, paused) {
@@ -292,7 +462,10 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
     const result = await page.evaluate(() => ({
       calls: window.calls,
       hasOnError: !!window.api.options.events.onError,
-      crop: window.api.iframe.parentElement.parentElement.getAttribute("style"),
+      crop: (() => {
+        const s = window.api.iframe.parentElement.parentElement.style;
+        return [s.top, s.bottom, s.left, s.right].join(" ");
+      })(),
       controlsHidden: !!document.querySelector(".pointer-events-none.opacity-0"),
       shortcutsEnabled: document.body.hasAttribute("data-tv-player-open"),
     }));
@@ -300,7 +473,14 @@ window.smokeRoot.render(<Component videoId="smoke-video" autoPlay={!params.has("
     return { vars, ...result };
   }
   for (const paused of [false, true]) {
-    assert.deepEqual(await desktopSnapshot(false, paused), await desktopSnapshot(true, paused));
+    const current = await desktopSnapshot(false, paused);
+    const previous = await desktopSnapshot(true, paused);
+    assert.deepEqual(current, previous);
+    assert.equal(
+      current.crop,
+      tvCrop,
+      "TV custom mode reuses the exact desktop edge crop inline style",
+    );
   }
   console.log(
     "PASS desktop identical to pre-task baseline: playerVars, autoplay on/off, shortcuts, crop, auto-hide",
