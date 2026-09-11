@@ -1,0 +1,51 @@
+name: TV player smoke
+
+# Runs the real-browser TV player smoke test (scripts/smoke-tv-player.mjs).
+# Local sandboxes often cannot download Chromium or its system libraries, so
+# the assertions are executed here on a full ubuntu runner instead.
+on:
+  push:
+    branches:
+      - "arena/**"
+      - main
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (full history — the desktop baseline is read via git show)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies (never touches the lockfile)
+        run: npm install --no-package-lock --no-audit --no-fund --legacy-peer-deps
+
+      - name: Install Playwright + Chromium (test-only, not saved)
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund --legacy-peer-deps playwright
+          npx playwright install --with-deps chromium
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint changed files
+        run: npx eslint src/components/VideoPlayer.tsx scripts/smoke-tv-player.mjs
+
+      - name: Prettier check changed files
+        run: npx prettier --check src/components/VideoPlayer.tsx src/styles.css scripts/smoke-tv-player.mjs
+
+      - name: Browser smoke test (TV auto-hide, D-pad wake, focus restore, fallbacks, desktop parity)
+        run: node scripts/smoke-tv-player.mjs

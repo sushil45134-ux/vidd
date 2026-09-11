@@ -292,6 +292,8 @@ window.smokeRoot.render(
   await page.waitForFunction(() => document.fullscreenElement);
   await page.getByLabel("Exit fullscreen").click();
   await page.waitForFunction(() => !document.fullscreenElement);
+  // Deterministic restore target: focus a known button before going idle.
+  await page.getByLabel("Seek forward 10 seconds").focus();
   await page.clock.runFor(12000);
   assert.equal(
     await page.locator('iframe[src*="controls=1"]').count(),
@@ -337,27 +339,29 @@ window.smokeRoot.render(
   );
   assert.equal(await hiddenCount(), 0, "controls revealed");
   assert.equal(
-    await page.evaluate(() => document.activeElement.tagName),
-    "BUTTON",
-    "focus restored to the previously focused button",
+    await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
+    "Seek forward 10 seconds",
+    "focus restored to the exact previously focused button",
   );
-
-  // Hide again from a known button and check OK behaves the same way.
-  await page.clock.runFor(600);
-  await page.getByLabel("Seek forward 10 seconds").focus();
+  // The next press acts normally.
   const seeksBefore = await seekCount();
+  await page.keyboard.press("Enter");
+  assert.equal(await seekCount(), seeksBefore + 1, "the next press activates the button");
+
+  // OK/Enter behaves the same way as the D-pad: hide again, wake, then act.
+  await page.clock.runFor(600);
   await page.clock.runFor(3001);
   assert.equal(await hiddenCount(), 4, "inactivity hides the controls again");
   await page.keyboard.press("Enter");
-  assert.equal(await hiddenCount(), 0, "OK only wakes the controls");
-  assert.equal(await seekCount(), seeksBefore, "OK did not activate the focused button");
+  assert.equal(await seekCount(), seeksBefore + 1, "OK only wakes — it does not activate");
+  assert.equal(await hiddenCount(), 0, "OK revealed the controls");
   assert.equal(
     await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
     "Seek forward 10 seconds",
-    "focus restored to the exact previous button",
+    "focus restored after the OK wake",
   );
   await page.keyboard.press("Enter");
-  assert.equal(await seekCount(), seeksBefore + 1, "the next press acts normally");
+  assert.equal(await seekCount(), seeksBefore + 2, "the press after the wake acts normally");
 
   // Mouse movement reveals the controls and restarts the inactivity timer.
   await page.clock.runFor(3001);
