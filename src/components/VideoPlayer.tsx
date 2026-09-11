@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { isTvBrowser } from "../lib/browser";
+import type { YouTubePlayer, YouTubeWindow, YouTubeEvent } from "../lib/youtubePlayer";
 import {
   Play,
   Pause,
@@ -64,6 +65,7 @@ export function VideoPlayer({
   currentQueueIndex,
   onJumpTo,
 }: VideoPlayerProps) {
+  const isTv = isTvBrowser();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(80);
@@ -77,10 +79,9 @@ export function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(true);
   const [videoTitle, setVideoTitle] = useState("");
   const [showQueue, setShowQueue] = useState(false);
-  // Samsung/Tizen browsers can load the YouTube embed but often fail to load
-  // or execute the YouTube IFrame API. Keep a native embed fallback ready so
-  // the TV never gets stuck on our custom spinner.
-  const [useSimpleEmbed, setUseSimpleEmbed] = useState(() => isTvBrowser());
+  // TV first reuses the desktop API/custom controls. Native controls are
+  // reserved for the emergency embed when the API cannot become usable.
+  const [useSimpleEmbed, setUseSimpleEmbed] = useState(false);
   // TV fallback chain: 0 = youtube.com embed, 1 = youtube-nocookie embed.
   const [tvStage, setTvStage] = useState(0);
   // After a grace period, offer remote-focusable recovery actions in case
@@ -114,12 +115,27 @@ export function VideoPlayer({
   const playerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const ytPlayerRef = useRef<any>(null);
+  const ytPlayerRef = useRef<YouTubePlayer | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const settingsRef = useRef<HTMLDivElement>(null);
   const subtitlesRef = useRef<HTMLDivElement>(null);
   const queueRef = useRef<HTMLDivElement>(null);
   const hasStartedRef = useRef(false);
+  const playButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Keep focus in the host page (never the cross-origin custom-mode iframe).
+  // The same spatial navigator and LIFO BACK stack continue to own the remote.
+  useEffect(() => {
+    if (!isTv) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const target = useSimpleEmbed
+      ? playerRef.current?.querySelector<HTMLButtonElement>("button")
+      : playButtonRef.current;
+    target?.focus();
+    return () => {
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [isTv, useSimpleEmbed]);
 
   // Initialize YouTube Player API
   useEffect(() => {
@@ -130,9 +146,10 @@ export function VideoPlayer({
     setCurrentTime("0:00");
     setDuration("0:00");
     let cancelled = false;
+    const playerContainer = containerRef.current;
+    const ytWindow = window as unknown as YouTubeWindow;
 
-    // On Samsung/Tizen, use YouTube's own HTML5 embed controls. The IFrame
-    // API is not consistently supported by older TV WebKit/Chromium builds.
+    // Emergency embed needs no API and must never retain the app spinner.
     if (useSimpleEmbed) {
       setIsBuffering(false);
       return () => {
@@ -143,17 +160,38 @@ export function VideoPlayer({
     // Load the YouTube IFrame API script once per page. Never depend on other
     // <script> tags existing — append to <head> directly.
     const API_SRC = "https://www.youtube.com/iframe_api";
-    if (!document.querySelector(`script[src="${API_SRC}"]`)) {
-      const tag = document.createElement("script");
-      tag.src = API_SRC;
-      document.head.appendChild(tag);
+    let apiScript = document.querySelector<HTMLScriptElement>(`script[src="${API_SRC}"]`);
+    const newScript = !apiScript;
+    if (!apiScript) {
+      apiScript = document.createElement("script");
+      apiScript.src = API_SRC;
     }
 
     let mountNode: HTMLDivElement | null = null;
     let autoplayCheckTimer: ReturnType<typeof setTimeout> | undefined;
+    let readyTimer: ReturnType<typeof setTimeout> | undefined;
+    let createdPlayer: typeof ytPlayerRef.current = null;
+    let tvFailed = false;
+    const fallbackOnTv = () => {
+      if (!isTv || cancelled || tvFailed) return;
+      tvFailed = true;
+      clearTimeout(readyTimer);
+      setIsBuffering(false);
+      setIsPlaying(false);
+      setShowQueue(false);
+      setUseSimpleEmbed(true);
+    };
+    if (isTv) {
+      // Covers missing script/callback AND a constructed player that never
+      // emits onReady. Separate from the desktop autoplay-check timer.
+      readyTimer = setTimeout(fallbackOnTv, 10000);
+      apiScript.addEventListener("error", fallbackOnTv);
+    }
+    if (newScript) document.head.appendChild(apiScript);
 
     const initPlayer = () => {
-      if (cancelled || !containerRef.current) return;
+      if (cancelled || tvFailed || !containerRef.current) return;
+      if (isTv && createdPlayer) return;
       if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
         ytPlayerRef.current.loadVideoById(videoId);
         if (autoPlay) ytPlayerRef.current.playVideo();
@@ -171,13 +209,14 @@ export function VideoPlayer({
       mountNode.style.width = "100%";
       mountNode.style.height = "100%";
       containerRef.current.appendChild(mountNode);
-      const player = new (window as any).YT.Player(mountNode, {
+      const player = new ytWindow.YT.Player(mountNode, {
         videoId,
         width: "100%",
         height: "100%",
         playerVars: {
           autoplay: autoPlay ? 1 : 0,
           controls: 0,
+          ...(isTv ? { enablejsapi: 1 } : {}),
           modestbranding: 1,
           rel: 0,
           showinfo: 0,
@@ -191,12 +230,19 @@ export function VideoPlayer({
           origin: window.location.origin,
         },
         events: {
-          onReady: (event: any) => {
-            if (cancelled) return;
+          onReady: (event: YouTubeEvent) => {
+            if (cancelled || tvFailed) return;
             const p = event.target;
             ytPlayerRef.current = p;
-            p.setVolume(volume);
-            if (autoPlay) p.playVideo();
+            try {
+              p.setVolume(volume);
+              if (autoPlay) p.playVideo();
+            } catch (error) {
+              if (!isTv) throw error;
+              fallbackOnTv();
+              return;
+            }
+            if (isTv) clearTimeout(readyTimer);
             setIsBuffering(false);
 
             // If the browser blocks programmatic autoplay (common on first
@@ -209,7 +255,9 @@ export function VideoPlayer({
                 // 1 = playing, 3 = buffering — the video is genuinely on its
                 // way; leave the UI alone.
                 if (st === 1 || st === 3) return;
-              } catch (_) {}
+              } catch (_) {
+                /* Optional provider APIs may be unavailable. */
+              }
               setIsBuffering(false);
               setIsPlaying(false);
             }, 2500);
@@ -217,28 +265,37 @@ export function VideoPlayer({
             try {
               const title = p.getVideoData && p.getVideoData()?.title;
               if (title) setVideoTitle(title);
-            } catch (_) {}
+            } catch (_) {
+              /* Optional provider APIs may be unavailable. */
+            }
 
             try {
               p.unloadModule("captions");
               p.unloadModule("cc");
-            } catch (_) {}
+            } catch (_) {
+              /* Optional provider APIs may be unavailable. */
+            }
             try {
               p.setOption("captions", "track", {});
               p.setOption("cc", "track", {});
-            } catch (_) {}
+            } catch (_) {
+              /* Optional provider APIs may be unavailable. */
+            }
 
             setTimeout(() => {
+              if (isTv && (cancelled || tvFailed)) return;
               try {
                 const tracks = p.getOption("captions", "tracklist");
                 if (tracks && tracks.length > 0) {
-                  const parsed: SubtitleTrack[] = tracks.map((t: any) => ({
+                  const parsed: SubtitleTrack[] = tracks.map((t) => ({
                     lang: t.languageCode || t.vss_id || "unknown",
                     name: t.languageName || t.displayName || t.languageCode || "Unknown",
                   }));
                   setSubtitleTracks(parsed);
                 }
-              } catch (_) {}
+              } catch (_) {
+                /* Optional provider APIs may be unavailable. */
+              }
             }, 2000);
 
             progressIntervalRef.current = setInterval(() => {
@@ -256,22 +313,31 @@ export function VideoPlayer({
                     setCurrentTime(formatTime(current));
                     setDuration(formatTime(total));
                   }
-                } catch (_) {}
+                } catch (_) {
+                  /* Optional provider APIs may be unavailable. */
+                }
               }
             }, 500);
           },
-          onStateChange: (event: any) => {
-            const YT = (window as any).YT;
+          ...(isTv ? { onError: fallbackOnTv } : {}),
+          onStateChange: (event: YouTubeEvent) => {
+            if (isTv && (cancelled || tvFailed)) return;
+            const YT = ytWindow.YT;
             const p = event.target;
+            if (isTv && event.data !== YT.PlayerState.BUFFERING) setIsBuffering(false);
 
             if (!activeSubtitle) {
               try {
-                p.unloadModule && p.unloadModule("captions");
-                p.unloadModule && p.unloadModule("cc");
-              } catch (_) {}
+                if (p.unloadModule) p.unloadModule("captions");
+                if (p.unloadModule) p.unloadModule("cc");
+              } catch (_) {
+                /* Optional provider APIs may be unavailable. */
+              }
               try {
-                p.setOption && p.setOption("captions", "track", {});
-              } catch (_) {}
+                if (p.setOption) p.setOption("captions", "track", {});
+              } catch (_) {
+                /* Optional provider APIs may be unavailable. */
+              }
             }
 
             if (event.data === YT.PlayerState.PLAYING) {
@@ -280,7 +346,9 @@ export function VideoPlayer({
               let title = "Now Playing";
               try {
                 title = (p.getVideoData && p.getVideoData()?.title) || "Now Playing";
-              } catch (_) {}
+              } catch (_) {
+                /* Optional provider APIs may be unavailable. */
+              }
               setVideoTitle(title);
               if (!hasStartedRef.current) {
                 hasStartedRef.current = true;
@@ -303,7 +371,10 @@ export function VideoPlayer({
           },
         },
       });
-      ytPlayerRef.current = player;
+      createdPlayer = player;
+      // TV controls cannot call incomplete methods before onReady. Desktop
+      // retains its existing reference/initialization behavior.
+      if (!isTv) ytPlayerRef.current = player;
       // The API replaces mountNode with an <iframe> that does NOT inherit our
       // styles/classes — size it explicitly so it fills the crop wrapper.
       try {
@@ -315,44 +386,88 @@ export function VideoPlayer({
           iframe.style.top = "0";
           iframe.style.left = "0";
           iframe.style.border = "0";
+          if (isTv) {
+            iframe.tabIndex = -1;
+            iframe.setAttribute("aria-hidden", "true");
+            iframe.referrerPolicy = "no-referrer-when-downgrade";
+          }
         }
-      } catch (_) {}
+      } catch (_) {
+        /* Optional provider APIs may be unavailable. */
+      }
     };
 
-    if ((window as any).YT && (window as any).YT.Player) {
-      initPlayer();
+    const startPlayer = () => {
+      if (!isTv) return initPlayer();
+      try {
+        initPlayer();
+      } catch (_) {
+        fallbackOnTv();
+      }
+    };
+    const previousApiReady = ytWindow.onYouTubeIframeAPIReady;
+    if (ytWindow.YT && ytWindow.YT.Player) {
+      startPlayer();
     } else {
-      (window as any).onYouTubeIframeAPIReady = initPlayer;
+      ytWindow.onYouTubeIframeAPIReady = startPlayer;
       // Slow/older TV browsers may never call onYouTubeIframeAPIReady. Do not
       // leave viewers looking at an infinite spinner in that case.
-      autoplayCheckTimer = setTimeout(() => {
-        if (!cancelled && !ytPlayerRef.current) {
-          setIsBuffering(false);
-          setUseSimpleEmbed(true);
-        }
-      }, 8000);
+      if (!isTv)
+        autoplayCheckTimer = setTimeout(() => {
+          if (!cancelled && !ytPlayerRef.current) {
+            setIsBuffering(false);
+            setUseSimpleEmbed(true);
+          }
+        }, 8000);
     }
 
     return () => {
       cancelled = true;
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (autoplayCheckTimer) clearTimeout(autoplayCheckTimer);
-      const inst = ytPlayerRef.current;
+      if (isTv) {
+        clearTimeout(readyTimer);
+        apiScript.removeEventListener("error", fallbackOnTv);
+        if (ytWindow.onYouTubeIframeAPIReady === startPlayer) {
+          ytWindow.onYouTubeIframeAPIReady = previousApiReady;
+        }
+      }
+      const inst = isTv ? createdPlayer : ytPlayerRef.current;
       ytPlayerRef.current = null;
       if (inst && typeof inst.destroy === "function") {
         try {
           inst.destroy();
-        } catch (_) {}
+        } catch (_) {
+          /* Optional provider APIs may be unavailable. */
+        }
       }
       // Remove anything the player left behind (iframe / mount node) so the
       // next mount starts from a clean container.
-      if (containerRef.current) {
+      if (playerContainer) {
         try {
-          containerRef.current.innerHTML = "";
-        } catch (_) {}
+          playerContainer.innerHTML = "";
+        } catch (_) {
+          /* Optional provider APIs may be unavailable. */
+        }
       }
     };
-  }, [videoId, useSimpleEmbed]);
+    // Preserve the existing mount-per-video lifecycle: volume/menu/playing
+    // changes must not destroy and recreate the desktop or TV player.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, useSimpleEmbed, isTv]);
+
+  // Also bound a provider buffering stall after onReady. The native embed
+  // has its own loading UI; the app spinner never covers emergency playback.
+  useEffect(() => {
+    if (!isTv || useSimpleEmbed || !isBuffering) return;
+    const timer = setTimeout(() => {
+      setIsBuffering(false);
+      setIsPlaying(false);
+      setShowQueue(false);
+      setUseSimpleEmbed(true);
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [isTv, useSimpleEmbed, isBuffering]);
 
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -405,6 +520,27 @@ export function VideoPlayer({
 
   const toggleFullscreen = useCallback(() => {
     if (!playerRef.current) return;
+    if (isTv) {
+      // Chromium 69 may only expose the prefixed fullscreen API.
+      const doc = document as Document & {
+        webkitFullscreenElement?: Element;
+        webkitExitFullscreen?: () => void;
+      };
+      const element = playerRef.current as HTMLDivElement & {
+        webkitRequestFullscreen?: () => void;
+      };
+      try {
+        const result =
+          doc.fullscreenElement || doc.webkitFullscreenElement
+            ? (doc.exitFullscreen || doc.webkitExitFullscreen)?.call(doc)
+            : (element.requestFullscreen || element.webkitRequestFullscreen)?.call(element);
+        // Some TV browser shells disallow fullscreen. Keep controls usable.
+        if (result) result.catch(() => {});
+      } catch (_) {
+        /* The TV shell can reject fullscreen even following remote input. */
+      }
+      return;
+    }
     if (!document.fullscreenElement) {
       playerRef.current.requestFullscreen();
       setIsFullscreen(true);
@@ -412,7 +548,7 @@ export function VideoPlayer({
       document.exitFullscreen();
       setIsFullscreen(false);
     }
-  }, []);
+  }, [isTv]);
 
   const skip = useCallback((seconds: number) => {
     if (!ytPlayerRef.current) return;
@@ -425,7 +561,9 @@ export function VideoPlayer({
     if (ytPlayerRef.current) {
       try {
         ytPlayerRef.current.setPlaybackRate(speed);
-      } catch (_) {}
+      } catch (_) {
+        /* Optional provider APIs may be unavailable. */
+      }
     }
     setShowSettings(false);
   }, []);
@@ -437,20 +575,28 @@ export function VideoPlayer({
       try {
         ytPlayerRef.current.unloadModule("captions");
         ytPlayerRef.current.unloadModule("cc");
-      } catch (_) {}
+      } catch (_) {
+        /* Optional provider APIs may be unavailable. */
+      }
       try {
         ytPlayerRef.current.setOption("captions", "track", {});
-      } catch (_) {}
+      } catch (_) {
+        /* Optional provider APIs may be unavailable. */
+      }
     } else {
       setActiveSubtitle(lang);
       try {
         ytPlayerRef.current.loadModule("captions");
-      } catch (_) {}
+      } catch (_) {
+        /* Optional provider APIs may be unavailable. */
+      }
       setTimeout(() => {
         try {
-          ytPlayerRef.current.setOption("captions", "track", { languageCode: lang });
-          ytPlayerRef.current.setOption("captions", "fontSize", 1);
-        } catch (_) {}
+          ytPlayerRef.current!.setOption("captions", "track", { languageCode: lang });
+          ytPlayerRef.current!.setOption("captions", "fontSize", 1);
+        } catch (_) {
+          /* Optional provider APIs may be unavailable. */
+        }
       }, 300);
     }
     setShowSubtitlesMenu(false);
@@ -472,26 +618,40 @@ export function VideoPlayer({
   // Controls auto-hide
   const handleMouseMove = useCallback(() => {
     setShowControls(true);
+    if (isTv) return;
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlaying && !showSettings && !showSubtitlesMenu) setShowControls(false);
     }, 3000);
-  }, [isPlaying, showSettings, showSubtitlesMenu]);
+  }, [isPlaying, showSettings, showSubtitlesMenu, isTv]);
 
-  // Tell the spatial navigator to leave arrows to the player while our
-  // custom controls are active. In simple-embed (TV) mode there are only a
-  // few host buttons, so D-pad focus movement stays enabled there.
+  // Desktop keeps its shortcuts. TV custom buttons use spatial navigation;
+  // horizontal arrows on range inputs retain their native seek/volume action.
   useEffect(() => {
-    if (useSimpleEmbed) return;
+    if (isTv || useSimpleEmbed) return;
     document.body.setAttribute("data-tv-player-open", "1");
     return () => {
       document.body.removeAttribute("data-tv-player-open");
     };
-  }, [useSimpleEmbed]);
+  }, [useSimpleEmbed, isTv]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTv) {
+        // Do not seek/change volume while the spatial navigator moves focus.
+        if (e.key.indexOf("Arrow") === 0 || useSimpleEmbed) return;
+        if (e.keyCode === 415 || e.key === "MediaPlay") {
+          e.preventDefault();
+          ytPlayerRef.current?.playVideo();
+          return;
+        }
+        if (e.keyCode === 19 || e.key === "MediaPause") {
+          e.preventDefault();
+          ytPlayerRef.current?.pauseVideo();
+          return;
+        }
+      }
       // TV remote media keys (Tizen keyCodes: play 415, pause 19, stop 413,
       // FF 417, RW 412) drive playback just like desktop shortcuts.
       if (
@@ -583,14 +743,26 @@ export function VideoPlayer({
     showSettings,
     showSubtitlesMenu,
     useSimpleEmbed,
+    isTv,
   ]);
 
   // Fullscreen listener
   useEffect(() => {
-    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    const h = () =>
+      setIsFullscreen(
+        !!(
+          document.fullscreenElement ||
+          (isTv &&
+            (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement)
+        ),
+      );
     document.addEventListener("fullscreenchange", h);
-    return () => document.removeEventListener("fullscreenchange", h);
-  }, []);
+    if (isTv) document.addEventListener("webkitfullscreenchange", h);
+    return () => {
+      document.removeEventListener("fullscreenchange", h);
+      if (isTv) document.removeEventListener("webkitfullscreenchange", h);
+    };
+  }, [isTv]);
 
   const getSpeedLabel = (s: number) => (s === 1 ? "Normal" : `${s}x`);
 
@@ -605,7 +777,10 @@ export function VideoPlayer({
   )}`;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center">
+    <div
+      data-tv-player-scope={isTv ? "" : undefined}
+      className={`${isTv ? "tv-custom-player " : ""}fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center`}
+    >
       <div
         ref={playerRef}
         className={`relative bg-black transition-all duration-300 ${
@@ -615,12 +790,12 @@ export function VideoPlayer({
         }`}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => {
-          if (isPlaying && !showSettings && !showSubtitlesMenu) setShowControls(false);
+          if (!isTv && isPlaying && !showSettings && !showSubtitlesMenu) setShowControls(false);
         }}
       >
-        {/* YouTube Player. Samsung/Tizen gets the provider's plain embed:
-            it has its own TV-compatible controls and does not depend on the
-            YouTube IFrame API or modern browser APIs. */}
+        {/* Custom API mode hides the native bar, not every provider overlay.
+            YouTube's cross-origin logo/loading/end-screen remain provider-owned.
+            The plain embed is only an emergency fallback. */}
         <div className="absolute inset-0 flex items-center justify-center bg-black">
           {useSimpleEmbed ? (
             <iframe
@@ -636,9 +811,17 @@ export function VideoPlayer({
             <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
               <div
                 className="absolute"
-                style={{ top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }}
+                style={
+                  isTv
+                    ? { top: 0, bottom: 0, left: 0, right: 0 }
+                    : { top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }
+                }
               >
-                <div ref={containerRef} className="w-full h-full" />
+                <div
+                  ref={containerRef}
+                  aria-hidden={isTv ? true : undefined}
+                  className="w-full h-full"
+                />
               </div>
             </div>
           )}
@@ -739,12 +922,13 @@ export function VideoPlayer({
 
         {/* Controls overlay */}
         <div
-          className={`${useSimpleEmbed ? "hidden" : "absolute inset-0 z-30 pointer-events-none transition-opacity duration-300"} ${showControls ? "opacity-100" : "opacity-0"}`}
+          className={`${useSimpleEmbed ? "hidden" : "absolute inset-0 z-30 pointer-events-none transition-opacity duration-300"} ${isTv || showControls ? "opacity-100" : "opacity-0"}`}
         >
           {/* ═══════ TOP BAR ═══════ */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 md:p-6 pointer-events-auto">
             <button
               onClick={onClose}
+              aria-label={isTv ? "Close video" : undefined}
               className="w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center transition-all backdrop-blur-sm"
             >
               <X size={22} className="text-white" />
@@ -931,6 +1115,7 @@ export function VideoPlayer({
             <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
               <button
                 onClick={togglePlay}
+                aria-label={isTv ? "Play" : undefined}
                 className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center hover:bg-white/30 transition-all active:scale-90 border border-white/20"
               >
                 <Play size={36} fill="white" className="text-white ml-1" />
@@ -941,7 +1126,7 @@ export function VideoPlayer({
           {/* ═══════ BOTTOM CONTROLS ═══════ */}
           <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 pointer-events-auto">
             {/* Progress bar */}
-            <div className="relative mb-3 group/progress">
+            <div className={`${isTv ? "tv-player-progress " : ""}relative mb-3 group/progress`}>
               <div className="relative h-1 group-hover/progress:h-1.5 bg-white/20 rounded-full transition-all cursor-pointer">
                 <div
                   className="absolute top-0 left-0 h-full bg-white/30 rounded-full"
@@ -960,7 +1145,8 @@ export function VideoPlayer({
                 type="range"
                 min="0"
                 max="100"
-                step="0.1"
+                aria-label={isTv ? "Video progress" : undefined}
+                step={isTv ? "1" : "0.1"}
                 value={progress}
                 onChange={handleProgressChange}
                 className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
@@ -971,7 +1157,9 @@ export function VideoPlayer({
               {/* Left controls */}
               <div className="flex items-center gap-2 md:gap-3">
                 <button
+                  ref={playButtonRef}
                   onClick={togglePlay}
+                  aria-label={isTv ? (isPlaying ? "Pause" : "Play") : undefined}
                   className="w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform"
                 >
                   {isPlaying ? (
@@ -991,6 +1179,7 @@ export function VideoPlayer({
                 )}
 
                 <button
+                  aria-label={isTv ? "Seek backward 10 seconds" : undefined}
                   onClick={() => skip(-10)}
                   className="w-8 h-8 flex items-center justify-center hover:scale-110 transition-transform relative"
                 >
@@ -999,6 +1188,7 @@ export function VideoPlayer({
                 </button>
 
                 <button
+                  aria-label={isTv ? "Seek forward 10 seconds" : undefined}
                   onClick={() => skip(10)}
                   className="w-8 h-8 flex items-center justify-center hover:scale-110 transition-transform relative"
                 >
@@ -1022,6 +1212,7 @@ export function VideoPlayer({
                   onMouseLeave={() => setShowVolumeSlider(false)}
                 >
                   <button
+                    aria-label={isTv ? (isMuted ? "Unmute" : "Mute") : undefined}
                     onClick={toggleMute}
                     className="w-8 h-8 flex items-center justify-center hover:scale-110 transition-transform"
                   >
@@ -1032,13 +1223,14 @@ export function VideoPlayer({
                     )}
                   </button>
                   <div
-                    className={`transition-all duration-200 overflow-hidden ${showVolumeSlider ? "w-20 opacity-100" : "w-0 opacity-0"}`}
+                    className={`transition-all duration-200 ${isTv ? "overflow-visible" : "overflow-hidden"} ${isTv || showVolumeSlider ? "w-20 opacity-100" : "w-0 opacity-0"}`}
                   >
                     <input
                       type="range"
                       min="0"
                       max="100"
                       value={isMuted ? 0 : volume}
+                      aria-label={isTv ? "Volume" : undefined}
                       onChange={handleVolumeChange}
                       className="volume-slider"
                     />
@@ -1070,6 +1262,7 @@ export function VideoPlayer({
                 </button>
 
                 <button
+                  aria-label={isTv ? (isFullscreen ? "Exit fullscreen" : "Fullscreen") : undefined}
                   onClick={toggleFullscreen}
                   className="w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform"
                 >

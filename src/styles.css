@@ -550,3 +550,51 @@
 .tv-layout .scroll-smooth {
   scroll-behavior: auto !important;
 }
+
+/* API player only gets this class through isTvBrowser(). No new CSS features:
+ * Chromium 69 needs explicit dimensions/margins, not inset or flex gap. */
+.tv-custom-player button,
+.tv-custom-player a {
+  min-width: 56px;
+  min-height: 56px;
+  font-size: 18px;
+}
+.tv-custom-player button svg {
+  min-width: 28px;
+  min-height: 28px;
+}
+.tv-custom-player button:focus,
+.tv-custom-player a:focus,
+.tv-custom-player input:focus {
+  outline: 3px solid white;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #e50914;
+}
+.tv-custom-player .tv-player-progress {
+  height: 32px;
+}
+.tv-custom-player .tv-player-progress > div {
+  top: 12px;
+  height: 8px;
+}
+.tv-custom-player .tv-player-progress input {
+  opacity: 1;
+  height: 32px;
+  background: transparent;
+  -webkit-appearance: none;
+}
+.tv-custom-player .tv-player-progress input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e50914;
+}
+.tv-custom-player .volume-slider {
+  height: 32px;
+}
+/* The paused center click area must not cover the bottom/top buttons. */
+.tv-custom-player .pointer-events-auto.top-0,
+.tv-custom-player .pointer-events-auto.bottom-0 {
+  z-index: 1;
+}
