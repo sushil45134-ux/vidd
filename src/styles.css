@@ -606,3 +606,26 @@
 .tv-custom-player .pointer-events-auto.bottom-0 {
   z-index: 1;
 }
+
+/* ── TV custom-player auto-hide (Samsung Tizen 5.5 / Chromium 69) ──────────
+ * Hidden controls must be unfocusable and unclickable, not merely transparent:
+ * `visibility: hidden` removes them from hit-testing and from the spatial
+ * navigator, while the delayed visibility transition keeps the 300ms opacity
+ * fade. Scoped to `.tv-custom-player`, so desktop Chrome is untouched. */
+.tv-custom-player [data-tv-autohide="hidden"] {
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 300ms ease,
+    visibility 0s linear 300ms;
+}
+.tv-custom-player [data-tv-autohide="hidden"] * {
+  pointer-events: none;
+}
+/* Focus is parked on the host player while the controls are hidden — never
+ * draw the big D-pad outline around the whole video surface. */
+.tv-custom-player [data-tv-focus-park]:focus,
+.tv-layout [data-tv-focus-park]:focus {
+  outline: none;
+  box-shadow: none;
+}
