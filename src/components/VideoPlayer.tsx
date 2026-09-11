@@ -75,6 +75,13 @@ export function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(true);
   const [videoTitle, setVideoTitle] = useState("");
   const [showQueue, setShowQueue] = useState(false);
+  // Samsung/Tizen browsers can load the YouTube embed but often fail to load
+  // or execute the YouTube IFrame API. Keep a native embed fallback ready so
+  // the TV never gets stuck on our custom spinner.
+  const [useSimpleEmbed, setUseSimpleEmbed] = useState(() => {
+    if (typeof navigator === "undefined") return false;
+    return /SMART-TV|Tizen|SamsungBrowser|TV Safari/i.test(navigator.userAgent);
+  });
 
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
@@ -103,6 +110,14 @@ export function VideoPlayer({
     setProgress(0);
     setCurrentTime("0:00");
     setDuration("0:00");
+    let cancelled = false;
+
+    // On Samsung/Tizen, use YouTube's own HTML5 embed controls. The IFrame
+    // API is not consistently supported by older TV WebKit/Chromium builds.
+    if (useSimpleEmbed) {
+      setIsBuffering(false);
+      return () => { cancelled = true; };
+    }
 
     // Load the YouTube IFrame API script once per page. Never depend on other
     // <script> tags existing — append to <head> directly.
@@ -113,7 +128,6 @@ export function VideoPlayer({
       document.head.appendChild(tag);
     }
 
-    let cancelled = false;
     let mountNode: HTMLDivElement | null = null;
     let autoplayCheckTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -271,6 +285,14 @@ export function VideoPlayer({
       initPlayer();
     } else {
       (window as any).onYouTubeIframeAPIReady = initPlayer;
+      // Slow/older TV browsers may never call onYouTubeIframeAPIReady. Do not
+      // leave viewers looking at an infinite spinner in that case.
+      autoplayCheckTimer = setTimeout(() => {
+        if (!cancelled && !ytPlayerRef.current) {
+          setIsBuffering(false);
+          setUseSimpleEmbed(true);
+        }
+      }, 8000);
     }
 
     return () => {
@@ -288,7 +310,7 @@ export function VideoPlayer({
         try { containerRef.current.innerHTML = ""; } catch (_) {}
       }
     };
-  }, [videoId]);
+  }, [videoId, useSimpleEmbed]);
 
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -429,6 +451,7 @@ export function VideoPlayer({
   }, []);
 
   const getSpeedLabel = (s: number) => (s === 1 ? "Normal" : `${s}x`);
+  const simpleEmbedSrc = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=${autoPlay ? 1 : 0}&controls=1&rel=0&playsinline=0`;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center">
@@ -442,13 +465,25 @@ export function VideoPlayer({
         onMouseMove={handleMouseMove}
         onMouseLeave={() => { if (isPlaying && !showSettings && !showSubtitlesMenu) setShowControls(false); }}
       >
-        {/* YouTube Player */}
+        {/* YouTube Player. Samsung/Tizen gets the provider's plain embed:
+            it has its own TV-compatible controls and does not depend on the
+            YouTube IFrame API or modern browser APIs. */}
         <div className="absolute inset-0 flex items-center justify-center bg-black">
-          <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
-            <div className="absolute" style={{ top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }}>
-              <div ref={containerRef} className="w-full h-full" />
+          {useSimpleEmbed ? (
+            <iframe
+              src={simpleEmbedSrc}
+              className="w-full h-full border-0"
+              title="Video player"
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+          ) : (
+            <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
+              <div className="absolute" style={{ top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }}>
+                <div ref={containerRef} className="w-full h-full" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Top gradient */}
@@ -465,9 +500,19 @@ export function VideoPlayer({
           </div>
         )}
 
+        {useSimpleEmbed && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 left-4 z-40 w-10 h-10 rounded-full bg-black/70 flex items-center justify-center"
+            aria-label="Close video"
+          >
+            <X size={22} className="text-white" />
+          </button>
+        )}
+
         {/* Click area */}
         <div
-          className="absolute inset-0 cursor-pointer"
+          className={`absolute inset-0 ${useSimpleEmbed ? "pointer-events-none" : "cursor-pointer"}`}
           style={{ zIndex: 25 }}
           onClick={(e) => {
             if (settingsRef.current?.contains(e.target as Node) || subtitlesRef.current?.contains(e.target as Node)) return;
@@ -477,7 +522,7 @@ export function VideoPlayer({
         />
 
         {/* Controls overlay */}
-        <div className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}>
+        <div className={`${useSimpleEmbed ? "hidden" : "absolute inset-0 z-30 pointer-events-none transition-opacity duration-300"} ${showControls ? "opacity-100" : "opacity-0"}`}>
 
           {/* ═══════ TOP BAR ═══════ */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 md:p-6 pointer-events-auto">
