@@ -45,6 +45,20 @@ interface VideoPlayerProps {
 
 const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
+/** TV-only: hide the custom controls after this much remote/pointer silence. */
+const TV_CONTROLS_IDLE_MS = 3000;
+
+/** Remote keys that may only wake hidden controls (D-pad + OK/Enter). */
+const TV_WAKE_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Enter",
+  " ",
+  "Spacebar",
+]);
+
 interface SubtitleTrack {
   lang: string;
   name: string;
@@ -87,6 +101,10 @@ export function VideoPlayer({
   // After a grace period, offer remote-focusable recovery actions in case
   // the embed cannot start (network / codec / Error-153 style referrer issues).
   const [showTvFallback, setShowTvFallback] = useState(false);
+  // TV-only auto-hide (desktop keeps its `showControls` behaviour untouched).
+  // Bumping `tvIdleTick` restarts the inactivity timer.
+  const [tvControlsHidden, setTvControlsHidden] = useState(false);
+  const [tvIdleTick, setTvIdleTick] = useState(0);
 
   // Remote BACK closes the player first (on top of the details modal).
   useEffect(() => registerTvBackHandler(onClose), [onClose]);
@@ -122,6 +140,108 @@ export function VideoPlayer({
   const queueRef = useRef<HTMLDivElement>(null);
   const hasStartedRef = useRef(false);
   const playButtonRef = useRef<HTMLButtonElement>(null);
+  const tvControlsHiddenRef = useRef(false);
+  const tvLastActivityRef = useRef(0);
+  const tvRestoreFocusRef = useRef<HTMLElement | null>(null);
+
+  /**
+   * TV-only: reveal the controls and restart the inactivity timer. Called for
+   * remote input and pointer movement. Throttled while already visible so a
+   * stream of mousemove events does not re-render on every pixel.
+   */
+  const touchTvControls = useCallback(() => {
+    if (!isTv || useSimpleEmbed) return;
+    const now = Date.now();
+    if (!tvControlsHiddenRef.current && now - tvLastActivityRef.current < 500) return;
+    tvLastActivityRef.current = now;
+    tvControlsHiddenRef.current = false;
+    setTvControlsHidden(false);
+    setTvIdleTick((tick) => tick + 1);
+  }, [isTv, useSimpleEmbed]);
+
+  const hideTvControls = useCallback(() => {
+    tvControlsHiddenRef.current = true;
+    setTvControlsHidden(true);
+  }, []);
+
+  // Auto-hide is TV-only and only while custom (API) playback is actually
+  // running. Paused, buffering, settings/subtitles/queue open → stay visible.
+  useEffect(() => {
+    if (!isTv || useSimpleEmbed) return;
+    const canHide = isPlaying && !isBuffering && !showSettings && !showSubtitlesMenu && !showQueue;
+    if (!canHide) {
+      tvControlsHiddenRef.current = false;
+      setTvControlsHidden(false);
+      return;
+    }
+    const timer = setTimeout(hideTvControls, TV_CONTROLS_IDLE_MS);
+    return () => clearTimeout(timer);
+  }, [
+    isTv,
+    useSimpleEmbed,
+    isPlaying,
+    isBuffering,
+    showSettings,
+    showSubtitlesMenu,
+    showQueue,
+    tvIdleTick,
+    hideTvControls,
+  ]);
+
+  // Hidden controls must not stay clickable or spatial-focusable, so focus is
+  // parked on the host player and restored to the previous button on reveal.
+  useEffect(() => {
+    if (!isTv || useSimpleEmbed) return;
+    if (tvControlsHidden) {
+      const active = document.activeElement as HTMLElement | null;
+      if (active && active !== document.body && playerRef.current?.contains(active)) {
+        tvRestoreFocusRef.current = active;
+      }
+      try {
+        playerRef.current?.focus({ preventScroll: true });
+      } catch (_) {
+        playerRef.current?.focus();
+      }
+      return;
+    }
+    const restore = tvRestoreFocusRef.current;
+    tvRestoreFocusRef.current = null;
+    if (!restore?.isConnected) return;
+    try {
+      restore.focus({ preventScroll: true });
+    } catch (_) {
+      restore.focus();
+    }
+  }, [isTv, useSimpleEmbed, tvControlsHidden]);
+
+  // The first D-pad/OK press after auto-hide only wakes the controls — it must
+  // not seek, toggle play/pause or leave fullscreen. Everything else (media
+  // keys, BACK) keeps its existing meaning.
+  useEffect(() => {
+    if (!isTv || useSimpleEmbed) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.keyCode === 10009 ||
+        e.keyCode === 461 ||
+        e.key === "GoBack" ||
+        e.key === "BrowserBack"
+      ) {
+        return;
+      }
+      const isWakeKey = TV_WAKE_KEYS.has(e.key) || e.keyCode === 13 || e.keyCode === 32;
+      if (tvControlsHiddenRef.current && isWakeKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        touchTvControls();
+        return;
+      }
+      // Any other remote input (media keys, navigation while visible) resets
+      // the inactivity timer.
+      touchTvControls();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [isTv, useSimpleEmbed, touchTvControls]);
 
   // Keep focus in the host page (never the cross-origin custom-mode iframe).
   // The same spatial navigator and LIFO BACK stack continue to own the remote.
@@ -618,12 +738,16 @@ export function VideoPlayer({
   // Controls auto-hide
   const handleMouseMove = useCallback(() => {
     setShowControls(true);
-    if (isTv) return;
+    if (isTv) {
+      // Pointer movement reveals the TV controls and restarts the timer.
+      touchTvControls();
+      return;
+    }
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlaying && !showSettings && !showSubtitlesMenu) setShowControls(false);
     }, 3000);
-  }, [isPlaying, showSettings, showSubtitlesMenu, isTv]);
+  }, [isPlaying, showSettings, showSubtitlesMenu, isTv, touchTvControls]);
 
   // Desktop keeps its shortcuts. TV custom buttons use spatial navigation;
   // horizontal arrows on range inputs retain their native seek/volume action.
@@ -776,6 +900,9 @@ export function VideoPlayer({
     typeof window !== "undefined" ? window.location.origin : "",
   )}`;
 
+  // TV auto-hide is only ever active for the custom (API) player.
+  const tvHidden = isTv && !useSimpleEmbed && tvControlsHidden;
+
   return (
     <div
       data-tv-player-scope={isTv ? "" : undefined}
@@ -783,6 +910,8 @@ export function VideoPlayer({
     >
       <div
         ref={playerRef}
+        tabIndex={isTv ? -1 : undefined}
+        data-tv-focus-park={isTv ? "" : undefined}
         className={`relative bg-black transition-all duration-300 ${
           isTheater
             ? "w-full" + (isFullscreen ? " h-full" : " max-w-[95vw] aspect-video")
@@ -794,8 +923,10 @@ export function VideoPlayer({
         }}
       >
         {/* Custom API mode hides the native bar, not every provider overlay.
-            YouTube's cross-origin logo/loading/end-screen remain provider-owned.
-            The plain embed is only an emergency fallback. */}
+            The edge crop below trims YouTube's edge overlays — and some of the
+            video frame — but cross-origin title/logo/watermark/loading/end-
+            screen elements are provider-owned and cannot be removed for sure.
+            The plain embed is only an emergency fallback and is never cropped. */}
         <div className="absolute inset-0 flex items-center justify-center bg-black">
           {useSimpleEmbed ? (
             <iframe
@@ -811,11 +942,7 @@ export function VideoPlayer({
             <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
               <div
                 className="absolute"
-                style={
-                  isTv
-                    ? { top: 0, bottom: 0, left: 0, right: 0 }
-                    : { top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }
-                }
+                style={{ top: "-60px", bottom: "-60px", left: "-2px", right: "-2px" }}
               >
                 <div
                   ref={containerRef}
@@ -829,7 +956,8 @@ export function VideoPlayer({
 
         {/* Top gradient */}
         <div
-          className="absolute top-0 left-0 right-0 h-28 z-20 pointer-events-none"
+          data-tv-autohide={tvHidden ? "hidden" : undefined}
+          className={`absolute top-0 left-0 right-0 h-28 z-20 pointer-events-none transition-opacity duration-300 ${tvHidden ? "opacity-0" : ""}`}
           style={{
             background:
               "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)",
@@ -837,14 +965,18 @@ export function VideoPlayer({
         />
         {/* Bottom gradient */}
         <div
-          className="absolute bottom-0 left-0 right-0 h-36 z-20 pointer-events-none"
+          data-tv-autohide={tvHidden ? "hidden" : undefined}
+          className={`absolute bottom-0 left-0 right-0 h-36 z-20 pointer-events-none transition-opacity duration-300 ${tvHidden ? "opacity-0" : ""}`}
           style={{
             background:
               "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 40%, transparent 100%)",
           }}
         />
         {/* Branding */}
-        <div className="absolute bottom-2 right-2 z-10 opacity-20 text-[8px] text-white/30 pointer-events-none">
+        <div
+          data-tv-autohide={tvHidden ? "hidden" : undefined}
+          className="absolute bottom-2 right-2 z-10 opacity-20 text-[8px] text-white/30 pointer-events-none"
+        >
           via YouTube
         </div>
 
@@ -922,7 +1054,17 @@ export function VideoPlayer({
 
         {/* Controls overlay */}
         <div
-          className={`${useSimpleEmbed ? "hidden" : "absolute inset-0 z-30 pointer-events-none transition-opacity duration-300"} ${isTv || showControls ? "opacity-100" : "opacity-0"}`}
+          data-tv-autohide={tvHidden ? "hidden" : undefined}
+          aria-hidden={tvHidden ? true : undefined}
+          className={`${useSimpleEmbed ? "hidden" : "absolute inset-0 z-30 pointer-events-none transition-opacity duration-300"} ${
+            isTv
+              ? tvControlsHidden
+                ? "opacity-0"
+                : "opacity-100"
+              : showControls
+                ? "opacity-100"
+                : "opacity-0"
+          }`}
         >
           {/* ═══════ TOP BAR ═══════ */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 md:p-6 pointer-events-auto">
