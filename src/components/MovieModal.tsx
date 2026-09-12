@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Play,
@@ -67,6 +67,40 @@ export default function MovieModal({
   );
   const [selectedEpIdx, setSelectedEpIdx] = useState(0);
 
+  // Episodes row paging. The forward arrow used to render without any click
+  // handler, so it never moved the row. Same desktop/TV split as MovieRow:
+  // smooth scroll on desktop, one synchronous card-step on Tizen's slow
+  // compositor. The arrow steps aside once the row cannot scroll further.
+  const isTv = isTvBrowser();
+  const episodesRowRef = useRef<HTMLDivElement>(null);
+  const [showEpisodesArrow, setShowEpisodesArrow] = useState(true);
+
+  const updateEpisodesArrow = useCallback(() => {
+    const el = episodesRowRef.current;
+    if (!el) return;
+    setShowEpisodesArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 20);
+  }, []);
+
+  const scrollEpisodesForward = useCallback(() => {
+    const el = episodesRowRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.8;
+    if (!isTv) {
+      el.scrollBy({ left: amount, behavior: "smooth" });
+      return;
+    }
+    const children = el.children;
+    let pitch = 0;
+    if (children.length >= 2) {
+      pitch = (children[1] as HTMLElement).offsetLeft - (children[0] as HTMLElement).offsetLeft;
+    }
+    if (pitch <= 0 && children.length >= 1) pitch = (children[0] as HTMLElement).offsetWidth || 0;
+    if (pitch <= 0) pitch = amount;
+    const steps = Math.max(1, Math.round(amount / pitch));
+    const max = Math.max(0, el.scrollWidth - el.clientWidth);
+    el.scrollLeft = Math.max(0, Math.min(max, Math.round(el.scrollLeft + steps * pitch)));
+  }, [isTv]);
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -100,7 +134,10 @@ export default function MovieModal({
 
   const activeSeason: Season | undefined =
     selectedSeason != null ? seasons.find((s) => s.seasonNumber === selectedSeason) : undefined;
-  const episodes: Movie[] = activeSeason ? activeSeason.episodes : [];
+  const episodes: Movie[] = useMemo(
+    () => (activeSeason ? activeSeason.episodes : []),
+    [activeSeason],
+  );
   const currentEp: Movie = isCollection
     ? episodes[selectedEpIdx] || episodes[0] || movie.episodes![0]
     : movie;
@@ -123,6 +160,11 @@ export default function MovieModal({
   const votes = 100 + ((movie.id * 37) % 900);
 
   const showSeasonPicker = isCollection && hasMultiSeason && selectedSeason == null;
+
+  // Re-measure whenever the visible row content changes.
+  useEffect(() => {
+    updateEpisodesArrow();
+  }, [episodes, showSeasonPicker, updateEpisodesArrow]);
 
   const heroTitle = movie.title;
   const moviePoster = movieImageSources(movie, "hero");
@@ -356,7 +398,11 @@ export default function MovieModal({
               ))}
             </div>
           ) : isCollection ? (
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
+            <div
+              ref={episodesRowRef}
+              onScroll={updateEpisodesArrow}
+              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2"
+            >
               {episodes.map((ep, i) => (
                 <EpisodeCard
                   key={ep.id}
@@ -386,8 +432,12 @@ export default function MovieModal({
               </div>
             </>
           ) : null}
-          {!showSeasonPicker && isCollection && episodes.length > 3 && (
-            <button className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black flex items-center justify-center">
+          {!showSeasonPicker && isCollection && episodes.length > 3 && showEpisodesArrow && (
+            <button
+              onClick={scrollEpisodesForward}
+              aria-label="More episodes"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black flex items-center justify-center"
+            >
               <ChevronRight size={22} className="text-white" />
             </button>
           )}

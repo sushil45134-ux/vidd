@@ -50,12 +50,52 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { VideoPlayer } from "/src/components/VideoPlayer";
 import { VideoPlayer as Baseline } from "./Baseline";
+import MovieModal from "/src/components/MovieModal";
 import { initSpatialNavigation } from "/src/lib/spatialNav";
 import { isTvBrowser } from "/src/lib/browser";
 import "/src/styles.css";
 if (isTvBrowser()) document.documentElement.classList.add("tv-layout");
 initSpatialNavigation();
 const params = new URLSearchParams(location.search);
+const makeEpisode = (n) => ({
+  id: n,
+  title: "Episode " + n,
+  episodeNumber: n,
+  genre: ["Anime"],
+  rating: "TV-14",
+  match: 80,
+  description: "Smoke episode",
+  isCollection: false,
+  episodes: [],
+});
+const smokeEpisodes = Array.from({ length: 12 }, (_, i) => makeEpisode(i + 1));
+const smokeCollection = {
+  id: 900,
+  title: "Smoke Series",
+  isCollection: true,
+  genre: ["Anime"],
+  rating: "TV-14",
+  match: 80,
+  description: "Smoke series",
+  episodes: smokeEpisodes,
+  seasons: [{ seasonNumber: 1, episodes: smokeEpisodes }],
+};
+if (params.has("modal")) {
+  window.smokeRoot = createRoot(document.getElementById("root"));
+  window.smokeRoot.render(
+    <MovieModal
+      movie={smokeCollection}
+      allMovies={[]}
+      isInMyList={false}
+      isLiked={false}
+      onToggleMyList={() => {}}
+      onToggleLike={() => {}}
+      onClose={() => { window.closedByPlayer = true; }}
+      onPlay={() => {}}
+      onSelectMovie={() => {}}
+    />,
+  );
+} else {
 const Component = params.has("baseline") ? Baseline : VideoPlayer;
 window.emitState = (state) => flushSync(() => window.api.emit(state));
 window.smokeRoot = createRoot(document.getElementById("root"));
@@ -71,13 +111,28 @@ window.smokeRoot.render(
     currentQueueIndex={0}
     onJumpTo={() => { window.jumped = true; }}
   />,
-);`,
+);
+}`,
   );
   server = await createServer({
     root,
     configFile: false,
+    // The app's `@/*` tsconfig path alias (normally injected by the Lovable
+    // vite config) is needed once the smoke harness mounts real app screens
+    // such as MovieModal -> heroBanners -> "@/integrations/supabase/client".
+    resolve: { alias: { "@": resolve(root, "src") } },
     plugins: [react(), tailwindcss()],
-    optimizeDeps: { include: ["react", "react-dom/client", "react/jsx-runtime", "lucide-react"] },
+    optimizeDeps: {
+      // @supabase/supabase-js is pulled by MovieModal -> heroBanners; include
+      // it up front so discovering it mid-test cannot trigger a deps reload.
+      include: [
+        "react",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "lucide-react",
+        "@supabase/supabase-js",
+      ],
+    },
     server: { host: "0.0.0.0", port: 0, allowedHosts: true },
   });
   await server.listen();
@@ -455,6 +510,36 @@ window.smokeRoot.render(
   console.log(
     "PASS desktop identical to pre-task baseline: playerVars, autoplay on/off, shortcuts, crop, auto-hide",
   );
+  // ── Episodes row: the forward arrow must actually page the row ─────────
+  for (const tv of [false, true]) {
+    const page = await browser.newPage({
+      viewport: { width: 1920, height: 1080 },
+      ...(tv ? { userAgent: tvUA } : {}),
+    });
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.route(/https:\/\//, (route) =>
+      route.fulfill({ contentType: "text/javascript", body: "" }),
+    );
+    await page.goto(`${url}?modal`);
+    const row = page.locator("div.overflow-x-auto.pb-2").first();
+    const arrow = page.getByRole("button", { name: "More episodes" });
+    await row.waitFor();
+    await arrow.waitFor();
+    const before = await row.evaluate((el) => el.scrollLeft);
+    await arrow.click();
+    await page.waitForFunction((prev) => {
+      const el = document.querySelector("div.overflow-x-auto.pb-2");
+      return !!el && el.scrollLeft > prev;
+    }, before);
+    // At the end of the row the arrow steps aside instead of sitting dead.
+    await row.evaluate((el) => {
+      el.scrollLeft = el.scrollWidth;
+    });
+    await arrow.waitFor({ state: "detached" });
+    await page.close();
+    console.log(`PASS episodes arrow pages the row (${tv ? "TV" : "desktop"})`);
+  }
+
   assert.deepEqual(errors, [], "no uncaught browser errors");
 } finally {
   await browser?.close();
