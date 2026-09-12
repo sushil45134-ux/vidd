@@ -90,6 +90,26 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
   return out;
 }
 
+/**
+ * Merge two collection cards that share a playlistId into one. Used when the
+ * admin adds more episodes (or a new season) to an existing series — instead
+ * of a duplicate card, the new episodes join the existing card and its
+ * seasons are rebuilt and re-sorted.
+ */
+function mergeCollection(existing: Movie, incoming: Movie): Movie {
+  const combined = [...(existing.episodes || []), ...(incoming.episodes || [])];
+  const seen = new Set<number>();
+  const unique = combined.filter((e) => {
+    if (seen.has(e.id)) return false;
+    seen.add(e.id);
+    return true;
+  });
+  const rebuilt = buildCollections(unique, {});
+  return (
+    rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming
+  );
+}
+
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
@@ -210,6 +230,26 @@ function App() {
     return ids;
   }, [allMovies]);
 
+  // Existing uploaded series (for "Add to Existing Series" in the upload flow).
+  const existingSeries = useMemo(() => {
+    const map = new Map<string, { title: string; seasons: Map<number, number> }>();
+    uploadedMovies.forEach((m) => {
+      if (!m.playlistId) return;
+      const entry =
+        map.get(m.playlistId) || { title: m.playlistTitle || "Series", seasons: new Map<number, number>() };
+      const s = m.seasonNumber || 1;
+      entry.seasons.set(s, (entry.seasons.get(s) || 0) + 1);
+      map.set(m.playlistId, entry);
+    });
+    return Array.from(map.entries()).map(([playlistId, { title, seasons }]) => ({
+      playlistId,
+      title,
+      seasons: [...seasons.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([season, count]) => ({ season, count })),
+    }));
+  }, [uploadedMovies]);
+
   const handlePlaylistSync = useCallback(async (movies: Movie[]) => {
     setShowPlaylistSync(false);
     const { insertMovies } = await import("./lib/moviesRepo");
@@ -285,7 +325,19 @@ function App() {
     // Series uploads (episodes sharing a playlistId) belong in My List as ONE
     // collection card, not as a separate "Episode 1/2/3" card per episode.
     const grouped = buildCollections(toAdd, {});
-    setMyList((prev) => [...grouped, ...prev]);
+    setMyList((prev) => {
+      const next = [...prev];
+      for (const item of grouped) {
+        const idx = next.findIndex(
+          (m) => m.isCollection && m.playlistId && m.playlistId === item.playlistId,
+        );
+        // Adding episodes to an existing series merges into its card instead
+        // of creating a duplicate.
+        if (idx >= 0) next[idx] = mergeCollection(next[idx], item);
+        else next.unshift(item);
+      }
+      return next;
+    });
     setTimeout(() => setPlayingMovie(toAdd[0]), 500);
   }, []);
 
@@ -674,7 +726,11 @@ function App() {
         )}
 
         {showUploadModal && (
-          <UploadModal onClose={() => setShowUploadModal(false)} onUpload={handleUpload} />
+          <UploadModal
+            onClose={() => setShowUploadModal(false)}
+            onUpload={handleUpload}
+            existingSeries={existingSeries}
+          />
         )}
 
         {showPlaylistSync && (
