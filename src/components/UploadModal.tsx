@@ -45,6 +45,9 @@ import {
 interface UploadModalProps {
   onClose: () => void;
   onUpload: (movie: Movie | Movie[]) => void;
+  /** Existing uploaded series (playlistId + title + season summary) the admin
+   *  can add more episodes/seasons into instead of creating a new card. */
+  existingSeries?: { playlistId: string; title: string; seasons: { season: number; count: number }[] }[];
 }
 
 const GENRES = [
@@ -447,7 +450,7 @@ function CloudIcon({ provider, className }: { provider: CloudTab; className?: st
 }
 
 /* ── Component ────────────────────────────────────────────────── */
-export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
+export default function UploadModal({ onClose, onUpload, existingSeries = [] }: UploadModalProps) {
   const [sourceTab, setSourceTab] = useState<SourceTab>("file");
   const [step, setStep] = useState<"upload" | "details" | "done">("upload");
 
@@ -478,6 +481,8 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const [embedSeason, setEmbedSeason] = useState(1);
   const [embedSeriesError, setEmbedSeriesError] = useState("");
   const [autoTotal, setAutoTotal] = useState(12);
+  const [seriesMode, setSeriesMode] = useState<"new" | "existing">("new");
+  const [existingPid, setExistingPid] = useState("");
   const [imdbInput, setImdbInput] = useState("");
   const [imdbProvider, setImdbProvider] = useState<string>(IMDB_PROVIDERS[0].id);
   const [imdbTemplate, setImdbTemplate] = useState("");
@@ -839,6 +844,27 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const updateEmbedEpTitle = (id: string, newTitle: string) =>
     setEmbedEpisodes((prev) => prev.map((e) => (e.id === id ? { ...e, title: newTitle } : e)));
 
+  /** Change an episode's number (and re-sort). Auto-updates the title while it
+   *  still matches the generated "Episode N" pattern, so renumbering "Episode 2"
+   *  → 4 renames it to "Episode 4" and moves it into position 4. */
+  const updateEmbedEpNum = (id: string, value: string) => {
+    const parsed = parseInt(value, 10);
+    setEmbedEpisodes((prev) => {
+      const next = prev.map((e) => {
+        if (e.id !== id) return e;
+        const oldNum = e.num;
+        const newNum = Number.isFinite(parsed) && parsed > 0 ? parsed : (oldNum ?? 1);
+        const isAutoTitle = oldNum != null && e.title.trim() === `Episode ${oldNum}`;
+        return {
+          ...e,
+          num: newNum,
+          title: isAutoTitle ? `Episode ${newNum}` : e.title,
+        };
+      });
+      return next.sort(epSort);
+    });
+  };
+
   // ── Submit ─────────────────────────────────────────────────
   const handleSubmit = () => {
     if (cloudTab) {
@@ -877,18 +903,22 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
       if (eps.length === 0) return;
       const sTitle = seriesTitle.trim() || "My Series";
       const season = Math.max(1, Math.floor(embedSeason) || 1);
-      const pid = `user-series-${Date.now()}`;
+      const pid =
+        seriesMode === "existing" && existingPid ? existingPid : `user-series-${Date.now()}`;
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
       const cover = thumbnailUrl || fallbackImg;
       const movies: Movie[] = eps.map((ep, i) => {
         const yt = extractYouTubeId(ep.url);
+        // YouTube embeds get their own real thumbnail; non-YouTube iframe
+        // embeds have no per-episode image, so they keep the series cover.
+        const epImage = yt ? youtubeThumbnailSources(yt)[0] : cover;
         return {
           id: Date.now() + i,
           title: ep.title,
           description: description.trim() || `${sTitle} — ${ep.title}`,
-          image: cover,
-          backdrop: thumbnailUrl || undefined,
+          image: epImage,
+          backdrop: yt ? youtubeThumbnailSources(yt)[0] : thumbnailUrl || undefined,
           year,
           rating,
           duration: "Unknown",
@@ -899,7 +929,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           youtubeId: yt,
           embedUrl: yt ? undefined : ep.url,
           embedPlatform: yt ? undefined : ep.host,
-          thumbnailUrl: thumbnailUrl || undefined,
+          thumbnailUrl: yt ? youtubeThumbnailSources(yt)[0] : thumbnailUrl || undefined,
           playlistId: pid,
           playlistTitle: sTitle,
           episodeNumber: ep.num ?? i + 1,
@@ -1286,6 +1316,65 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
             {/* ── SERIES TAB (bulk embed — paste whole season of iframes) ── */}
             {sourceTab === "series" && (
               <div>
+                {/* Add to: new series OR existing series */}
+                <div className="mb-4">
+                  <label className="text-gray-300 text-sm font-medium mb-2 block">
+                    Add to
+                  </label>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setSeriesMode("new")}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${seriesMode === "new" ? "bg-[#e50914] text-white" : "bg-[#222] text-gray-400 hover:bg-[#333] hover:text-white"}`}
+                    >
+                      ✨ New Series
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSeriesMode("existing")}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${seriesMode === "existing" ? "bg-[#e50914] text-white" : "bg-[#222] text-gray-400 hover:bg-[#333] hover:text-white"}`}
+                    >
+                      ➕ Add to Existing Series
+                    </button>
+                  </div>
+                  {seriesMode === "existing" && (
+                    <>
+                      <select
+                        value={existingPid}
+                        onChange={(e) => {
+                          const pid = e.target.value;
+                          setExistingPid(pid);
+                          const s = existingSeries.find((x) => x.playlistId === pid);
+                          if (s) setSeriesTitle(s.title);
+                        }}
+                        className="w-full bg-[#333] border border-gray-600 rounded px-4 py-2.5 text-white text-sm outline-none focus:border-[#e50914] transition-colors cursor-pointer"
+                      >
+                        <option value="">Select a series…</option>
+                        {existingSeries.map((s) => (
+                          <option key={s.playlistId} value={s.playlistId}>
+                            {s.title}
+                            {s.seasons.length > 0
+                              ? `  (${s.seasons
+                                  .map((x) => `S${x.season}: ${x.count} ep`)
+                                  .join(", ")})`
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {existingSeries.length === 0 && (
+                        <p className="text-gray-500 text-xs mt-2">
+                          Koi existing series nahi mili — pehle koi series add karo.
+                        </p>
+                      )}
+                      <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
+                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1
+                        rakho, ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar
+                        judeinge.
+                      </p>
+                    </>
+                  )}
+                </div>
+
                 {/* Series title */}
                 <div className="mb-4">
                   <label className="text-gray-300 text-sm font-medium mb-2 block">
@@ -1296,7 +1385,8 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                     value={seriesTitle}
                     onChange={(e) => setSeriesTitle(e.target.value)}
                     placeholder="e.g. Demon Slayer"
-                    className="w-full bg-[#333] border border-gray-600 rounded px-4 py-2.5 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500"
+                    disabled={seriesMode === "existing"}
+                    className={`w-full bg-[#333] border border-gray-600 rounded px-4 py-2.5 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500 ${seriesMode === "existing" ? "opacity-60 cursor-not-allowed" : ""}`}
                     maxLength={100}
                   />
                 </div>
@@ -1491,9 +1581,14 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                           key={ep.id}
                           className="flex items-center gap-3 bg-[#222] rounded-lg px-3 py-2.5 group"
                         >
-                          <span className="text-gray-500 text-xs font-mono w-6 text-center flex-shrink-0">
-                            {i + 1}
-                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={ep.num ?? i + 1}
+                            onChange={(e) => updateEmbedEpNum(ep.id, e.target.value)}
+                            className="w-12 bg-[#333] border border-gray-600 rounded px-1 py-1 text-white text-xs text-center outline-none focus:border-[#e50914] flex-shrink-0"
+                            title="Episode number"
+                          />
                           <Layers size={14} className="text-[#e50914] flex-shrink-0" />
                           <input
                             type="text"
@@ -1662,7 +1757,11 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
               ) : sourceTab === "series" ? (
                 <button
                   onClick={() => setStep("details")}
-                  disabled={embedEpisodes.length === 0 || !seriesTitle.trim()}
+                  disabled={
+                    embedEpisodes.length === 0 ||
+                    !seriesTitle.trim() ||
+                    (seriesMode === "existing" && !existingPid)
+                  }
                   className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next: Add Details ({embedEpisodes.length} episode

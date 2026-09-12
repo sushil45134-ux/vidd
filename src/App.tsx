@@ -6,6 +6,7 @@ import NotificationPanel from "./components/NotificationPanel";
 import SearchResults from "./components/SearchResults";
 import UnifiedSearch from "./components/UnifiedSearch";
 import SmartImage from "./components/SmartImage";
+import AnimeSection from "./components/AnimeSection";
 
 // Heavy modals / overlays — loaded on demand to keep the initial bundle small.
 const MovieModal = lazy(() => import("./components/MovieModal"));
@@ -89,6 +90,26 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
   return out;
 }
 
+/**
+ * Merge two collection cards that share a playlistId into one. Used when the
+ * admin adds more episodes (or a new season) to an existing series — instead
+ * of a duplicate card, the new episodes join the existing card and its
+ * seasons are rebuilt and re-sorted.
+ */
+function mergeCollection(existing: Movie, incoming: Movie): Movie {
+  const combined = [...(existing.episodes || []), ...(incoming.episodes || [])];
+  const seen = new Set<number>();
+  const unique = combined.filter((e) => {
+    if (seen.has(e.id)) return false;
+    seen.add(e.id);
+    return true;
+  });
+  const rebuilt = buildCollections(unique, {});
+  return (
+    rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming
+  );
+}
+
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
@@ -105,6 +126,7 @@ function App() {
 
   const [uploadedMovies, setUploadedMovies] = useState<Movie[]>([]);
   const [syncedMovies, setSyncedMovies] = useState<Movie[]>([]);
+  const [animeEpisodes, setAnimeEpisodes] = useState<Movie[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const cfg = useSiteConfig();
   const heroBannerOverrides = useHeroBanners();
@@ -208,6 +230,26 @@ function App() {
     return ids;
   }, [allMovies]);
 
+  // Existing uploaded series (for "Add to Existing Series" in the upload flow).
+  const existingSeries = useMemo(() => {
+    const map = new Map<string, { title: string; seasons: Map<number, number> }>();
+    uploadedMovies.forEach((m) => {
+      if (!m.playlistId) return;
+      const entry =
+        map.get(m.playlistId) || { title: m.playlistTitle || "Series", seasons: new Map<number, number>() };
+      const s = m.seasonNumber || 1;
+      entry.seasons.set(s, (entry.seasons.get(s) || 0) + 1);
+      map.set(m.playlistId, entry);
+    });
+    return Array.from(map.entries()).map(([playlistId, { title, seasons }]) => ({
+      playlistId,
+      title,
+      seasons: [...seasons.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([season, count]) => ({ season, count })),
+    }));
+  }, [uploadedMovies]);
+
   const handlePlaylistSync = useCallback(async (movies: Movie[]) => {
     setShowPlaylistSync(false);
     const { insertMovies } = await import("./lib/moviesRepo");
@@ -242,7 +284,7 @@ function App() {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return allMovies.filter(
+    return displayItems.filter(
       (m) =>
         m.title.toLowerCase().includes(q) ||
         m.genre.some((g) => g.toLowerCase().includes(q)) ||
@@ -250,17 +292,36 @@ function App() {
         (m.cast && m.cast.some((c) => c.toLowerCase().includes(q))) ||
         (m.creator && m.creator.toLowerCase().includes(q)),
     );
-  }, [searchQuery, allMovies]);
+  }, [searchQuery, displayItems]);
 
   const getCategoryMovies = useCallback(() => {
     if (activeCategory === "mylist") return myList;
     const matcher = CATEGORY_MATCH[activeCategory];
-    return matcher ? displayItems.filter(matcher) : [];
-  }, [activeCategory, myList, displayItems]);
+    if (!matcher) return [];
+    // Movies already placed in a custom row for THIS section must not also
+    // appear in the auto grid below — otherwise the same title shows twice
+    // (once in the custom row, once in the auto-generated grid).
+    const scoped = new Set<number>();
+    cfg.customRows?.forEach((row) => {
+      if (!row.visible) return;
+      const sec = row.section || "home";
+      if (sec !== activeCategory && sec !== "all") return;
+      resolveCustomRowItems(row).forEach((m) => {
+        scoped.add(m.id);
+        m.episodes?.forEach((e) => scoped.add(e.id));
+      });
+    });
+    return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
+  }, [activeCategory, myList, displayItems, cfg.customRows, resolveCustomRowItems]);
 
   const handlePlay = useCallback((movie: Movie) => {
     setSelectedMovie(null);
     setPlayingMovie(movie);
+  }, []);
+
+  // Stable so AnimeSection's effect doesn't re-fire on every render.
+  const handleAnimeEpisodesLoaded = useCallback((episodes: Movie[]) => {
+    setAnimeEpisodes(episodes);
   }, []);
 
   // Stable identity (the TV back-stack relies on mount-time registration).
@@ -275,7 +336,22 @@ function App() {
     const saved = await insertMovies(arr, "uploaded");
     const toAdd = saved.length > 0 ? saved : arr;
     setUploadedMovies((prev) => [...toAdd, ...prev]);
-    setMyList((prev) => [...toAdd, ...prev]);
+    // Series uploads (episodes sharing a playlistId) belong in My List as ONE
+    // collection card, not as a separate "Episode 1/2/3" card per episode.
+    const grouped = buildCollections(toAdd, {});
+    setMyList((prev) => {
+      const next = [...prev];
+      for (const item of grouped) {
+        const idx = next.findIndex(
+          (m) => m.isCollection && m.playlistId && m.playlistId === item.playlistId,
+        );
+        // Adding episodes to an existing series merges into its card instead
+        // of creating a duplicate.
+        if (idx >= 0) next[idx] = mergeCollection(next[idx], item);
+        else next.unshift(item);
+      }
+      return next;
+    });
     setTimeout(() => setPlayingMovie(toAdd[0]), 500);
   }, []);
 
@@ -448,7 +524,7 @@ function App() {
             results={searchResults}
             query={searchQuery}
             onSelectMovie={setSelectedMovie}
-            onPlay={handlePlay}
+            onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
             isInMyList={isInMyList}
             isLiked={isLiked}
             toggleMyList={toggleMyList}
@@ -488,6 +564,19 @@ function App() {
                           ? "New & Popular"
                           : activeCategory}
             </h1>
+
+            {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
+            {activeCategory === "anime" && (
+              <AnimeSection
+                onSelectMovie={setSelectedMovie}
+                onPlay={handlePlay}
+                isInMyList={isInMyList}
+                isLiked={isLiked}
+                toggleMyList={toggleMyList}
+                toggleLike={toggleLike}
+                onEpisodesLoaded={handleAnimeEpisodesLoaded}
+              />
+            )}
 
             {/* Admin custom rows scoped to this section */}
             {cfg.customRows?.map((row) => {
@@ -594,6 +683,9 @@ function App() {
             />
 
             <div className="mt-8 relative z-20">
+              {/* Hindi dubbed anime lives ONLY in the "Anime" category tab —
+                never mixed into the home feed. */}
+
               {/* Synced playlists no longer auto-appear on home.
                 Admin adds them via Custom Rows when desired. */}
 
@@ -648,7 +740,11 @@ function App() {
         )}
 
         {showUploadModal && (
-          <UploadModal onClose={() => setShowUploadModal(false)} onUpload={handleUpload} />
+          <UploadModal
+            onClose={() => setShowUploadModal(false)}
+            onUpload={handleUpload}
+            existingSeries={existingSeries}
+          />
         )}
 
         {showPlaylistSync && (
@@ -685,14 +781,14 @@ function App() {
             episodes={(() => {
               const pid = playingMovie.playlistId;
               if (!pid) return undefined;
-              const siblings = syncedMovies
-                .filter((m) => m.playlistId === pid)
-                .sort(
-                  (a, b) =>
-                    (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
-                    (a.episodeNumber || 0) - (b.episodeNumber || 0),
-                );
-              return siblings.length > 1 ? siblings : undefined;
+              const sortByEp = (a: Movie, b: Movie) =>
+                (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
+                (a.episodeNumber || 0) - (b.episodeNumber || 0);
+              const pick = (list: Movie[]) => {
+                const siblings = list.filter((m) => m.playlistId === pid).sort(sortByEp);
+                return siblings.length > 1 ? siblings : undefined;
+              };
+              return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
             })()}
           />
         )}
