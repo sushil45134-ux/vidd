@@ -244,7 +244,7 @@ function App() {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return allMovies.filter(
+    return displayItems.filter(
       (m) =>
         m.title.toLowerCase().includes(q) ||
         m.genre.some((g) => g.toLowerCase().includes(q)) ||
@@ -252,7 +252,7 @@ function App() {
         (m.cast && m.cast.some((c) => c.toLowerCase().includes(q))) ||
         (m.creator && m.creator.toLowerCase().includes(q)),
     );
-  }, [searchQuery, allMovies]);
+  }, [searchQuery, displayItems]);
 
   const getCategoryMovies = useCallback(() => {
     if (activeCategory === "mylist") return myList;
@@ -282,7 +282,10 @@ function App() {
     const saved = await insertMovies(arr, "uploaded");
     const toAdd = saved.length > 0 ? saved : arr;
     setUploadedMovies((prev) => [...toAdd, ...prev]);
-    setMyList((prev) => [...toAdd, ...prev]);
+    // Series uploads (episodes sharing a playlistId) belong in My List as ONE
+    // collection card, not as a separate "Episode 1/2/3" card per episode.
+    const grouped = buildCollections(toAdd, {});
+    setMyList((prev) => [...grouped, ...prev]);
     setTimeout(() => setPlayingMovie(toAdd[0]), 500);
   }, []);
 
@@ -455,7 +458,7 @@ function App() {
             results={searchResults}
             query={searchQuery}
             onSelectMovie={setSelectedMovie}
-            onPlay={handlePlay}
+            onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
             isInMyList={isInMyList}
             isLiked={isLiked}
             toggleMyList={toggleMyList}
@@ -711,14 +714,11 @@ function App() {
               const sortByEp = (a: Movie, b: Movie) =>
                 (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
                 (a.episodeNumber || 0) - (b.episodeNumber || 0);
-              const siblings = syncedMovies
-                .filter((m) => m.playlistId === pid)
-                .sort(sortByEp);
-              if (siblings.length > 1) return siblings;
-              const animeSiblings = animeEpisodes
-                .filter((m) => m.playlistId === pid)
-                .sort(sortByEp);
-              return animeSiblings.length > 1 ? animeSiblings : undefined;
+              const pick = (list: Movie[]) => {
+                const siblings = list.filter((m) => m.playlistId === pid).sort(sortByEp);
+                return siblings.length > 1 ? siblings : undefined;
+              };
+              return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
             })()}
           />
         )}
