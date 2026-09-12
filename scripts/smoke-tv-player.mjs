@@ -117,8 +117,22 @@ window.smokeRoot.render(
   server = await createServer({
     root,
     configFile: false,
+    // The app's `@/*` tsconfig path alias (normally injected by the Lovable
+    // vite config) is needed once the smoke harness mounts real app screens
+    // such as MovieModal -> heroBanners -> "@/integrations/supabase/client".
+    resolve: { alias: { "@": resolve(root, "src") } },
     plugins: [react(), tailwindcss()],
-    optimizeDeps: { include: ["react", "react-dom/client", "react/jsx-runtime", "lucide-react"] },
+    optimizeDeps: {
+      // @supabase/supabase-js is pulled by MovieModal -> heroBanners; include
+      // it up front so discovering it mid-test cannot trigger a deps reload.
+      include: [
+        "react",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "lucide-react",
+        "@supabase/supabase-js",
+      ],
+    },
     server: { host: "0.0.0.0", port: 0, allowedHosts: true },
   });
   await server.listen();
