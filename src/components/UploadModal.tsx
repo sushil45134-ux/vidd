@@ -839,6 +839,27 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const updateEmbedEpTitle = (id: string, newTitle: string) =>
     setEmbedEpisodes((prev) => prev.map((e) => (e.id === id ? { ...e, title: newTitle } : e)));
 
+  /** Change an episode's number (and re-sort). Auto-updates the title while it
+   *  still matches the generated "Episode N" pattern, so renumbering "Episode 2"
+   *  → 4 renames it to "Episode 4" and moves it into position 4. */
+  const updateEmbedEpNum = (id: string, value: string) => {
+    const parsed = parseInt(value, 10);
+    setEmbedEpisodes((prev) => {
+      const next = prev.map((e) => {
+        if (e.id !== id) return e;
+        const oldNum = e.num;
+        const newNum = Number.isFinite(parsed) && parsed > 0 ? parsed : (oldNum ?? 1);
+        const isAutoTitle = oldNum != null && e.title.trim() === `Episode ${oldNum}`;
+        return {
+          ...e,
+          num: newNum,
+          title: isAutoTitle ? `Episode ${newNum}` : e.title,
+        };
+      });
+      return next.sort(epSort);
+    });
+  };
+
   // ── Submit ─────────────────────────────────────────────────
   const handleSubmit = () => {
     if (cloudTab) {
@@ -883,12 +904,15 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
       const cover = thumbnailUrl || fallbackImg;
       const movies: Movie[] = eps.map((ep, i) => {
         const yt = extractYouTubeId(ep.url);
+        // YouTube embeds get their own real thumbnail; non-YouTube iframe
+        // embeds have no per-episode image, so they keep the series cover.
+        const epImage = yt ? youtubeThumbnailSources(yt)[0] : cover;
         return {
           id: Date.now() + i,
           title: ep.title,
           description: description.trim() || `${sTitle} — ${ep.title}`,
-          image: cover,
-          backdrop: thumbnailUrl || undefined,
+          image: epImage,
+          backdrop: yt ? youtubeThumbnailSources(yt)[0] : thumbnailUrl || undefined,
           year,
           rating,
           duration: "Unknown",
@@ -899,7 +923,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           youtubeId: yt,
           embedUrl: yt ? undefined : ep.url,
           embedPlatform: yt ? undefined : ep.host,
-          thumbnailUrl: thumbnailUrl || undefined,
+          thumbnailUrl: yt ? youtubeThumbnailSources(yt)[0] : thumbnailUrl || undefined,
           playlistId: pid,
           playlistTitle: sTitle,
           episodeNumber: ep.num ?? i + 1,
@@ -1491,9 +1515,14 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                           key={ep.id}
                           className="flex items-center gap-3 bg-[#222] rounded-lg px-3 py-2.5 group"
                         >
-                          <span className="text-gray-500 text-xs font-mono w-6 text-center flex-shrink-0">
-                            {i + 1}
-                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={ep.num ?? i + 1}
+                            onChange={(e) => updateEmbedEpNum(ep.id, e.target.value)}
+                            className="w-12 bg-[#333] border border-gray-600 rounded px-1 py-1 text-white text-xs text-center outline-none focus:border-[#e50914] flex-shrink-0"
+                            title="Episode number"
+                          />
                           <Layers size={14} className="text-[#e50914] flex-shrink-0" />
                           <input
                             type="text"
