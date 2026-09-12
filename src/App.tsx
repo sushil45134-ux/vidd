@@ -297,8 +297,22 @@ function App() {
   const getCategoryMovies = useCallback(() => {
     if (activeCategory === "mylist") return myList;
     const matcher = CATEGORY_MATCH[activeCategory];
-    return matcher ? displayItems.filter(matcher) : [];
-  }, [activeCategory, myList, displayItems]);
+    if (!matcher) return [];
+    // Movies already placed in a custom row for THIS section must not also
+    // appear in the auto grid below — otherwise the same title shows twice
+    // (once in the custom row, once in the auto-generated grid).
+    const scoped = new Set<number>();
+    cfg.customRows?.forEach((row) => {
+      if (!row.visible) return;
+      const sec = row.section || "home";
+      if (sec !== activeCategory && sec !== "all") return;
+      resolveCustomRowItems(row).forEach((m) => {
+        scoped.add(m.id);
+        m.episodes?.forEach((e) => scoped.add(e.id));
+      });
+    });
+    return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
+  }, [activeCategory, myList, displayItems, cfg.customRows, resolveCustomRowItems]);
 
   const handlePlay = useCallback((movie: Movie) => {
     setSelectedMovie(null);
