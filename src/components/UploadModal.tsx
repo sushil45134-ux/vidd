@@ -22,6 +22,16 @@ import {
   splitEmbedPastes,
 } from "../lib/episodeLinks";
 import {
+  CUSTOM_PROVIDER_ID,
+  IMDB_PROVIDERS,
+  buildImdbSeries,
+  detectProviderFromEmbed,
+  detectSeasonEpisode,
+  extractImdbId,
+  getProvider,
+  isBareRootUrl,
+} from "../lib/imdbSeries";
+import {
   isCloudLink,
   isMegaFolderLink,
   parseCloudLink,
@@ -369,7 +379,13 @@ interface EmbedEpisode {
   title: string;
   url: string;
   host: string;
+  season?: number;
+  num?: number;
 }
+
+const epSort = (a: EmbedEpisode, b: EmbedEpisode): number =>
+  (a.season ?? 1) - (b.season ?? 1) ||
+  (a.num ?? epTitleNumber(a.title)) - (b.num ?? epTitleNumber(b.title));
 
 const epTitleNumber = (title: string): number => {
   const m = title.match(/(\d+)/);
@@ -462,6 +478,11 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
   const [embedSeason, setEmbedSeason] = useState(1);
   const [embedSeriesError, setEmbedSeriesError] = useState("");
   const [autoTotal, setAutoTotal] = useState(12);
+  const [imdbInput, setImdbInput] = useState("");
+  const [imdbProvider, setImdbProvider] = useState<string>(IMDB_PROVIDERS[0].id);
+  const [imdbTemplate, setImdbTemplate] = useState("");
+  const [imdbSeasons, setImdbSeasons] = useState(1);
+  const [imdbEps, setImdbEps] = useState(12);
 
   // The active cloud tab, when the user picked the Drive or MEGA source tab.
   const cloudTab: CloudTab | null =
@@ -503,6 +524,70 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
+
+  // IMDb embed paste detection: agar koi IMDb-player embed/URL paste hua
+  // (ya sirf tt-ID), to Series tab auto-suggest karo.
+  useEffect(() => {
+    if (!embedInput.trim()) return;
+    const provider = detectProviderFromEmbed(embedInput);
+    const id = extractImdbId(embedInput);
+    if (provider) {
+      setImdbProvider(provider.id);
+      setSourceTab("series");
+      setEmbedSeriesError(
+        `IMDb player detect hua: ${provider.name}. Neeche "IMDb Auto-Series" me sirf IMDb ID daalo (jaise tt9335498) aur poora season ek baar me banao — bar bar link paste karne ki zaroorat nahi.`,
+      );
+      return;
+    }
+    if (id && !detected) {
+      setSourceTab("series");
+      setImdbInput(id);
+      setEmbedSeriesError(
+        "IMDb ID mil gayi. Provider chuno aur 'Generate' dabao — saare episodes khud ban jayenge.",
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedInput]);
+
+  /** IMDb auto-series: ek ID + provider template se poora series generate. */
+  const generateImdbSeries = () => {
+    const id = extractImdbId(imdbInput);
+    const tmdbId = !id && /^\d{1,8}$/.test(imdbInput.trim()) ? imdbInput.trim() : null;
+    if (!id && !tmdbId) {
+      setEmbedSeriesError(
+        "IMDb ID nahi mila. IMDb page ke URL se tt wala ID daalo (jaise tt9335498) — ya TMDB numeric ID.",
+      );
+      return;
+    }
+    const preset = getProvider(imdbProvider);
+    const template = preset ? preset.template : imdbTemplate.trim();
+    const result = buildImdbSeries(
+      template,
+      id ?? tmdbId!,
+      Math.max(1, imdbSeasons),
+      Math.max(1, imdbEps),
+    );
+    if (!result.ok) {
+      setEmbedSeriesError(
+        result.reason === "bad-template"
+          ? "Custom template me {id}, {s}, {e} teeno placeholders hone chahiye — jaise: https://modiplay.xyz/embed/tv/{id}/{s}/{e}"
+          : "Seasons × Episodes 500 se zyada ho gaye — numbers kam karo.",
+      );
+      return;
+    }
+    const providerName = preset ? preset.name : embedHostLabel(template);
+    setEmbedEpisodes(() =>
+      result.episodes!.map((gen) => ({
+        id: `${Date.now()}-${Math.random()}`,
+        title: `Episode ${gen.episode}`,
+        url: gen.url,
+        host: providerName,
+        season: gen.season,
+        num: gen.episode,
+      })),
+    );
+    setEmbedSeriesError("");
+  };
 
   // ── File handlers ──────────────────────────────────────────
   const handleVideoSelect = useCallback(
@@ -666,12 +751,15 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
 
   // ── Series (bulk embed) handlers ───────────────────────────
   const makeEmbedEpisode = (url: string, fallbackNum: number): EmbedEpisode => {
-    const detected = detectEpisodeNumber(url);
+    const detected = detectSeasonEpisode(url) ?? detectEpisodeNumber(url);
+    const num = typeof detected === "number" ? detected : (detected?.episode ?? fallbackNum);
     return {
       id: `${Date.now()}-${Math.random()}`,
-      title: `Episode ${detected ?? fallbackNum}`,
+      title: `Episode ${num}`,
       url,
       host: embedHostLabel(url),
+      season: typeof detected === "number" ? undefined : detected?.season,
+      num,
     };
   };
 
@@ -684,13 +772,20 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
       );
       return;
     }
+    const usable = urls.filter((u) => !isBareRootUrl(u));
+    if (usable.length === 0) {
+      setEmbedSeriesError(
+        "Ye sirf website ka root link hai (koi specific episode nahi). Agar ye IMDb wala player hai to upar 'IMDb Auto-Series' section use karo — sirf IMDb ID se pura series ban jata hai.",
+      );
+      return;
+    }
     setEmbedEpisodes((prev) => {
       const next = [...prev];
-      for (const url of urls) {
+      for (const url of usable) {
         if (next.some((e) => e.url === url)) continue;
         next.push(makeEmbedEpisode(url, next.length + 1));
       }
-      return next.sort((a, b) => epTitleNumber(a.title) - epTitleNumber(b.title));
+      return next.sort(epSort);
     });
     setEmbedInput("");
     setEmbedSeriesError("");
@@ -714,15 +809,15 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
     const baseEp = gen.baseEpisode ?? 1;
     const seedEp = makeEmbedEpisode(seed, baseEp);
     seedEp.title = `Episode ${baseEp}`;
+    seedEp.num = baseEp;
+    seedEp.season = seedEp.season ?? embedSeason;
 
     if (!gen.ok || !gen.urls) {
       setEmbedSeriesError(
         `Episode number link me detect nahi hua (ye host har episode ke liye alag hash use karta hai), isliye auto-generate possible nahi. Saare episodes ke iframe ek saath paste karke "Add Episodes" dabao — Episode ${baseEp} list me add ho gaya hai.`,
       );
       setEmbedEpisodes((prev) =>
-        prev.some((e) => e.url === seedEp.url)
-          ? prev
-          : [...prev, seedEp].sort((a, b) => epTitleNumber(a.title) - epTitleNumber(b.title)),
+        prev.some((e) => e.url === seedEp.url) ? prev : [...prev, seedEp].sort(epSort),
       );
       setEmbedInput("");
       return;
@@ -734,7 +829,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
       for (const ep of generated) {
         if (!merged.some((e) => e.url === ep.url)) merged.push(ep);
       }
-      return merged.sort((a, b) => epTitleNumber(a.title) - epTitleNumber(b.title));
+      return merged.sort(epSort);
     });
     setEmbedInput("");
     setEmbedSeriesError("");
@@ -807,8 +902,8 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
           thumbnailUrl: thumbnailUrl || undefined,
           playlistId: pid,
           playlistTitle: sTitle,
-          episodeNumber: i + 1,
-          seasonNumber: season,
+          episodeNumber: ep.num ?? i + 1,
+          seasonNumber: ep.season ?? season,
         };
       });
       setStep("done");
@@ -1204,6 +1299,93 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
                     className="w-full bg-[#333] border border-gray-600 rounded px-4 py-2.5 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500"
                     maxLength={100}
                   />
+                </div>
+
+                {/* ── IMDb Auto-Series: ek ID → poora series ── */}
+                <div className="mb-4 rounded-lg border border-[#e50914]/30 bg-[#e50914]/5 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wand2 size={14} className="text-[#ff6b76]" />
+                    <p className="text-white text-sm font-bold">IMDb Auto-Series</p>
+                    <span className="text-[10px] text-gray-400">
+                      sirf IMDb ID daalo — pura series khud banega
+                    </span>
+                  </div>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={imdbInput}
+                      onChange={(e) => setImdbInput(e.target.value)}
+                      placeholder="tt9335498 (Demon Slayer) ya IMDb link paste karo"
+                      className="flex-1 bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500"
+                    />
+                    <button
+                      onClick={generateImdbSeries}
+                      className="px-4 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors flex-shrink-0"
+                    >
+                      Generate
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-gray-500 text-[10px] mb-1 block">Provider</label>
+                      <select
+                        value={imdbProvider}
+                        onChange={(e) => setImdbProvider(e.target.value)}
+                        className="w-full bg-[#333] border border-gray-600 rounded px-2 py-1.5 text-white text-xs outline-none focus:border-[#e50914] cursor-pointer"
+                      >
+                        {IMDB_PROVIDERS.map((pr) => (
+                          <option key={pr.id} value={pr.id}>
+                            {pr.name}
+                          </option>
+                        ))}
+                        <option value={CUSTOM_PROVIDER_ID}>Custom…</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-[10px] mb-1 block">Seasons</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={imdbSeasons}
+                        onChange={(e) =>
+                          setImdbSeasons(Math.min(50, Math.max(1, Number(e.target.value) || 1)))
+                        }
+                        className="w-full bg-[#333] border border-gray-600 rounded px-2 py-1.5 text-white text-xs outline-none focus:border-[#e50914]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-[10px] mb-1 block">
+                        Episodes / Season
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={imdbEps}
+                        onChange={(e) =>
+                          setImdbEps(Math.min(200, Math.max(1, Number(e.target.value) || 1)))
+                        }
+                        className="w-full bg-[#333] border border-gray-600 rounded px-2 py-1.5 text-white text-xs outline-none focus:border-[#e50914]"
+                      />
+                    </div>
+                  </div>
+                  {imdbProvider === CUSTOM_PROVIDER_ID && (
+                    <input
+                      type="text"
+                      value={imdbTemplate}
+                      onChange={(e) => setImdbTemplate(e.target.value)}
+                      placeholder="https://modiplay.xyz/embed/tv/{id}/{s}/{e}  — {id} {s} {e} zaroori"
+                      className="w-full mt-2 bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-xs font-mono outline-none focus:border-[#e50914] placeholder-gray-500"
+                    />
+                  )}
+                  <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
+                    💡 Ye players (VidSrc, VidLink, MultiEmbed, 2Embed…) IMDb/TMDB ID se har episode
+                    ka link khud ban late hain — bar bar embed paste karne ki zaroorat nahi. Demon
+                    Slayer <span className="font-mono">tt9335498</span>, Naruto{" "}
+                    <span className="font-mono">tt0386676</span>, One Piece{" "}
+                    <span className="font-mono">tt0388629</span>.
+                  </p>
                 </div>
 
                 {/* Season + auto-fill target */}
