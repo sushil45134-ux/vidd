@@ -30,7 +30,6 @@ export default function AnimeSection({
   onEpisodesLoaded,
 }: AnimeSectionProps) {
   const [series, setSeries] = useState<Movie[]>([]);
-  const [episodes, setEpisodes] = useState<Movie[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "empty">("loading");
 
   useEffect(() => {
@@ -43,7 +42,6 @@ export default function AnimeSection({
         const list = Array.isArray(data.episodes) ? data.episodes : [];
         const { series, episodes } = episodesToMovies(list);
         setSeries(series);
-        setEpisodes(episodes);
         onEpisodesLoaded?.(episodes);
         setState(series.length > 0 ? "ready" : "empty");
       })
@@ -87,19 +85,6 @@ export default function AnimeSection({
         toggleMyList={toggleMyList}
         toggleLike={toggleLike}
       />
-
-      {episodes.length > 0 && (
-        <MovieRow
-          title="New Hindi Dubbed Episodes"
-          movies={episodes.slice(0, 20)}
-          onSelectMovie={onSelectMovie}
-          onPlay={onPlay}
-          isInMyList={isInMyList}
-          isLiked={isLiked}
-          toggleMyList={toggleMyList}
-          toggleLike={toggleLike}
-        />
-      )}
     </div>
   );
 }
