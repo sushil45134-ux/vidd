@@ -614,16 +614,8 @@ function App() {
             />
 
             <div className="mt-8 relative z-20">
-              {/* Hindi dubbed anime from official licensed YouTube channels. */}
-              <AnimeSection
-                onSelectMovie={setSelectedMovie}
-                onPlay={handlePlay}
-                isInMyList={isInMyList}
-                isLiked={isLiked}
-                toggleMyList={toggleMyList}
-                toggleLike={toggleLike}
-                onEpisodesLoaded={handleAnimeEpisodesLoaded}
-              />
+              {/* Hindi dubbed anime lives ONLY in the "Anime" category tab —
+                never mixed into the home feed. */}
 
               {/* Synced playlists no longer auto-appear on home.
                 Admin adds them via Custom Rows when desired. */}
