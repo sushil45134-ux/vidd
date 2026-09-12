@@ -6,6 +6,7 @@ import NotificationPanel from "./components/NotificationPanel";
 import SearchResults from "./components/SearchResults";
 import UnifiedSearch from "./components/UnifiedSearch";
 import SmartImage from "./components/SmartImage";
+import AnimeSection from "./components/AnimeSection";
 
 // Heavy modals / overlays — loaded on demand to keep the initial bundle small.
 const MovieModal = lazy(() => import("./components/MovieModal"));
@@ -105,6 +106,7 @@ function App() {
 
   const [uploadedMovies, setUploadedMovies] = useState<Movie[]>([]);
   const [syncedMovies, setSyncedMovies] = useState<Movie[]>([]);
+  const [animeEpisodes, setAnimeEpisodes] = useState<Movie[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const cfg = useSiteConfig();
   const heroBannerOverrides = useHeroBanners();
@@ -261,6 +263,11 @@ function App() {
   const handlePlay = useCallback((movie: Movie) => {
     setSelectedMovie(null);
     setPlayingMovie(movie);
+  }, []);
+
+  // Stable so AnimeSection's effect doesn't re-fire on every render.
+  const handleAnimeEpisodesLoaded = useCallback((episodes: Movie[]) => {
+    setAnimeEpisodes(episodes);
   }, []);
 
   // Stable identity (the TV back-stack relies on mount-time registration).
@@ -489,6 +496,19 @@ function App() {
                           : activeCategory}
             </h1>
 
+            {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
+            {activeCategory === "anime" && (
+              <AnimeSection
+                onSelectMovie={setSelectedMovie}
+                onPlay={handlePlay}
+                isInMyList={isInMyList}
+                isLiked={isLiked}
+                toggleMyList={toggleMyList}
+                toggleLike={toggleLike}
+                onEpisodesLoaded={handleAnimeEpisodesLoaded}
+              />
+            )}
+
             {/* Admin custom rows scoped to this section */}
             {cfg.customRows?.map((row) => {
               if (!row.visible) return null;
@@ -594,6 +614,17 @@ function App() {
             />
 
             <div className="mt-8 relative z-20">
+              {/* Hindi dubbed anime from official licensed YouTube channels. */}
+              <AnimeSection
+                onSelectMovie={setSelectedMovie}
+                onPlay={handlePlay}
+                isInMyList={isInMyList}
+                isLiked={isLiked}
+                toggleMyList={toggleMyList}
+                toggleLike={toggleLike}
+                onEpisodesLoaded={handleAnimeEpisodesLoaded}
+              />
+
               {/* Synced playlists no longer auto-appear on home.
                 Admin adds them via Custom Rows when desired. */}
 
@@ -685,14 +716,17 @@ function App() {
             episodes={(() => {
               const pid = playingMovie.playlistId;
               if (!pid) return undefined;
+              const sortByEp = (a: Movie, b: Movie) =>
+                (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
+                (a.episodeNumber || 0) - (b.episodeNumber || 0);
               const siblings = syncedMovies
                 .filter((m) => m.playlistId === pid)
-                .sort(
-                  (a, b) =>
-                    (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
-                    (a.episodeNumber || 0) - (b.episodeNumber || 0),
-                );
-              return siblings.length > 1 ? siblings : undefined;
+                .sort(sortByEp);
+              if (siblings.length > 1) return siblings;
+              const animeSiblings = animeEpisodes
+                .filter((m) => m.playlistId === pid)
+                .sort(sortByEp);
+              return animeSiblings.length > 1 ? animeSiblings : undefined;
             })()}
           />
         )}
