@@ -58,6 +58,8 @@ export interface AnimeEpisode {
   published: string;
   /** Source channel name. */
   channelName: string;
+  /** YouTube playlist id this episode belongs to (its "Hindi Dub" playlist). */
+  playlistId?: string;
 }
 
 /* ── Small utilities ───────────────────────────────────────────── */
@@ -160,9 +162,50 @@ function firstMatch(text: string, re: RegExp): string | null {
   return m ? m[1] : null;
 }
 
+/** Build the public Atom feed URL for a playlist (no API key needed). */
+export function playlistFeedUrl(playlistId: string): string {
+  return `https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(playlistId)}`;
+}
+
 /**
- * Parse one YouTube channel Atom feed into episode objects. Kept deliberately
- * regex-based (no DOM) so it runs in the server route on any runtime.
+ * Pull the description block out of a feed entry (strips a CDATA wrapper).
+ * Muse episodes list their "Hindi Dub" / "English Sub" playlist links here.
+ */
+function entryDescription(entry: string): string {
+  const raw =
+    firstMatch(entry, /<media:description>([\s\S]*?)<\/media:description>/i) ??
+    firstMatch(entry, /<description>([\s\S]*?)<\/description>/i);
+  if (!raw) return "";
+  return raw
+    .replace(/^\s*<!\[CDATA\[/i, "")
+    .replace(/\]\]>\s*$/i, "")
+    .trim();
+}
+
+/** Every `list=PL...` id found in a description. */
+export function extractPlaylistIds(description: string): string[] {
+  return [...description.matchAll(/playlist\?list=([A-Za-z0-9_-]{8,})/gi)].map((m) => m[1]);
+}
+
+/**
+ * Choose the "Hindi Dub" playlist from a description. Muse descriptions list
+ * the Hindi playlist first, and often a second "English Sub" playlist — we
+ * only ever want the Hindi one. Prefer the id linked right after a "Hindi Dub"
+ * label; otherwise fall back to the first id (single-playlist descriptions
+ * like HUNTER×HUNTER have no label at all).
+ */
+export function pickHindiPlaylistId(description: string): string | null {
+  const ids = extractPlaylistIds(description);
+  if (ids.length === 0) return null;
+  const labeled = description.match(/hindi\s*dub[\s\S]{0,160}?list=([A-Za-z0-9_-]{8,})/i);
+  if (labeled) return labeled[1];
+  return ids[0];
+}
+
+/**
+ * Parse one YouTube Atom feed (channel OR playlist — same schema) into episode
+ * objects. Kept deliberately regex-based (no DOM) so it runs in the server
+ * route on any runtime.
  */
 export function parseYouTubeFeed(xml: string, channel: AnimeChannel): AnimeEpisode[] {
   const out: AnimeEpisode[] = [];
@@ -175,7 +218,8 @@ export function parseYouTubeFeed(xml: string, channel: AnimeChannel): AnimeEpiso
 
     const videoId =
       firstMatch(entry, /<yt:videoId>([^<]+)<\/yt:videoId>/i) ||
-      firstMatch(entry, /<id>\s*yt:video:([^<]+)<\/id>/i);
+      firstMatch(entry, /<id>\s*yt:video:([^<]+)<\/id>/i) ||
+      firstMatch(entry, /<media:content[^>]*\/v\/([A-Za-z0-9_-]{11})/i);
     if (!videoId) continue;
 
     const title = firstMatch(entry, /<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i);
@@ -187,6 +231,9 @@ export function parseYouTubeFeed(xml: string, channel: AnimeChannel): AnimeEpiso
 
     const published = firstMatch(entry, /<published>([^<]+)<\/published>/i) ?? "";
 
+    const description = entryDescription(entry);
+    const playlistId = pickHindiPlaylistId(description) ?? undefined;
+
     const parsed = parseAnimeTitle(title);
     out.push({
       videoId,
@@ -197,6 +244,7 @@ export function parseYouTubeFeed(xml: string, channel: AnimeChannel): AnimeEpiso
       thumbnail,
       published,
       channelName: channel.name,
+      playlistId,
     });
   }
 
