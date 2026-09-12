@@ -53,12 +53,21 @@ export default function MovieModal({
   const isHeroBanner = heroBanners.some((b) => b.movieId === movie.id);
 
   const isCollection = !!(movie.isCollection && movie.episodes && movie.episodes.length > 0);
+  const [deletedEpisodeIds, setDeletedEpisodeIds] = useState<Set<number>>(() => new Set());
   const seasons: Season[] = useMemo(() => {
     if (!isCollection) return [];
-    if (movie.seasons && movie.seasons.length > 0) return movie.seasons;
-    // Fallback: single synthetic season from flat episodes
-    return [{ seasonNumber: 1, episodes: movie.episodes! }];
-  }, [isCollection, movie.seasons, movie.episodes]);
+    const sourceSeasons =
+      movie.seasons && movie.seasons.length > 0
+        ? movie.seasons
+        : // Fallback: single synthetic season from flat episodes
+          [{ seasonNumber: 1, episodes: movie.episodes! }];
+    return sourceSeasons
+      .map((season) => ({
+        ...season,
+        episodes: season.episodes.filter((episode) => !deletedEpisodeIds.has(episode.id)),
+      }))
+      .filter((season) => season.episodes.length > 0);
+  }, [isCollection, movie.seasons, movie.episodes, deletedEpisodeIds]);
 
   const hasMultiSeason = seasons.length > 1;
   // null = show season picker; number = show that season's episodes
@@ -66,6 +75,7 @@ export default function MovieModal({
     hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null),
   );
   const [selectedEpIdx, setSelectedEpIdx] = useState(0);
+  const lastMovieIdRef = useRef(movie.id);
 
   // Episodes row paging. The forward arrow used to render without any click
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
@@ -109,9 +119,29 @@ export default function MovieModal({
   }, []);
 
   useEffect(() => {
-    setSelectedSeason(hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null));
-    setSelectedEpIdx(0);
-  }, [movie.id, hasMultiSeason, seasons]);
+    setDeletedEpisodeIds(new Set());
+  }, [movie.id]);
+
+  useEffect(() => {
+    const movieChanged = lastMovieIdRef.current !== movie.id;
+    if (movieChanged) {
+      lastMovieIdRef.current = movie.id;
+      setSelectedSeason(hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null));
+      setSelectedEpIdx(0);
+      return;
+    }
+    if (
+      selectedSeason != null &&
+      seasons.some((season) => season.seasonNumber === selectedSeason)
+    ) {
+      return;
+    }
+    const nextSeason = hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null);
+    if (nextSeason !== selectedSeason) {
+      setSelectedSeason(nextSeason);
+      setSelectedEpIdx(0);
+    }
+  }, [movie.id, hasMultiSeason, seasons, selectedSeason]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -176,7 +206,22 @@ export default function MovieModal({
       ? `Season ${activeSeason?.seasonNumber} • Episode ${currentEp.episodeNumber || selectedEpIdx + 1}: ${currentEp.title}`
       : movie.description;
 
-  const episodeCount = isCollection ? movie.episodes!.length : 0;
+  const episodeCount = isCollection
+    ? seasons.reduce((count, season) => count + season.episodes.length, 0)
+    : 0;
+
+  const handleEpisodeDelete = useCallback(
+    (episode: Movie) => {
+      setDeletedEpisodeIds((previous) => {
+        const next = new Set(previous);
+        next.add(episode.id);
+        return next;
+      });
+      onDelete?.(episode);
+      if (episodeCount <= 1) onClose();
+    },
+    [episodeCount, onClose, onDelete],
+  );
 
   const playFirstOfFirstSeason = () => {
     const s = seasons[0];
@@ -414,6 +459,8 @@ export default function MovieModal({
                     setSelectedEpIdx(i);
                     onPlay(ep);
                   }}
+                  canDelete={canDelete}
+                  onDelete={onDelete ? handleEpisodeDelete : undefined}
                 />
               ))}
             </div>
@@ -488,12 +535,16 @@ function EpisodeCard({
   current = false,
   onPlay,
   onSelect,
+  canDelete = false,
+  onDelete,
 }: {
   movie: Movie;
   index: number;
   current?: boolean;
   onPlay: () => void;
   onSelect: () => void;
+  canDelete?: boolean;
+  onDelete?: (movie: Movie) => void;
 }) {
   return (
     <div
@@ -531,6 +582,21 @@ function EpisodeCard({
           >
             <Plus size={13} className="text-white" />
           </button>
+          {canDelete && onDelete && (
+            <button
+              className="w-7 h-7 rounded-md bg-red-600/70 hover:bg-red-600 flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`Delete episode "${movie.title}"? This cannot be undone.`)) {
+                  onDelete(movie);
+                }
+              }}
+              title="Delete episode"
+              aria-label={`Delete episode ${index}: ${movie.title}`}
+            >
+              <Trash2 size={13} className="text-white" />
+            </button>
+          )}
         </div>
         {current && (
           <button
