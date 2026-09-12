@@ -110,6 +110,30 @@ function mergeCollection(existing: Movie, incoming: Movie): Movie {
   );
 }
 
+function removeEpisodeFromCollection(
+  collection: Movie,
+  episodeId: number,
+  covers: Record<string, string>,
+): Movie | null {
+  if (!collection.isCollection || !collection.episodes) return collection;
+  const remaining = collection.episodes.filter((episode) => episode.id !== episodeId);
+  if (remaining.length === collection.episodes.length) return collection;
+  if (remaining.length === 0) return null;
+
+  const rebuilt = buildCollections(remaining, covers).find(
+    (movie) => movie.isCollection && movie.playlistId === collection.playlistId,
+  );
+  if (rebuilt) return rebuilt;
+
+  const seasons = collection.seasons
+    ?.map((season) => ({
+      ...season,
+      episodes: season.episodes.filter((episode) => episode.id !== episodeId),
+    }))
+    .filter((season) => season.episodes.length > 0);
+  return { ...collection, episodes: remaining, seasons };
+}
+
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
@@ -355,7 +379,7 @@ function App() {
     setTimeout(() => setPlayingMovie(toAdd[0]), 500);
   }, []);
 
-  // Admin-only: delete an uploaded video, a single synced video, or a whole
+  // Admin-only: delete an uploaded video, a single episode/video, or a whole
   // synced playlist (collection). Removes it from every list it lives in.
   const handleDelete = useCallback(async (movie: Movie) => {
     // Whole playlist collection: drop every synced episode sharing the playlistId.
@@ -388,13 +412,24 @@ function App() {
     await deleteMovieById(movie.id);
     setUploadedMovies((prev) => prev.filter((m) => m.id !== movie.id));
     setSyncedMovies((prev) => prev.filter((m) => m.id !== movie.id));
-    setMyList((prev) => prev.filter((m) => m.id !== movie.id));
+    setMyList((prev) =>
+      prev.flatMap((item) => {
+        if (item.id === movie.id) return [];
+        const updated = removeEpisodeFromCollection(item, movie.id, collectionCovers);
+        return updated ? [updated] : [];
+      }),
+    );
+    setSelectedMovie((prev) => {
+      if (!prev) return prev;
+      if (prev.id === movie.id) return null;
+      return removeEpisodeFromCollection(prev, movie.id, collectionCovers);
+    });
     setLikedMovies((prev) => {
       const next = new Set(prev);
       next.delete(movie.id);
       return next;
     });
-  }, []);
+  }, [collectionCovers]);
 
   // Admin-only: replace an existing item's displayed thumbnail image.
   // For collections (series), the cover is saved to Supabase first and only
