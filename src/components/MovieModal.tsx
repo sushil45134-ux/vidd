@@ -66,6 +66,7 @@ export default function MovieModal({
     hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null),
   );
   const [selectedEpIdx, setSelectedEpIdx] = useState(0);
+  const previousMovieId = useRef(movie.id);
 
   // Episodes row paging. The forward arrow used to render without any click
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
@@ -109,7 +110,17 @@ export default function MovieModal({
   }, []);
 
   useEffect(() => {
-    setSelectedSeason(hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null));
+    const movieChanged = previousMovieId.current !== movie.id;
+    previousMovieId.current = movie.id;
+
+    setSelectedSeason((previousSeason) => {
+      if (movieChanged || !hasMultiSeason) {
+        return hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null);
+      }
+      return previousSeason != null && seasons.some((s) => s.seasonNumber === previousSeason)
+        ? previousSeason
+        : null;
+    });
     setSelectedEpIdx(0);
   }, [movie.id, hasMultiSeason, seasons]);
 
@@ -414,6 +425,8 @@ export default function MovieModal({
                     setSelectedEpIdx(i);
                     onPlay(ep);
                   }}
+                  canDelete={canDelete}
+                  onDelete={onDelete}
                 />
               ))}
             </div>
@@ -488,12 +501,16 @@ function EpisodeCard({
   current = false,
   onPlay,
   onSelect,
+  canDelete = false,
+  onDelete,
 }: {
   movie: Movie;
   index: number;
   current?: boolean;
   onPlay: () => void;
   onSelect: () => void;
+  canDelete?: boolean;
+  onDelete?: (movie: Movie) => void;
 }) {
   return (
     <div
@@ -531,6 +548,21 @@ function EpisodeCard({
           >
             <Plus size={13} className="text-white" />
           </button>
+          {canDelete && onDelete && (
+            <button
+              className="w-7 h-7 rounded-md bg-red-600/70 hover:bg-red-600 flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`Delete episode "${movie.title}"? This cannot be undone.`)) {
+                  onDelete(movie);
+                }
+              }}
+              title="Delete episode"
+              aria-label={`Delete episode ${movie.title}`}
+            >
+              <Trash2 size={13} className="text-white" />
+            </button>
+          )}
         </div>
         {current && (
           <button
