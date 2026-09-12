@@ -31,6 +31,64 @@ const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   new: (m) => m.year === new Date().getFullYear(),
 };
 
+/**
+ * Group flat episode rows that share a playlistId into one series collection
+ * (Crunchyroll-style) with seasons sorted by season/episode number. Rows
+ * without a playlistId pass through untouched.
+ */
+function buildCollections(movies: Movie[], covers: Record<string, string>): Movie[] {
+  const groups = new Map<string, Movie[]>();
+  movies.forEach((m) => {
+    if (!m.playlistId) return;
+    if (!groups.has(m.playlistId)) groups.set(m.playlistId, []);
+    groups.get(m.playlistId)!.push(m);
+  });
+  if (groups.size === 0) return movies;
+
+  const emitted = new Set<string>();
+  const out: Movie[] = [];
+  movies.forEach((m) => {
+    if (!m.playlistId) {
+      out.push(m);
+      return;
+    }
+    if (emitted.has(m.playlistId)) return;
+    emitted.add(m.playlistId);
+    const eps = groups.get(m.playlistId)!;
+    const seasonMap = new Map<number, Movie[]>();
+    eps.forEach((e) => {
+      const s = e.seasonNumber || 1;
+      if (!seasonMap.has(s)) seasonMap.set(s, []);
+      seasonMap.get(s)!.push(e);
+    });
+    const seasons = Array.from(seasonMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([seasonNumber, seasonEps]) => ({
+        seasonNumber,
+        episodes: [...seasonEps].sort((a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0)),
+      }));
+    const flatEps = seasons.flatMap((s) => s.episodes);
+    const first = flatEps[0];
+    let hash = 0;
+    for (let i = 0; i < m.playlistId.length; i++)
+      hash = (hash * 31 + m.playlistId.charCodeAt(i)) | 0;
+    const coverOverride = covers[m.playlistId];
+    out.push({
+      ...first,
+      id: Math.abs(hash) + 1_000_000_000,
+      title: first.playlistTitle || first.title,
+      description: `${seasons.length > 1 ? `${seasons.length} seasons • ` : ""}${flatEps.length} episode${flatEps.length !== 1 ? "s" : ""}`,
+      isCollection: true,
+      episodes: flatEps,
+      seasons,
+      ...(coverOverride
+        ? { image: coverOverride, thumbnailUrl: coverOverride, backdrop: coverOverride }
+        : {}),
+    });
+  });
+  return out;
+}
+
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
@@ -103,55 +161,21 @@ function App() {
     [uploadedMovies, syncedMovies],
   );
 
-  // Group synced episodes into playlist collections (Crunchyroll-style)
-  const syncedCollections = useMemo<Movie[]>(() => {
-    const map = new Map<string, Movie[]>();
-    syncedMovies.forEach((m) => {
-      const key = m.playlistId || `single_${m.id}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(m);
-    });
-    const out: Movie[] = [];
-    map.forEach((eps, key) => {
-      // Group by seasonNumber (default 1)
-      const seasonMap = new Map<number, Movie[]>();
-      eps.forEach((e) => {
-        const s = e.seasonNumber || 1;
-        if (!seasonMap.has(s)) seasonMap.set(s, []);
-        seasonMap.get(s)!.push(e);
-      });
-      const seasons = Array.from(seasonMap.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([seasonNumber, seasonEps]) => ({
-          seasonNumber,
-          episodes: [...seasonEps].sort((a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0)),
-        }));
-      const flatEps = seasons.flatMap((s) => s.episodes);
-      const first = flatEps[0];
-      let hash = 0;
-      for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-      const playlistId = first.playlistId;
-      const coverOverride = playlistId ? collectionCovers[playlistId] : undefined;
-      out.push({
-        ...first,
-        id: Math.abs(hash) + 1_000_000_000,
-        title: first.playlistTitle || first.title,
-        description: `${seasons.length > 1 ? `${seasons.length} seasons • ` : ""}${flatEps.length} episode${flatEps.length !== 1 ? "s" : ""}`,
-        isCollection: true,
-        episodes: flatEps,
-        seasons,
-        ...(coverOverride
-          ? { image: coverOverride, thumbnailUrl: coverOverride, backdrop: coverOverride }
-          : {}),
-      });
-    });
-    return out;
-  }, [syncedMovies, collectionCovers]);
+  // Group episodes (synced playlists AND user-uploaded series) into
+  // playlist collections (Crunchyroll-style)
+  const syncedCollections = useMemo(
+    () => buildCollections(syncedMovies, collectionCovers),
+    [syncedMovies, collectionCovers],
+  );
+  const uploadedCollections = useMemo(
+    () => buildCollections(uploadedMovies, collectionCovers),
+    [uploadedMovies, collectionCovers],
+  );
 
-  // What we show in rows / categories (collections instead of individual synced episodes)
+  // What we show in rows / categories (collections instead of individual episodes)
   const displayItems = useMemo(
-    () => [...uploadedMovies, ...syncedCollections],
-    [uploadedMovies, syncedCollections],
+    () => [...uploadedCollections, ...syncedCollections],
+    [uploadedCollections, syncedCollections],
   );
 
   const resolveCustomRowItems = useCallback(
@@ -269,6 +293,9 @@ function App() {
         await Promise.all(movie.episodes.map((e) => deleteMovieById(e.id)));
       }
       setSyncedMovies((prev) =>
+        prev.filter((m) => (pid ? m.playlistId !== pid : !epIds.has(m.id))),
+      );
+      setUploadedMovies((prev) =>
         prev.filter((m) => (pid ? m.playlistId !== pid : !epIds.has(m.id))),
       );
       setMyList((prev) => prev.filter((m) => m.id !== movie.id && !epIds.has(m.id)));

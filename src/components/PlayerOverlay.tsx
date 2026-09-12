@@ -14,7 +14,7 @@ export default function PlayerOverlay({
 }) {
   const queue = useMemo(() => {
     if (!episodes || episodes.length < 2) return [];
-    return episodes.filter((e) => !!e.youtubeId);
+    return episodes.filter((e) => !!e.youtubeId || !!e.embedUrl || !!e.videoUrl);
   }, [episodes]);
 
   const initialIdx = useMemo(() => {
@@ -33,16 +33,12 @@ export default function PlayerOverlay({
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).
   if (!current.youtubeId && current.embedUrl) {
-    return (
-      <EmbedPlayer src={current.embedUrl} kind="iframe" onClose={onClose} />
-    );
+    return <EmbedPlayer src={current.embedUrl} kind="iframe" onClose={onClose} />;
   }
 
   // Uploaded file / direct video URL.
   if (!current.youtubeId && !current.embedUrl && current.videoUrl) {
-    return (
-      <EmbedPlayer src={current.videoUrl} kind="video" onClose={onClose} />
-    );
+    return <EmbedPlayer src={current.videoUrl} kind="video" onClose={onClose} />;
   }
 
   const youtubeId = current.youtubeId || movie.youtubeId || "dQw4w9WgXcQ";
@@ -71,4 +67,3 @@ export default function PlayerOverlay({
     />
   );
 }
-
