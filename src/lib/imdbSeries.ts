@@ -1,8 +1,9 @@
 /**
  * IMDb/TMDB auto-series helpers.
  *
- * NHD turns a single IMDb/TMDB ID into a player for any TV episode:
+ * NHD and Nxsha turn a single IMDb/TMDB ID into a player for any TV episode:
  *   https://nhdapi.com/tv/{id}/{s}/{e}
+ *   https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true
  */
 
 export interface ImdbProvider {
@@ -19,6 +20,13 @@ export const IMDB_PROVIDERS: ImdbProvider[] = [
     name: "NHD",
     template: "https://nhdapi.com/tv/{id}/{s}/{e}",
     hint: "nhdapi.com — IMDb/TMDB ID se har episode",
+  },
+  {
+    id: "nxsha",
+    name: "Nxsha",
+    template:
+      "https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true",
+    hint: "Hindi audio verified by user; popup risk accepted",
   },
 ];
 
@@ -48,6 +56,8 @@ export function detectSeasonEpisode(url: string): { season: number; episode: num
 /** Guess a provider preset from a pasted embed/URL host. */
 export function detectProviderFromEmbed(input: string): ImdbProvider | null {
   const lower = input.toLowerCase();
+  if (lower.includes("web.nxsha.app") || lower.includes("nxsha.space") || lower.includes("nxsha"))
+    return getProvider("nxsha") ?? null;
   if (lower.includes("nhdapi.com") || lower.includes("nhdapi")) return getProvider("nhd") ?? null;
   return null;
 }
