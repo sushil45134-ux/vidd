@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import type { Movie, Season } from "../data";
-import { FALLBACK_THUMBNAIL, movieImageSources } from "../lib/media";
+import { FALLBACK_THUMBNAIL, isGenericPoster, movieImageSources } from "../lib/media";
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
 import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
@@ -179,8 +179,10 @@ export default function MovieModal({
 
   const heroTitle = movie.title;
   const moviePoster = movieImageSources(movie, "hero");
-  const episodePoster = movieImageSources(currentEp, "hero");
-  const heroImage = showSeasonPicker ? moviePoster : isCollection ? episodePoster : moviePoster;
+  // Series cover wins in the hero. Episode-specific stills stay on the
+  // episode cards; using the current episode poster here showed the shared
+  // Pexels film-strip after the admin set a real series thumbnail.
+  const heroImage = moviePoster;
   const heroDesc = showSeasonPicker
     ? `${seasons.length} seasons • ${movie.episodes!.length} episodes`
     : isCollection
@@ -515,13 +517,14 @@ function EpisodeCard({
   canDelete?: boolean;
   onDelete?: (movie: Movie) => void;
 }) {
-  const imageSources = [
-    ...movieImageSources(movie).filter((source) => source !== FALLBACK_THUMBNAIL),
-    ...(fallbackMovie
-      ? movieImageSources(fallbackMovie).filter((source) => source !== FALLBACK_THUMBNAIL)
-      : []),
-    FALLBACK_THUMBNAIL,
-  ];
+  const ownArt = movieImageSources(movie).filter((source) => source !== FALLBACK_THUMBNAIL);
+  const seriesArt = (fallbackMovie ? movieImageSources(fallbackMovie) : []).filter(
+    (source) => source !== FALLBACK_THUMBNAIL,
+  );
+  const episodeHasOwnArt = !!movie.youtubeId || !isGenericPoster(movie.image);
+  const imageSources = episodeHasOwnArt
+    ? [...ownArt, ...seriesArt, FALLBACK_THUMBNAIL]
+    : [...seriesArt, ...ownArt, FALLBACK_THUMBNAIL];
 
   return (
     <div

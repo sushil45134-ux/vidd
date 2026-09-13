@@ -21,7 +21,7 @@ import type { Movie, Category } from "./data";
 import { getMovieRef, useSiteConfig, type CustomRow, type RowKey } from "./lib/customization";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
-import { movieImageSources } from "./lib/media";
+import { isGenericPoster, movieImageSources } from "./lib/media";
 import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
 
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
@@ -62,18 +62,34 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
       if (!seasonMap.has(s)) seasonMap.set(s, []);
       seasonMap.get(s)!.push(e);
     });
+    const coverOverride = covers[m.playlistId];
+    const paintCover = (episode: Movie): Movie => {
+      if (!coverOverride) return episode;
+      // Keep real per-episode artwork (YouTube thumbs, custom stills). Only
+      // replace the shared Pexels film-strip / empty poster so the series
+      // cover shows on every episode card and in the modal hero.
+      if (episode.youtubeId) return episode;
+      if (!isGenericPoster(episode.image) && !isGenericPoster(episode.thumbnailUrl)) return episode;
+      return {
+        ...episode,
+        image: coverOverride,
+        thumbnailUrl: coverOverride,
+        backdrop: isGenericPoster(episode.backdrop) ? coverOverride : episode.backdrop,
+      };
+    };
     const seasons = Array.from(seasonMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([seasonNumber, seasonEps]) => ({
         seasonNumber,
-        episodes: [...seasonEps].sort((a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0)),
+        episodes: [...seasonEps]
+          .sort((a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0))
+          .map(paintCover),
       }));
     const flatEps = seasons.flatMap((s) => s.episodes);
     const first = flatEps[0];
     let hash = 0;
     for (let i = 0; i < m.playlistId.length; i++)
       hash = (hash * 31 + m.playlistId.charCodeAt(i)) | 0;
-    const coverOverride = covers[m.playlistId];
     out.push({
       ...first,
       id: Math.abs(hash) + 1_000_000_000,
@@ -434,9 +450,24 @@ function App() {
         );
         return;
       }
+      const paint = (episode: Movie): Movie => {
+        if (episode.youtubeId) return episode;
+        if (!isGenericPoster(episode.image) && !isGenericPoster(episode.thumbnailUrl)) return episode;
+        return { ...episode, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl };
+      };
       setSelectedMovie((prev) =>
         prev && prev.id === syntheticId
-          ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
+          ? {
+              ...prev,
+              image: newUrl,
+              thumbnailUrl: newUrl,
+              backdrop: newUrl,
+              episodes: prev.episodes?.map(paint),
+              seasons: prev.seasons?.map((season) => ({
+                ...season,
+                episodes: season.episodes.map(paint),
+              })),
+            }
           : prev,
       );
       setThumbnailEditMovie((prev) =>
