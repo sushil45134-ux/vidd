@@ -857,7 +857,11 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         const isAutoTitle = oldNum != null && e.title.trim() === `Episode ${oldNum}`;
         return {
           ...e,
-    next.sort(epSort);
+          num: newNum,
+          title: isAutoTitle ? `Episode ${newNum}` : e.title,
+        };
+      });
+      return next.sort(epSort);
     });
   };
 
@@ -1992,23 +1996,6 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                       : !title.trim()
                   }
                   className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <Upload size={16} />{" "}
-                  {cloudTab
-                    ? `Add ${cloudEps.length} Episode${cloudEps.length !== 1 ? "s" : ""}`
-                    : sourceTab === "series"
-                      ? `Add Series — ${embedEpisodes.length} Episode${embedEpisodes.length !== 1 ? "s" : ""}`
-                      : "Add & Play"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-ems-center gap-2"
                 >
                   <Upload size={16} />{" "}
                   {cloudTab
