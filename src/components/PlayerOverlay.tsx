@@ -30,15 +30,44 @@ export default function PlayerOverlay({
 
   const current = queue[idx] || movie;
 
+  // Series queue (same playlistId) works for embeds/videos just like YouTube —
+  // Prev / Next swap `idx` and PlayerOverlay re-renders the player with the
+  // sibling episode's src. No auto-next: iframe providers (Nxsha & co.) have
+  // no reliable end-of-video event.
+  const hasPrev = queue.length > 1 && idx > 0;
+  const hasNext = queue.length > 1 && idx < queue.length - 1;
+
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).
   if (!current.youtubeId && current.embedUrl) {
-    return <EmbedPlayer src={current.embedUrl} kind="iframe" onClose={onClose} />;
+    return (
+      <EmbedPlayer
+        key={current.id}
+        src={current.embedUrl}
+        kind="iframe"
+        onClose={onClose}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
+        onNext={hasNext ? () => setIdx(idx + 1) : undefined}
+      />
+    );
   }
 
   // Uploaded file / direct video URL.
   if (!current.youtubeId && !current.embedUrl && current.videoUrl) {
-    return <EmbedPlayer src={current.videoUrl} kind="video" onClose={onClose} />;
+    return (
+      <EmbedPlayer
+        key={current.id}
+        src={current.videoUrl}
+        kind="video"
+        onClose={onClose}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
+        onNext={hasNext ? () => setIdx(idx + 1) : undefined}
+      />
+    );
   }
 
   const youtubeId = current.youtubeId || movie.youtubeId || "dQw4w9WgXcQ";
@@ -60,10 +89,10 @@ export default function PlayerOverlay({
       queueItems={queue.length > 1 ? queueItems : undefined}
       currentQueueIndex={queue.length > 1 ? idx : undefined}
       onJumpTo={(i) => setIdx(i)}
-      onNext={queue.length > 1 && idx < queue.length - 1 ? () => setIdx(idx + 1) : undefined}
-      onPrev={queue.length > 1 && idx > 0 ? () => setIdx(idx - 1) : undefined}
-      hasNext={queue.length > 1 && idx < queue.length - 1}
-      hasPrev={queue.length > 1 && idx > 0}
+      onNext={hasNext ? () => setIdx(idx + 1) : undefined}
+      onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
+      hasNext={hasNext}
+      hasPrev={hasPrev}
     />
   );
 }
