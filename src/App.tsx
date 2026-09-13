@@ -357,44 +357,63 @@ function App() {
 
   // Admin-only: delete an uploaded video, a single synced video, or a whole
   // synced playlist (collection). Removes it from every list it lives in.
-  const handleDelete = useCallback(async (movie: Movie) => {
-    // Whole playlist collection: drop every synced episode sharing the playlistId.
-    if (movie.isCollection && movie.episodes && movie.episodes.length > 0) {
-      const pid = movie.episodes[0].playlistId;
-      const epIds = new Set(movie.episodes.map((e) => e.id));
-      const { deleteMovieById, deleteMoviesByPlaylist } = await import("./lib/moviesRepo");
-      if (pid) {
-        await deleteMoviesByPlaylist(pid);
-      } else {
-        await Promise.all(movie.episodes.map((e) => deleteMovieById(e.id)));
+  const handleDelete = useCallback(
+    async (movie: Movie) => {
+      // Whole playlist collection: drop every synced episode sharing the playlistId.
+      if (movie.isCollection && movie.episodes && movie.episodes.length > 0) {
+        const pid = movie.episodes[0].playlistId;
+        const epIds = new Set(movie.episodes.map((e) => e.id));
+        const { deleteMovieById, deleteMoviesByPlaylist } = await import("./lib/moviesRepo");
+        if (pid) {
+          await deleteMoviesByPlaylist(pid);
+        } else {
+          await Promise.all(movie.episodes.map((e) => deleteMovieById(e.id)));
+        }
+        setSyncedMovies((prev) =>
+          prev.filter((m) => (pid ? m.playlistId !== pid : !epIds.has(m.id))),
+        );
+        setUploadedMovies((prev) =>
+          prev.filter((m) => (pid ? m.playlistId !== pid : !epIds.has(m.id))),
+        );
+        setMyList((prev) => prev.filter((m) => m.id !== movie.id && !epIds.has(m.id)));
+        setLikedMovies((prev) => {
+          const next = new Set(prev);
+          next.delete(movie.id);
+          epIds.forEach((id) => next.delete(id));
+          return next;
+        });
+        return;
       }
-      setSyncedMovies((prev) =>
-        prev.filter((m) => (pid ? m.playlistId !== pid : !epIds.has(m.id))),
-      );
-      setUploadedMovies((prev) =>
-        prev.filter((m) => (pid ? m.playlistId !== pid : !epIds.has(m.id))),
-      );
-      setMyList((prev) => prev.filter((m) => m.id !== movie.id && !epIds.has(m.id)));
+      // Single item (uploaded or standalone synced).
+      const { deleteMovieById } = await import("./lib/moviesRepo");
+      await deleteMovieById(movie.id);
+      setUploadedMovies((prev) => prev.filter((m) => m.id !== movie.id));
+      setSyncedMovies((prev) => prev.filter((m) => m.id !== movie.id));
+      setMyList((prev) => prev.filter((m) => m.id !== movie.id));
+      setSelectedMovie((prev) => {
+        if (!prev?.isCollection || !prev.episodes) return prev;
+        const remainingEpisodes = prev.episodes.filter((episode) => episode.id !== movie.id);
+        if (remainingEpisodes.length === prev.episodes.length) return prev;
+        if (remainingEpisodes.length === 0) return null;
+
+        // Keep an open series modal in sync as well as the cards behind it. The
+        // source lists above trigger the normal buildCollections re-run, while
+        // this rebuild prevents the stale selectedMovie snapshot from showing
+        // the deleted episode until the modal is closed.
+        return (
+          buildCollections(remainingEpisodes, collectionCovers).find(
+            (item) => item.isCollection && item.playlistId === prev.playlistId,
+          ) || prev
+        );
+      });
       setLikedMovies((prev) => {
         const next = new Set(prev);
         next.delete(movie.id);
-        epIds.forEach((id) => next.delete(id));
         return next;
       });
-      return;
-    }
-    // Single item (uploaded or standalone synced).
-    const { deleteMovieById } = await import("./lib/moviesRepo");
-    await deleteMovieById(movie.id);
-    setUploadedMovies((prev) => prev.filter((m) => m.id !== movie.id));
-    setSyncedMovies((prev) => prev.filter((m) => m.id !== movie.id));
-    setMyList((prev) => prev.filter((m) => m.id !== movie.id));
-    setLikedMovies((prev) => {
-      const next = new Set(prev);
-      next.delete(movie.id);
-      return next;
-    });
-  }, []);
+    },
+    [collectionCovers],
+  );
 
   // Admin-only: replace an existing item's displayed thumbnail image.
   // For collections (series), the cover is saved to Supabase first and only

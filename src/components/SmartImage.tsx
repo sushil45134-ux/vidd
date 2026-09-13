@@ -7,8 +7,13 @@ interface SmartImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src
 }
 
 export default function SmartImage({ src, alt, loading, ...props }: SmartImageProps) {
+  // movieImageSources() returns a new array on every render. Use the content as
+  // the dependency instead of the array identity, otherwise an image error
+  // advances to the next source and the following render resets it to source 0
+  // before the fallback poster can ever load.
+  const sourceKey = Array.isArray(src) ? src.join("\u0000") : src || "";
   const sources = useMemo(() => {
-    const list = Array.isArray(src) ? src : src ? [src] : [];
+    const list = sourceKey ? sourceKey.split("\u0000") : [];
     const seen = new Set<string>();
     const cleaned = list
       .map((value) => value.trim())
@@ -18,7 +23,7 @@ export default function SmartImage({ src, alt, loading, ...props }: SmartImagePr
         return true;
       });
     return cleaned.length > 0 ? cleaned : [FALLBACK_THUMBNAIL];
-  }, [src]);
+  }, [sourceKey]);
 
   const [sourceIndex, setSourceIndex] = useState(0);
 

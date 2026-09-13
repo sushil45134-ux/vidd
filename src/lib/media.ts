@@ -73,6 +73,21 @@ function resolveYouTubeThumb(url: string, tvCard: boolean): string[] {
   return [`${match[1]}maxresdefault.jpg`, `${match[1]}sddefault.jpg`, url];
 }
 
+// Some third-party episode embeds do not provide a poster at all. Keep a
+// small, explicit artwork fallback for known series so their cards still look
+// intentional; normal uploaded/custom thumbnails always remain higher priority.
+const KNOWN_SERIES_ARTWORK: { match: RegExp; url: string }[] = [
+  {
+    match: /my\s*dress[-–—\s]*up\s*darling/i,
+    url: "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg",
+  },
+];
+
+function knownSeriesArtwork(movie: Movie): string[] {
+  const names = `${movie.title} ${movie.playlistTitle || ""}`;
+  return KNOWN_SERIES_ARTWORK.filter(({ match }) => match.test(names)).map(({ url }) => url);
+}
+
 export function movieImageSources(movie: Movie, mode: "hero" | "card" = "card") {
   const tvCard = mode === "card" && TV_CARDS;
   const primary =
@@ -85,6 +100,7 @@ export function movieImageSources(movie: Movie, mode: "hero" | "card" = "card") 
     ...(tvCard
       ? cardYouTubeThumbnailSources(movie.youtubeId)
       : youtubeThumbnailSources(movie.youtubeId)),
+    ...knownSeriesArtwork(movie),
     FALLBACK_THUMBNAIL,
   ]);
 }
