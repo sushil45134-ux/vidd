@@ -18,6 +18,21 @@ function isUsableImage(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+const GENERIC_POSTER_RE =
+  /(?:pexels-photo-32728014|images\.pexels\.com\/photos\/32728014)/i;
+
+/** True for empty/SVG placeholders and the shared Pexels film-strip used when a series has no real poster. */
+export function isGenericPoster(value: unknown): boolean {
+  if (!isUsableImage(value)) return true;
+  if (value === FALLBACK_THUMBNAIL) return true;
+  if (value.startsWith("data:image/svg")) return true;
+  return GENERIC_POSTER_RE.test(value);
+}
+
+function isRealPoster(value: unknown): value is string {
+  return !isGenericPoster(value);
+}
+
 function unique(values: string[]) {
   const seen = new Set<string>();
   return values.filter((value) => {
@@ -96,7 +111,7 @@ export function movieImageSources(movie: Movie, mode: "hero" | "card" = "card") 
       : [movie.thumbnailUrl, movie.image, movie.backdrop];
 
   return unique([
-    ...primary.filter(isUsableImage).flatMap((url) => resolveYouTubeThumb(url, tvCard)),
+    ...primary.filter(isRealPoster).flatMap((url) => resolveYouTubeThumb(url, tvCard)),
     ...(tvCard
       ? cardYouTubeThumbnailSources(movie.youtubeId)
       : youtubeThumbnailSources(movie.youtubeId)),
