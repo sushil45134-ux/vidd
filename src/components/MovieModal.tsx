@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import type { Movie, Season } from "../data";
-import { movieImageSources } from "../lib/media";
+import { FALLBACK_THUMBNAIL, movieImageSources } from "../lib/media";
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
 import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
@@ -66,6 +66,7 @@ export default function MovieModal({
     hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null),
   );
   const [selectedEpIdx, setSelectedEpIdx] = useState(0);
+  const previousMovieId = useRef(movie.id);
 
   // Episodes row paging. The forward arrow used to render without any click
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
@@ -109,7 +110,17 @@ export default function MovieModal({
   }, []);
 
   useEffect(() => {
-    setSelectedSeason(hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null));
+    const movieChanged = previousMovieId.current !== movie.id;
+    previousMovieId.current = movie.id;
+
+    setSelectedSeason((previousSeason) => {
+      if (movieChanged || !hasMultiSeason) {
+        return hasMultiSeason ? null : (seasons[0]?.seasonNumber ?? null);
+      }
+      return previousSeason != null && seasons.some((s) => s.seasonNumber === previousSeason)
+        ? previousSeason
+        : null;
+    });
     setSelectedEpIdx(0);
   }, [movie.id, hasMultiSeason, seasons]);
 
@@ -414,6 +425,9 @@ export default function MovieModal({
                     setSelectedEpIdx(i);
                     onPlay(ep);
                   }}
+                  fallbackMovie={movie}
+                  canDelete={canDelete}
+                  onDelete={onDelete}
                 />
               ))}
             </div>
@@ -488,13 +502,27 @@ function EpisodeCard({
   current = false,
   onPlay,
   onSelect,
+  fallbackMovie,
+  canDelete = false,
+  onDelete,
 }: {
   movie: Movie;
   index: number;
   current?: boolean;
   onPlay: () => void;
   onSelect: () => void;
+  fallbackMovie?: Movie;
+  canDelete?: boolean;
+  onDelete?: (movie: Movie) => void;
 }) {
+  const imageSources = [
+    ...movieImageSources(movie).filter((source) => source !== FALLBACK_THUMBNAIL),
+    ...(fallbackMovie
+      ? movieImageSources(fallbackMovie).filter((source) => source !== FALLBACK_THUMBNAIL)
+      : []),
+    FALLBACK_THUMBNAIL,
+  ];
+
   return (
     <div
       className="group relative shrink-0 w-64 cursor-pointer"
@@ -512,7 +540,7 @@ function EpisodeCard({
     >
       <div className="legacy-media relative rounded-lg overflow-hidden bg-white/5">
         <SmartImage
-          src={movieImageSources(movie)}
+          src={imageSources}
           alt={movie.title}
           loading="lazy"
           className="w-full h-full object-cover"
@@ -531,6 +559,21 @@ function EpisodeCard({
           >
             <Plus size={13} className="text-white" />
           </button>
+          {canDelete && onDelete && (
+            <button
+              className="w-7 h-7 rounded-md bg-red-600/70 hover:bg-red-600 flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`Delete episode "${movie.title}"? This cannot be undone.`)) {
+                  onDelete(movie);
+                }
+              }}
+              title="Delete episode"
+              aria-label={`Delete episode ${movie.title}`}
+            >
+              <Trash2 size={13} className="text-white" />
+            </button>
+          )}
         </div>
         {current && (
           <button
