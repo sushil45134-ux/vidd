@@ -1,9 +1,8 @@
 /**
  * IMDb/TMDB auto-series helpers.
  *
- * Third-party embed APIs (VidSrc, VidLink, MultiEmbed, 2Embed…) turn a single
- * IMDb/TMDB ID into a player for any movie or TV episode:
- *   /embed/tv/{id}/{season}/{episode}   or   ?video_id={id}&s={s}&e={e}
+ * NHD turns a single IMDb/TMDB ID into a player for any TV episode:
+ *   https://nhdapi.com/tv/{id}/{s}/{e}
  */
 
 export interface ImdbProvider {
@@ -16,46 +15,10 @@ export interface ImdbProvider {
 
 export const IMDB_PROVIDERS: ImdbProvider[] = [
   {
-    id: "vidsrc",
-    name: "VidSrc",
-    template: "https://vidsrc.xyz/embed/tv/{id}/{s}/{e}",
-    hint: "vidsrc.xyz / vidsrc.to / mirrors — sab ka same format",
-  },
-  {
-    id: "vidlink",
-    name: "VidLink",
-    template: "https://vidlink.pro/tv/{id}/{s}/{e}",
-    hint: "vidlink.pro — clean player, IMDb/TMDB dono",
-  },
-  {
-    id: "multiembed",
-    name: "MultiEmbed",
-    template: "https://multiembed.mov/?video_id={id}&s={s}&e={e}",
-    hint: "multiembed.mov (SuperEmbed) — IMDb ID best",
-  },
-  {
-    id: "twoembed",
-    name: "2Embed",
-    template: "https://www.2embed.cc/embedtv/{id}&s={s}&e={e}",
-    hint: "2embed.cc — sirf IMDb ID",
-  },
-  {
-    id: "apiplayer",
-    name: "APIPlayer",
-    template: "https://apiplayer.ru/embed/tv/{id}/{s}/{e}",
-    hint: "apiplayer.ru — IMDb/TMDB dono",
-  },
-  {
-    id: "videm",
-    name: "VIDEM",
-    template: "https://videm.xyz/embed/tv/{id}/{s}/{e}",
-    hint: "videm.xyz — IMDb/TMDB dono",
-  },
-  {
-    id: "vidsrc-to",
-    name: "VidSrc.to",
-    template: "https://vidsrc.to/embed/tv/{id}/{s}/{e}",
-    hint: "original vidsrc.to mirror",
+    id: "nhd",
+    name: "NHD",
+    template: "https://nhdapi.com/tv/{id}/{s}/{e}",
+    hint: "nhdapi.com — IMDb/TMDB ID se har episode",
   },
 ];
 
@@ -85,12 +48,7 @@ export function detectSeasonEpisode(url: string): { season: number; episode: num
 /** Guess a provider preset from a pasted embed/URL host. */
 export function detectProviderFromEmbed(input: string): ImdbProvider | null {
   const lower = input.toLowerCase();
-  if (lower.includes("vidlink")) return getProvider("vidlink") ?? null;
-  if (lower.includes("multiembed")) return getProvider("multiembed") ?? null;
-  if (lower.includes("2embed")) return getProvider("twoembed") ?? null;
-  if (lower.includes("apiplayer")) return getProvider("apiplayer") ?? null;
-  if (lower.includes("videm")) return getProvider("videm") ?? null;
-  if (lower.includes("vidsrc") || lower.includes("vid-src")) return getProvider("vidsrc") ?? null;
+  if (lower.includes("nhdapi.com") || lower.includes("nhdapi")) return getProvider("nhd") ?? null;
   return null;
 }
 

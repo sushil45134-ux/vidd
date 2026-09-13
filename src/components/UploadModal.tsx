@@ -540,7 +540,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       setImdbProvider(provider.id);
       setSourceTab("series");
       setEmbedSeriesError(
-        `IMDb player detect hua: ${provider.name}. Neeche "IMDb Auto-Series" me sirf IMDb ID daalo (jaise tt9335498) aur poora season ek baar me banao — bar bar link paste karne ki zaroorat nahi.`,
+        `IMDb player detect hua: ${provider.name}. Neeche "IMDb Auto-Series" me sirf IMDb ID daalo (jaise tt15765670) aur poora season ek baar me banao — bar bar link paste karne ki zaroorat nahi.`,
       );
       return;
     }
@@ -560,7 +560,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     const tmdbId = !id && /^\d{1,8}$/.test(imdbInput.trim()) ? imdbInput.trim() : null;
     if (!id && !tmdbId) {
       setEmbedSeriesError(
-        "IMDb ID nahi mila. IMDb page ke URL se tt wala ID daalo (jaise tt9335498) — ya TMDB numeric ID.",
+        "IMDb ID nahi mila. IMDb page ke URL se tt wala ID daalo (jaise tt15765670) — ya TMDB numeric ID.",
       );
       return;
     }
@@ -575,7 +575,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     if (!result.ok) {
       setEmbedSeriesError(
         result.reason === "bad-template"
-          ? "Custom template me {id}, {s}, {e} teeno placeholders hone chahiye — jaise: https://modiplay.xyz/embed/tv/{id}/{s}/{e}"
+          ? "Custom template me {id}, {s}, {e} teeno placeholders hone chahiye — jaise: https://nhdapi.com/tv/{id}/{s}/{e}"
           : "Seasons × Episodes 500 se zyada ho gaye — numbers kam karo.",
       );
       return;
@@ -1405,7 +1405,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                       type="text"
                       value={imdbInput}
                       onChange={(e) => setImdbInput(e.target.value)}
-                      placeholder="tt9335498 (Demon Slayer) ya IMDb link paste karo"
+                      placeholder="tt15765670 ya IMDb link paste karo"
                       className="flex-1 bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-[#e50914] transition-colors placeholder-gray-500"
                     />
                     <button
@@ -1465,16 +1465,15 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                       type="text"
                       value={imdbTemplate}
                       onChange={(e) => setImdbTemplate(e.target.value)}
-                      placeholder="https://modiplay.xyz/embed/tv/{id}/{s}/{e}  — {id} {s} {e} zaroori"
+                      placeholder="https://nhdapi.com/tv/{id}/{s}/{e}  — {id} {s} {e} zaroori"
                       className="w-full mt-2 bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-xs font-mono outline-none focus:border-[#e50914] placeholder-gray-500"
                     />
                   )}
                   <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
-                    💡 Ye players (VidSrc, VidLink, MultiEmbed, 2Embed…) IMDb/TMDB ID se har episode
-                    ka link khud ban late hain — bar bar embed paste karne ki zaroorat nahi. Demon
-                    Slayer <span className="font-mono">tt9335498</span>, Naruto{" "}
-                    <span className="font-mono">tt0386676</span>, One Piece{" "}
-                    <span className="font-mono">tt0388629</span>.
+                    💡 NHD (nhdapi.com) IMDb/TMDB ID se har episode ka link khud bana leta hai —
+                    bar bar embed paste karne ki zaroorat nahi. Test ID:{" "}
+                    <span className="font-mono">tt15765670</span> →{" "}
+                    <span className="font-mono">https://nhdapi.com/tv/tt15765670/1/1</span>.
                   </p>
                 </div>
 
