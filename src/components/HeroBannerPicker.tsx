@@ -130,10 +130,23 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
             </p>
           </div>
 
-          {/* Live preview */}
+          {/* Live preview — same blurred-fill + full-photo treatment as the
+              Movies/Anime/Cartoon banner box, so what you see is what ships. */}
           <div className="relative aspect-[21/9] rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
             {bannerImage ? (
-              <SmartImage src={bannerImage} alt="preview" className="w-full h-full object-cover" />
+              <>
+                <SmartImage
+                  src={bannerImage}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-70"
+                />
+                <SmartImage
+                  src={bannerImage}
+                  alt="preview"
+                  className="absolute inset-0 w-full h-full object-contain"
+                />
+              </>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-white/40">
                 <ImageIcon size={40} />

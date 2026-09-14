@@ -50,6 +50,8 @@ function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHer
   if (movies.length === 0) return null;
 
   const item = movies[index % movies.length];
+  // One URL list for both layers (browser downloads it once, shows it twice).
+  const heroSources = movieImageSources(item, "hero");
 
   return (
     <div className="px-4 md:px-12 mb-8">
@@ -67,13 +69,28 @@ function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHer
         }}
       >
         <div className="absolute inset-0" key={item.id}>
+          {/* Blurred full-bleed fill behind the photo, so the wide box never
+              shows empty bands. Desktop/phone only — TVs keep the solid box
+              background to spare the weak compositor a big blur raster. */}
+          {!IS_TV && (
+            <SmartImage
+              src={heroSources}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-70"
+            />
+          )}
+          {/* The FULL picture, never cropped — Google-sized landscape photos
+              (like the Suzume poster) show edge to edge in the same box. */}
           <SmartImage
-            src={movieImageSources(item, "hero")}
+            src={heroSources}
             alt={item.title}
             fetchPriority="high"
             loading="eager"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover animate-fade-in"
+            className="absolute inset-0 w-full h-full object-contain animate-fade-in"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/80 to-transparent" />
