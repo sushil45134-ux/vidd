@@ -103,6 +103,98 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Quick manual add for Dress-Up Darling - no API needed */}
+      <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <span className="text-pink-400 text-xs">💖</span>
+            <div className="text-[11px] leading-relaxed">
+              <p className="font-bold text-white text-xs">My Dress-Up Darling Quick Add (No API, 1-Click)</p>
+              <p className="text-gray-400 text-[10px]">API fail ho raha hai to is button se direct S1+S2 (24 ep) add ho jayega — cover + details ke saath. Bas IMDb ID daal ke dabao.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const cleanImdb = imdbId.trim() || "tt15765670";
+              const provider = getProvider(providerId);
+              const template = provider ? provider.template : customTemplate.trim() || "https://nhdapi.com/tv/{id}/{s}/{e}";
+              const slug = "my-dress-up-darling";
+              const playlistId = `anime-auto-${slug}-${cleanImdb}`;
+              const s1Cover = "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg";
+              const s2Cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
+              const movies = [];
+              let gid = Date.now();
+              const s1Titles = [
+                "Someone Who Lives in the Exact Opposite World as Me",
+                "Wanna Hurry Up, and Do It?",
+                "Then Why Don't We?",
+                "Isn't This Your Girlfriend?",
+                "Are These Your Girlfriend's?",
+                "It's Probably Because This Is the Best Boob Bag Here",
+                "For Real?!",
+                "Backlight Is the Best",
+                "A Lot Happened After I Saw That Photo",
+                "We've All Got Struggles",
+                "I Am Currently at a Love Hotel",
+                "My Dress-Up Darling"
+              ];
+              for (let i = 1; i <= 12; i++) {
+                const url = template.replace(/\{id\}/g, encodeURIComponent(cleanImdb)).replace(/\{s\}/g, "1").replace(/\{e\}/g, String(i));
+                movies.push({
+                  id: gid++,
+                  title: `My Dress-Up Darling - ${s1Titles[i-1]}`,
+                  description: "Wakana Gojo and Marin Kitagawa's cosplay love story. S1 Episode " + i,
+                  image: s1Cover,
+                  backdrop: s1Cover,
+                  thumbnailUrl: s1Cover,
+                  year: 2022,
+                  rating: "TV-14",
+                  duration: "24m",
+                  genre: ["Anime", "Romance", "Slice of Life"],
+                  match: 83,
+                  cast: ["CloverWorks"],
+                  creator: "CloverWorks",
+                  embedUrl: url,
+                  embedPlatform: provider ? provider.name : "NHD",
+                  playlistId,
+                  playlistTitle: "My Dress-Up Darling",
+                  episodeNumber: i,
+                  seasonNumber: 1,
+                });
+              }
+              for (let i = 1; i <= 12; i++) {
+                const url = template.replace(/\{id\}/g, encodeURIComponent(cleanImdb)).replace(/\{s\}/g, "2").replace(/\{e\}/g, String(i));
+                movies.push({
+                  id: gid++,
+                  title: `My Dress-Up Darling Season 2 Episode ${i}`,
+                  description: "S2: Marin and Wakana continue cosplay adventures. Episode " + i,
+                  image: s2Cover,
+                  backdrop: s2Cover,
+                  thumbnailUrl: s2Cover,
+                  year: 2025,
+                  rating: "TV-14",
+                  duration: "24m",
+                  genre: ["Anime", "Romance", "Slice of Life"],
+                  match: 84,
+                  cast: ["CloverWorks"],
+                  creator: "CloverWorks",
+                  embedUrl: url,
+                  embedPlatform: provider ? provider.name : "NHD",
+                  playlistId,
+                  playlistTitle: "My Dress-Up Darling",
+                  episodeNumber: i,
+                  seasonNumber: 2,
+                });
+              }
+              onAddMovies(movies);
+            }}
+            className="px-3 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold flex-shrink-0"
+          >
+            Add S1+S2 (24 ep)
+          </button>
+        </div>
+      </div>
+
       {/* Info banner */}
       <div className="rounded-lg border border-[#ff6a00]/20 bg-[#ff6a00]/5 p-3">
         <div className="flex gap-2">
