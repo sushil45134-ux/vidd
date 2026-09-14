@@ -91,6 +91,9 @@ export function autoFetchToMovies(
   for (const season of result.seasons) {
     const seasonNum = season.seasonNumber;
     const episodesPerSeason = season.episodes.length || season.episodesCount || 12;
+    // Always include Anime genre so it shows in Anime category, not Movies
+    const baseGenres = season.genres.length > 0 ? season.genres : result.genres;
+    const seasonGenres = Array.from(new Set(["Anime", ...baseGenres]));
 
     // Build URLs via provider template (same logic as imdbSeries)
     const built = buildImdbSeries(template, imdbId, 1, episodesPerSeason);
@@ -116,7 +119,7 @@ export function autoFetchToMovies(
         year: season.year || new Date().getFullYear(),
         rating: "TV-14",
         duration: ep.duration || season.format || "24m",
-        genre: season.genres.length > 0 ? season.genres : result.genres.length > 0 ? result.genres : ["Anime"],
+        genre: seasonGenres,
         match: season.averageScore || 95,
         cast: season.studios.length > 0 ? season.studios : ["Anime Studio"],
         creator: season.studios[0] || "Anime",
@@ -149,7 +152,7 @@ export function autoFetchToMovies(
           year: season.year || new Date().getFullYear(),
           rating: "TV-14",
           duration: "24m",
-          genre: season.genres.length > 0 ? season.genres : ["Anime"],
+          genre: seasonGenres,
           match: season.averageScore || 95,
           cast: season.studios,
           creator: season.studios[0] || "Anime",
@@ -171,6 +174,7 @@ export function autoFetchToMovies(
       for (const gen of built.episodes) {
         const season = result.seasons.find((s) => s.seasonNumber === gen.season) || result.seasons[0];
         const cover = season?.coverImage || result.mainCover || fallbackImg;
+        const fallbackGenres = season ? Array.from(new Set(["Anime", ...season.genres])) : ["Anime", ...result.genres];
         movies.push({
           id: globalId++,
           title: `${result.mainTitle} Episode ${gen.episode}`,
@@ -181,7 +185,7 @@ export function autoFetchToMovies(
           year: season?.year || new Date().getFullYear(),
           rating: "TV-14",
           duration: "24m",
-          genre: result.genres,
+          genre: fallbackGenres,
           match: 95,
           embedUrl: gen.url,
           embedPlatform: provider ? provider.name : "NHD",

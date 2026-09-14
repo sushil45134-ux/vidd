@@ -346,7 +346,39 @@ export const Route = createFileRoute("/api/anime-auto")({
 
           if (!mainDetailed) mainDetailed = mainSearch;
 
-          const seasonsChain = mainDetailed.id < 1000000 ? buildSeasonsChain(mainDetailed) : [mainDetailed];
+          let seasonsChain = mainDetailed.id < 1000000 ? buildSeasonsChain(mainDetailed) : [mainDetailed];
+
+          // If relations didn't give us multiple seasons (e.g. My Dress-Up Darling S1 & S2 are separate entries),
+          // also collect all search results that look like same franchise (same base title) to ensure S2 is included
+          if (seasonsChain.length === 1 && searchResults.length > 1) {
+            const base = bestTitle(mainDetailed.title).toLowerCase();
+            const baseFirst = base.split(/[:\-\s]+/)[0];
+            const franchise = searchResults.filter((m) => {
+              if (m.id === mainDetailed!.id) return false;
+              const t = bestTitle(m.title).toLowerCase();
+              // Same franchise if titles share first word and contain "season 2" or year diff or sequel number
+              const first = t.split(/[:\-\s]+/)[0];
+              if (first === baseFirst && (t.includes(baseFirst) || base.includes(first))) {
+                // Check if it's TV format or has similar genres
+                return true;
+              }
+              // Also include if title contains base (e.g. "My Dress-Up Darling Season 2")
+              if (t.includes(base) || base.includes(t) || t.includes("season 2") || t.includes("season 3")) {
+                return true;
+              }
+              return false;
+            });
+            // Sort franchise by year
+            franchise.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
+            // Add up to 5 more seasons from search
+            for (const f of franchise.slice(0, 5)) {
+              if (!seasonsChain.find((s) => s.id === f.id)) {
+                seasonsChain.push(f);
+              }
+            }
+            // Re-sort chain by year
+            seasonsChain.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
+          }
 
           // 2. For each season, fetch Jikan episodes if possible
           const seasons: any[] = [];

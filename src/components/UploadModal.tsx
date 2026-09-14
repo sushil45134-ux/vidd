@@ -761,12 +761,13 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
   const makeEmbedEpisode = (url: string, fallbackNum: number): EmbedEpisode => {
     const detected = detectSeasonEpisode(url) ?? detectEpisodeNumber(url);
     const num = typeof detected === "number" ? detected : (detected?.episode ?? fallbackNum);
+    const detectedSeason = typeof detected === "number" ? undefined : detected?.season;
     return {
       id: `${Date.now()}-${Math.random()}`,
       title: `Episode ${num}`,
       url,
       host: embedHostLabel(url),
-      season: typeof detected === "number" ? undefined : detected?.season,
+      season: detectedSeason ?? embedSeason,
       num,
     };
   };
@@ -877,6 +878,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       const sTitle = seriesTitle.trim() || "My Series";
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
+      const cloudGenres = selectedGenres.length > 0
+        ? (selectedGenres.includes("Anime") ? selectedGenres : [...selectedGenres, "Anime"])
+        : ["Anime"];
       const movies: Movie[] = episodes.map((ep, i) => ({
         id: Date.now() + i,
         title: `${sTitle} - ${ep.title}`,
@@ -886,7 +890,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         year,
         rating,
         duration: "Unknown",
-        genre: selectedGenres.length > 0 ? selectedGenres : ["Series"],
+        genre: cloudGenres,
         match: 99,
         cast: ["User Upload"],
         creator: "You",
@@ -907,10 +911,17 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       const sTitle = seriesTitle.trim() || "My Series";
       const season = Math.max(1, Math.floor(embedSeason) || 1);
       const pid =
-        seriesMode === "existing" && existingPid ? existingPid : `user-series-${Date.now()}`;
+        seriesMode === "existing" && existingPid
+          ? existingPid
+          : imdbInput.trim()
+            ? `imdb-${imdbInput.trim()}-${sTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}`
+            : `user-series-${sTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}-${Date.now()}`;
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
       const cover = thumbnailUrl || fallbackImg;
+      const finalGenres = selectedGenres.length > 0 
+        ? (selectedGenres.includes("Anime") ? selectedGenres : [...selectedGenres, "Anime"])
+        : ["Anime"];
       const movies: Movie[] = eps.map((ep, i) => {
         const yt = extractYouTubeId(ep.url);
         // YouTube embeds get their own real thumbnail; non-YouTube iframe
@@ -925,7 +936,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
           year,
           rating,
           duration: "Unknown",
-          genre: selectedGenres.length > 0 ? selectedGenres : ["Series"],
+          genre: finalGenres,
           match: 99,
           cast: ["User Upload"],
           creator: "You",
