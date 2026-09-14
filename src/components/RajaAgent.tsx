@@ -1,13 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Crown, Wand2, Plus, Check, Loader2, Sparkles, Film, Search, Trash2, AlertCircle } from "lucide-react";
 import type { Movie } from "../data";
 import { loadConfig, saveConfig, getMovieRef, type CustomRow, type RowSection } from "../lib/customization";
-import { insertMovies } from "../lib/moviesRepo";
+import { insertMovies, fetchAllMovies } from "../lib/moviesRepo";
 import { autoFetchToMovies, type AutoFetchResult } from "../lib/animeAutoFetch";
 import { getProvider, IMDB_PROVIDERS } from "../lib/imdbSeries";
 
 interface Props {
-  availableMovies: Movie[];
+  availableMovies?: Movie[];
   onClose?: () => void;
   onDone?: () => void;
 }
@@ -63,7 +63,15 @@ function findMovieByName(name: string, library: Movie[]): Movie | null {
   return null;
 }
 
-export default function RajaAgent({ availableMovies, onDone }: Props) {
+export default function RajaAgent({ availableMovies: propMovies, onDone }: Props) {
+  const [internalMovies, setInternalMovies] = useState<Movie[]>([]);
+  useEffect(() => {
+    if (propMovies && propMovies.length > 0) return;
+    fetchAllMovies()
+      .then(({ uploaded, synced }) => setInternalMovies([...uploaded, ...synced]))
+      .catch(() => {});
+  }, [propMovies]);
+  const availableMovies = propMovies && propMovies.length > 0 ? propMovies : internalMovies;
   const [listInput, setListInput] = useState("Your Name\nSuzume\nA Silent Voice\nWeathering With You\nViolet Evergarden\nI Want to Eat Your Pancreas");
   const [rowTitle, setRowTitle] = useState("POPULAR MOVIES");
   const [section, setSection] = useState<RowSection>("movies");
