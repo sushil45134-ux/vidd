@@ -227,7 +227,7 @@ export async function saveConfig(cfg: SiteConfig, options?: SaveConfigOptions): 
   const saved = await saveRemoteConfig(next);
   if (!saved) {
     console.warn("[site_config] Remote save failed, but local saved — row will show locally, refresh may need re-save");
-    // Don't alert for Raja — it should work even if Supabase RLS fails, local is enough for demo
+
     // Only return true if local save succeeded
     localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
     return true;

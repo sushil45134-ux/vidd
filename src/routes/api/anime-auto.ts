@@ -554,7 +554,7 @@ export const Route = createFileRoute("/api/anime-auto")({
           return Response.json({ error: "title query param required, e.g. ?title=Naruto" }, { status: 400 });
         }
 
-        // Auto-resolve IMDb ID if not provided - Raja wants only name, no manual IMDb
+
         let autoResolvedImdb: string | null = null;
         if (!imdbId && autoImdb) {
           try {

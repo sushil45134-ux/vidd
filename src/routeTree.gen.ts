@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
-import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
+import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
@@ -30,14 +30,14 @@ const ApiAuthRoute = ApiAuthRouteImport.update({
   path: '/api/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAnimeRoute = ApiAnimeRouteImport.update({
-  id: '/api/anime',
-  path: '/api/anime',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAnimeAutoRoute = ApiAnimeAutoRouteImport.update({
   id: '/api/anime-auto',
   path: '/api/anime-auto',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnimeRoute = ApiAnimeRouteImport.update({
+  id: '/api/anime',
+  path: '/api/anime',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -68,7 +68,13 @@ export interface FileRouteTypes {
   fullPaths: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
-  id: '__root__' | '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/api/anime'
+    | '/api/anime-auto'
+    | '/api/auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -102,18 +108,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/anime': {
-      id: '/api/anime'
-      path: '/api/anime'
-      fullPath: '/api/anime'
-      preLoaderRoute: typeof ApiAnimeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/anime-auto': {
       id: '/api/anime-auto'
       path: '/api/anime-auto'
       fullPath: '/api/anime-auto'
       preLoaderRoute: typeof ApiAnimeAutoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/anime': {
+      id: '/api/anime'
+      path: '/api/anime'
+      fullPath: '/api/anime'
+      preLoaderRoute: typeof ApiAnimeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
