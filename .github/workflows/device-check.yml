@@ -40,12 +40,12 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      - name: Build production bundle
-        run: npm run build
+      - name: Build production bundle (node-server preset so it can be served)
+        run: NITRO_PRESET=node-server npm run build
 
       - name: Serve production build
         run: |
-          npx vite preview --port 4173 --host 127.0.0.1 &
+          PORT=4173 node .output/server/index.mjs &
           for i in $(seq 1 60); do
             curl -s -o /dev/null http://127.0.0.1:4173/ && break
             sleep 1
@@ -104,6 +104,8 @@ jobs:
                     console.log('  firstHeadings: ' + JSON.stringify((p.renderSignals.firstHeadings || []).slice(0,4)));
                     console.log('  bodyStart: ' + JSON.stringify((p.renderSignals.bodyStart || '').slice(0,160)));
                     console.log('  timings: ' + JSON.stringify(p.timings));
+                    console.log('  css: ' + JSON.stringify(p.cssSignals));
+                    console.log('  player: ' + JSON.stringify(p.playerSignals));
                     (p.pageErrors || []).slice(0,3).forEach(e => console.log('  PAGE ERROR: ' + e.split('\n')[0]));
                     (p.consoleErrors || []).slice(0,5).forEach(e => console.log('  CONSOLE ERROR: ' + e.split('\n')[0].slice(0,300)));
                     (p.failedRequests || []).slice(0,5).forEach(e => console.log('  FAILED REQ: ' + e.slice(0,200)));

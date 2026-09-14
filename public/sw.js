@@ -6,7 +6,9 @@
  *  - Never cache API/Supabase traffic — always live.
  */
 
-const VERSION = "vid-v1";
+// v2: bump to evict every cached shell/asset from older deploys — devices
+// that had installed an earlier build refresh their caches in one step.
+const VERSION = "vid-v2";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 
@@ -27,7 +29,7 @@ self.addEventListener("install", (event) => {
       .open(SHELL_CACHE)
       .then((cache) => cache.addAll(SHELL_URLS))
       .catch(() => {}) // partial install is fine — don't block activation
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -37,12 +39,10 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys
-            .filter((key) => !key.startsWith(VERSION))
-            .map((key) => caches.delete(key))
-        )
+          keys.filter((key) => !key.startsWith(VERSION)).map((key) => caches.delete(key)),
+        ),
       )
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -61,8 +61,7 @@ function isLiveOnly(url) {
   // NOT excluded — navigations are network-first, so content is never stale.
   return (
     url.pathname.startsWith("/api/") ||
-    (url.hostname.endsWith("supabase.co") &&
-      url.hostname !== self.location.hostname) ||
+    (url.hostname.endsWith("supabase.co") && url.hostname !== self.location.hostname) ||
     url.hostname.endsWith("youtube.com") ||
     url.hostname.endsWith("ytimg.com")
   );
@@ -94,7 +93,7 @@ self.addEventListener("fetch", (event) => {
         } catch {
           return cached || Response.error();
         }
-      })
+      }),
     );
     return;
   }
@@ -115,7 +114,7 @@ self.addEventListener("fetch", (event) => {
             })
           );
         }
-      })()
+      })(),
     );
   }
 });

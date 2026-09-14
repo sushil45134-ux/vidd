@@ -159,6 +159,13 @@ function App() {
   const [syncedMovies, setSyncedMovies] = useState<Movie[]>([]);
   const [animeEpisodes, setAnimeEpisodes] = useState<Movie[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  // True once the first library fetch settled (or the localStorage cache
+  // already hydrated content). Until then the empty library must look like
+  // "loading", never like a broken "No videos yet" site.
+  const libraryLoaded =
+    uploadedMovies.length > 0 || syncedMovies.length > 0 || animeEpisodes.length > 0;
+  const [libraryFetchSettled, setLibraryFetchSettled] = useState(false);
+  const showLibrarySkeleton = !libraryLoaded && !libraryFetchSettled;
   const cfg = useSiteConfig();
   const heroBannerOverrides = useHeroBanners();
   const collectionCovers = useCollectionCovers();
@@ -200,6 +207,7 @@ function App() {
       .then(({ uploaded, synced }) => {
         setUploadedMovies(uploaded);
         setSyncedMovies(synced);
+        setLibraryFetchSettled(true);
         // Stringifying 2000+ rows blocks the main thread — write the cache
         // when idle so the fresh paint is never held up by it.
         const writeCache = () => {
@@ -213,7 +221,11 @@ function App() {
           setTimeout(writeCache, 0);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Offline or Supabase error — the cache (if any) is already showing;
+        // swap the loading skeleton for the real empty state.
+        setLibraryFetchSettled(true);
+      });
 
     // Warm on-demand modal/player chunks when idle so first open is instant.
     if (typeof requestIdleCallback !== "undefined") {
@@ -765,7 +777,16 @@ function App() {
             })}
 
             <div className="px-4 md:px-12">
-              {categoryMovies.length === 0 ? (
+              {showLibrarySkeleton ? (
+                <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <div key={`skeleton-${i}`} className="cv-card animate-pulse">
+                      <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800" />
+                      <div className="h-3 w-2/3 rounded bg-white/10 mt-2" />
+                    </div>
+                  ))}
+                </div>
+              ) : categoryMovies.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <p className="text-gray-400 text-lg">No titles found</p>
                   <p className="text-gray-600 text-sm mt-2">
@@ -846,6 +867,7 @@ function App() {
           <>
             <HeroBanner
               movies={heroMovies}
+              loading={showLibrarySkeleton}
               onMoreInfo={(m) => setSelectedMovie(m)}
               onPlay={handlePlay}
               onUploadClick={() => setShowUploadModal(true)}

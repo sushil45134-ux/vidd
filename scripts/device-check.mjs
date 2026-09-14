@@ -122,12 +122,81 @@ for (const [name, profile] of Object.entries(PROFILES)) {
           .length,
         buttons: document.querySelectorAll("button").length,
         headingCount: rows.length,
-        firstHeadings: rows.slice(0, 6).map((h) => h.textContent?.trim()).filter(Boolean),
+        firstHeadings: rows
+          .slice(0, 6)
+          .map((h) => h.textContent?.trim())
+          .filter(Boolean),
         bodyStart: bodyText.replace(/\n+/g, " | ").slice(0, 300),
         hasTvErrorOverlay: !!document.getElementById("tv-runtime-error"),
         viewport: `${window.innerWidth}x${window.innerHeight}`,
       };
     });
+
+    // Legacy CSS fallback census: the deployed stylesheet must carry the
+    // @supports-not-color-mix block with @property :root fallbacks (borders!)
+    // and unwrapped space-y/space-x rules for Chromium 69-class TVs.
+    try {
+      const cssInfo = await page.evaluate(async () => {
+        const link = document.querySelector('link[rel="stylesheet"]');
+        if (!link || !link.href) return { found: false };
+        const text = await fetch(link.href)
+          .then((r) => r.text())
+          .catch(() => "");
+        return {
+          found: true,
+          size: text.length,
+          legacyBlock: text.includes(
+            "@supports not (color: color-mix(in oklab, red 50%, transparent))",
+          ),
+          borderStyleFallback: text.includes("--tw-border-style:solid"),
+          spaceYUnwrapped: /\.space-y-4>:not\(:last-child\)/.test(text),
+          layerFree: !text.includes("@layer"),
+        };
+      });
+      result.cssSignals = cssInfo;
+    } catch (err) {
+      result.cssSignals = { error: String(err).slice(0, 300) };
+    }
+
+    // Interaction: open the first playable card (hero Play when present).
+    try {
+      const opened = await page.evaluate(() => {
+        const play = Array.from(document.querySelectorAll("button")).find((b) =>
+          /play/i.test(b.textContent || b.getAttribute("aria-label") || ""),
+        );
+        if (play) {
+          play.click();
+          return true;
+        }
+        return false;
+      });
+      if (opened) {
+        await page.waitForTimeout(3500);
+        result.playerSignals = await page.evaluate(() => {
+          const overlay = document.querySelector(".fixed.inset-0");
+          const iframe = document.querySelector("iframe[src*='youtube'], iframe[src*='youtu.be']");
+          const video = document.querySelector("video");
+          return {
+            overlayPresent: !!overlay,
+            iframePresent: !!iframe,
+            videoPresent: !!video,
+            overlayText: (overlay?.textContent || "").replace(/\s+/g, " ").slice(0, 120),
+          };
+        });
+        await page.keyboard.press("Escape").catch(() => {});
+        await page.evaluate(() => {
+          const close = Array.from(document.querySelectorAll("button")).find((b) =>
+            /close|back|×/i.test(b.getAttribute("aria-label") || b.textContent || ""),
+          );
+          if (close) close.click();
+        });
+        await page.waitForTimeout(800);
+      } else {
+        result.playerSignals = { note: "no play button found" };
+      }
+    } catch (err) {
+      result.playerSignals = { error: String(err).slice(0, 300) };
+    }
     await page.screenshot({
       path: resolve(outDir, `${name}.jpg`),
       type: "jpeg",
