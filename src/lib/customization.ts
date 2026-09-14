@@ -21,7 +21,15 @@ export interface RowConfig {
 
 export type TitleSize = "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 
-export type RowSection = "home" | "movies" | "anime" | "cartoon" | "tvshows" | "new" | "mylist" | "all";
+export type RowSection =
+  | "home"
+  | "movies"
+  | "anime"
+  | "cartoon"
+  | "tvshows"
+  | "new"
+  | "mylist"
+  | "all";
 
 export interface CustomRow {
   id: string;
@@ -32,6 +40,13 @@ export interface CustomRow {
   movieRefs?: string[];
   isLarge?: boolean;
   section?: RowSection; // where this row appears; defaults to "home"
+  /**
+   * Wishlist (one title per entry). When set, the row resolves by anime name:
+   * matched titles play from the library, missing ones render as "Coming
+   * Soon" slots that fill in automatically once added. Manual movieIds/refs
+   * are ignored while this list is non-empty.
+   */
+  plannedTitles?: string[];
 }
 
 export interface SiteConfig {
@@ -66,7 +81,6 @@ export const DEFAULT_CONFIG: SiteConfig = {
   ],
   customRows: [],
 };
-
 
 const KEY = "vid:site-config";
 const EVENT = "vid:config-changed";
@@ -200,7 +214,8 @@ export function loadConfig(): SiteConfig {
   try {
     const backupRows = loadCustomRowsBackup();
     const raw = localStorage.getItem(KEY);
-    if (!raw) return backupRows.length > 0 ? { ...DEFAULT_CONFIG, customRows: backupRows } : DEFAULT_CONFIG;
+    if (!raw)
+      return backupRows.length > 0 ? { ...DEFAULT_CONFIG, customRows: backupRows } : DEFAULT_CONFIG;
     const parsed = JSON.parse(raw) as Partial<SiteConfig>;
     const merged = mergeConfig(parsed);
     if ((merged.customRows?.length || 0) === 0 && backupRows.length > 0) {
@@ -223,10 +238,12 @@ export async function saveConfig(cfg: SiteConfig, options?: SaveConfigOptions): 
     localStorage.setItem(KEY, JSON.stringify(next));
     window.dispatchEvent(new Event(EVENT));
   } catch {}
-  
+
   const saved = await saveRemoteConfig(next);
   if (!saved) {
-    console.warn("[site_config] Remote save failed, but local saved — row will show locally, refresh may need re-save");
+    console.warn(
+      "[site_config] Remote save failed, but local saved — row will show locally, refresh may need re-save",
+    );
 
     // Only return true if local save succeeded
     localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
@@ -251,7 +268,8 @@ export function useSiteConfig(): SiteConfig {
     loadRemoteConfigOnce().then((remote) => {
       if (!alive || !remote) return;
       const remoteHasRows = hasCustomRows(remote);
-      const shouldUseRemote = remoteHasRows || !hasCustomRows(local) || isRemoteNewer(remote, pendingRemoteSaveAt);
+      const shouldUseRemote =
+        remoteHasRows || !hasCustomRows(local) || isRemoteNewer(remote, pendingRemoteSaveAt);
       if (shouldUseRemote) {
         localStorage.setItem(KEY, JSON.stringify(remote));
         setCfg(remote);

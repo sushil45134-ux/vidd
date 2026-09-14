@@ -28,6 +28,7 @@ import {
   saveWatchProgress,
   useContinueWatching,
 } from "./lib/continueWatching";
+import { resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
@@ -130,9 +131,7 @@ function mergeCollection(existing: Movie, incoming: Movie): Movie {
     return true;
   });
   const rebuilt = buildCollections(unique, {});
-  return (
-    rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming
-  );
+  return rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming;
 }
 
 function App() {
@@ -275,6 +274,17 @@ function App() {
     [displayItems],
   );
 
+  // Planned (wishlist) rows resolve by title and keep a "Coming Soon" slot
+  // for every missing title; manual rows behave exactly as before.
+  const resolveRowSlots = useCallback(
+    (row: CustomRow): RowSlot[] => {
+      const planned = (row.plannedTitles || []).map((t) => t.trim()).filter(Boolean);
+      if (planned.length > 0) return resolvePlannedSlots(planned, displayItems);
+      return resolveCustomRowItems(row).map((movie) => ({ kind: "movie" as const, movie }));
+    },
+    [displayItems, resolveCustomRowItems],
+  );
+
   const existingYtIds = useMemo(() => {
     const ids = new Set<string>();
     allMovies.forEach((m) => {
@@ -288,8 +298,10 @@ function App() {
     const map = new Map<string, { title: string; seasons: Map<number, number> }>();
     uploadedMovies.forEach((m) => {
       if (!m.playlistId) return;
-      const entry =
-        map.get(m.playlistId) || { title: m.playlistTitle || "Series", seasons: new Map<number, number>() };
+      const entry = map.get(m.playlistId) || {
+        title: m.playlistTitle || "Series",
+        seasons: new Map<number, number>(),
+      };
       const s = m.seasonNumber || 1;
       entry.seasons.set(s, (entry.seasons.get(s) || 0) + 1);
       map.set(m.playlistId, entry);
@@ -506,7 +518,8 @@ function App() {
       }
       const paint = (episode: Movie): Movie => {
         if (episode.youtubeId) return episode;
-        if (!isGenericPoster(episode.image) && !isGenericPoster(episode.thumbnailUrl)) return episode;
+        if (!isGenericPoster(episode.image) && !isGenericPoster(episode.thumbnailUrl))
+          return episode;
         return { ...episode, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl };
       };
       setSelectedMovie((prev) =>
@@ -687,14 +700,14 @@ function App() {
               if (!row.visible) return null;
               const sec = row.section || "home";
               if (sec !== "all" && sec !== activeCategory) return null;
-              const items = resolveCustomRowItems(row);
-              if (items.length === 0) return null;
+              const slots = resolveRowSlots(row);
+              if (slots.length === 0) return null;
               return (
                 <MovieRow
                   key={row.id}
                   title={row.title}
                   titleSize={row.titleSize}
-                  movies={items}
+                  slots={slots}
                   isLargeRow={row.isLarge}
                   onSelectMovie={setSelectedMovie}
                   onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
@@ -812,14 +825,14 @@ function App() {
                   if (!row.visible) return;
                   const sec = row.section || "home";
                   if (sec !== "home" && sec !== "all") return;
-                  const items = resolveCustomRowItems(row);
-                  if (items.length === 0) return;
+                  const slots = resolveRowSlots(row);
+                  if (slots.length === 0) return;
                   elements.push(
                     <MovieRow
                       key={row.id}
                       title={row.title}
                       titleSize={row.titleSize}
-                      movies={items}
+                      slots={slots}
                       isLargeRow={row.isLarge}
                       onSelectMovie={setSelectedMovie}
                       onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
