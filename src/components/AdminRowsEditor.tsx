@@ -389,8 +389,9 @@ export default function AdminRowsEditor({ onClose, availableMovies, onAddMovies 
                   </label>
                   <p className="text-[11px] text-white/40 mt-1">
                     One anime per line. Matched titles play from your library; missing ones show as
-                    Coming Soon slots and fill in automatically when you add them. While this list
-                    is set, it defines the row (manual picks below are ignored).
+                    Coming Soon slots and fill in automatically when you add them. Small typos are
+                    OK — Narruto still finds Naruto. While this list is set, it defines the row
+                    (manual picks below are ignored).
                   </p>
                   <textarea
                     value={(editing.plannedTitles || []).join("\n")}

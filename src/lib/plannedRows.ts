@@ -45,12 +45,65 @@ function stripQualifier(norm: string): string {
     .trim();
 }
 
+/** Alphabetize words so "Shippuden Naruto" equals "Naruto Shippuden". */
+function sortedTokens(norm: string): string {
+  return norm.split(" ").filter(Boolean).sort().join(" ");
+}
+
+/** Leading word subsets ("demon slayer" from "demon slayer kimetsu…"). */
+function leadingSubsets(norm: string): string[] {
+  const words = norm.split(" ").filter(Boolean);
+  const out: string[] = [];
+  for (let k = 1; k < words.length; k++) {
+    const s = words.slice(0, k).join(" ");
+    if (s.length >= 6) out.push(s);
+  }
+  return out;
+}
+
+/**
+ * Similarity 0..1 via optimal string alignment (Levenshtein + adjacent
+ * transposition), so one typo — wrong, missing, extra or swapped letter —
+ * costs exactly 1. Returns 0 when the length gap alone rules a match out.
+ */
+function similarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  const maxDist = Math.floor(maxLen * 0.15);
+  if (Math.abs(a.length - b.length) > maxDist) return 0;
+  const m = a.length;
+  const n = b.length;
+  const d: number[][] = Array.from({ length: m + 1 }, (_row, i) => {
+    const row = new Array<number>(n + 1).fill(0);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      let best = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (
+        i > 1 &&
+        j > 1 &&
+        a.charCodeAt(i - 1) === b.charCodeAt(j - 2) &&
+        a.charCodeAt(i - 2) === b.charCodeAt(j - 1)
+      ) {
+        best = Math.min(best, d[i - 2][j - 2] + 1);
+      }
+      d[i][j] = best;
+    }
+  }
+  const dist = d[m][n];
+  return dist > maxDist ? 0 : 1 - dist / maxLen;
+}
+
 function matchScore(planned: string, name: string): number {
   if (!planned || !name) return 0;
   if (name === planned) return 3;
   if (name.startsWith(planned)) return 2;
   if (planned.length >= 3 && name.includes(planned)) return 1.5;
-  if (name.length >= 3 && planned.includes(name)) return 0.75;
   // "Demon Slayer — Season 3" still finds the base entry.
   const ps = stripQualifier(planned);
   const ns = stripQualifier(name);
@@ -58,6 +111,29 @@ function matchScore(planned: string, name: string): number {
     if (ns === ps) return 1.25;
     if (ns.startsWith(ps) || ps.startsWith(ns)) return 1;
     if (ps.length >= 3 && ns.includes(ps)) return 0.9;
+  }
+  if (planned.length >= 6 && name.length >= 6) {
+    // Word-order differences: "Shippuden Naruto" finds "Naruto Shippuden".
+    if (sortedTokens(name) === sortedTokens(planned)) return 1.4;
+    // Small typos on the full title ("Narruto", "One Peice"). Outranks a bare
+    // substring below, so "Naruto Shippduen" picks Shippuden over plain Naruto.
+    if (similarity(planned, name) >= 0.85) return 0.8;
+  }
+  // Planned title merely contains the library name ("One Piece Film Red").
+  if (name.length >= 3 && planned.includes(name)) return 0.75;
+  // Last resort: typos inside a leading portion ("Demom Slayer" vs
+  // "Demon Slayer: Kimetsu no Yaiba"). Strict on purpose — long titles only,
+  // so short lookalikes like Naruto/Boruto never cross-match.
+  if (planned.length >= 6 && name.length >= 6) {
+    const pst = sortedTokens(planned);
+    const nst = sortedTokens(name);
+    const pForms = Array.from(new Set([pst, ...leadingSubsets(planned), ...leadingSubsets(pst)]));
+    const nForms = Array.from(new Set([nst, ...leadingSubsets(name), ...leadingSubsets(nst)]));
+    for (const pf of pForms) {
+      for (const nf of nForms) {
+        if (similarity(pf, nf) >= 0.85) return 0.5;
+      }
+    }
   }
   return 0;
 }
