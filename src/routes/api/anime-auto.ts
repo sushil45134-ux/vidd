@@ -413,6 +413,17 @@ const KNOWN_IMDB_IDS: Record<string, string> = {
   "fullmetal alchemist": "tt0421357",
   "my hero academia": "tt5626028",
   "boku no hero academia": "tt5626028",
+  "cyberpunk: edgerunners": "tt13197174",
+  "cyberpunk edgerunners": "tt13197174",
+  "edgerunners": "tt13197174",
+  "chainsaw man": "tt13616990",
+  "one punch man": "tt4508902",
+  "tokyo revengers": "tt13600802",
+  "dandadan": "tt21344706",
+  "dan da dan": "tt21344706",
+  "solo leveling": "tt21209876",
+  "frieren": "tt22248376",
+  "sousou no frieren": "tt22248376",
 };
 
 async function findImdbIdForTitle(title: string): Promise<string | null> {
@@ -774,6 +785,17 @@ export const Route = createFileRoute("/api/anime-auto")({
               "kimetsu no yaiba": 101922,
               "spy x family": 140960,
               "spy family": 140960,
+              "cyberpunk: edgerunners": 136430,
+              "cyberpunk edgerunners": 136430,
+              "edgerunners": 136430,
+              "chainsaw man": 136603,
+              "one punch man": 35247,
+              "tokyo revengers": 120120,
+              "dandadan": 167578,
+              "dan da dan": 167578,
+              "solo leveling": 162804,
+              "frieren": 151807,
+              "sousou no frieren": 151807,
             };
             
             // Check if query exactly matches known anime
