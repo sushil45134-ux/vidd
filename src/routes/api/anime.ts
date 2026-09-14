@@ -31,6 +31,43 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 
 let cache: { ts: number; episodes: AnimeEpisode[] } | null = null;
 
+/** One in-flight background refresh (also used for the cold-start race). */
+let refreshing: Promise<AnimeEpisode[]> | null = null;
+
+function dedupeOrSeed(live: AnimeEpisode[]): AnimeEpisode[] {
+  const merged = dedupeEpisodes(live);
+  return merged.length > 0 ? merged : dedupeEpisodes(ANIME_SEED);
+}
+
+function startRefresh(): Promise<AnimeEpisode[]> {
+  if (!refreshing) {
+    refreshing = fetchLiveCatalog()
+      .then((live) => {
+        const episodes = dedupeOrSeed(live);
+        cache = { ts: Date.now(), episodes };
+        return episodes;
+      })
+      .catch(() => {
+        // Unreachable feeds — keep serving whatever we have (or the seed)
+        // and rate-limit retries with a fresh timestamp.
+        const episodes = cache ? cache.episodes : dedupeEpisodes(ANIME_SEED);
+        cache = { ts: Date.now(), episodes };
+        return episodes;
+      })
+      .finally(() => {
+        refreshing = null;
+      });
+  }
+  return refreshing;
+}
+
+function serve(episodes: AnimeEpisode[], source: string, maxAge: number): Response {
+  return Response.json(
+    { source, total: episodes.length, episodes: episodes.slice(0, 500) },
+    { headers: { "cache-control": `public, max-age=${maxAge}` } },
+  );
+}
+
 async function fetchFeed(url: string, channel: AnimeChannel): Promise<AnimeEpisode[]> {
   try {
     const res = await fetch(url, {
@@ -59,8 +96,7 @@ async function fetchLiveCatalog(): Promise<AnimeEpisode[]> {
   const playlistChannel = new Map<string, AnimeChannel>();
   for (const ep of hindi) {
     if (!ep.playlistId || playlistChannel.has(ep.playlistId)) continue;
-    const channel =
-      ANIME_CHANNELS.find((c) => c.name === ep.channelName) ?? ANIME_CHANNELS[0];
+    const channel = ANIME_CHANNELS.find((c) => c.name === ep.channelName) ?? ANIME_CHANNELS[0];
     playlistChannel.set(ep.playlistId, channel);
   }
 
@@ -87,25 +123,33 @@ export const Route = createFileRoute("/api/anime")({
         const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 500;
 
         try {
-          if (!cache || Date.now() - cache.ts > CACHE_TTL_MS) {
-            const live = await fetchLiveCatalog();
-            const merged = dedupeEpisodes(live);
-            cache = {
-              ts: Date.now(),
-              // Fall back to the snapshot only when nothing live came back.
-              episodes: merged.length > 0 ? merged : dedupeEpisodes(ANIME_SEED),
-            };
+          if (cache && Date.now() - cache.ts <= CACHE_TTL_MS) {
+            return serve(cache.episodes, "live", 600);
           }
 
-          const body = {
-            source: "live",
-            total: cache.episodes.length,
-            episodes: cache.episodes.slice(0, limit),
-          };
+          if (cache) {
+            // Stale-while-revalidate: the shelf renders from the previous
+            // catalog RIGHT AWAY while the feeds refresh out of band. A
+            // serverless cold start that awaits a dozen YouTube Atom feeds
+            // used to leave the Anime tab hanging for many seconds.
+            void startRefresh();
+            return serve(cache.episodes, "stale", 300);
+          }
 
-          return Response.json(body, {
-            headers: { "cache-control": "public, max-age=600" },
-          });
+          // Cold cache: bounded live fetch — the request itself becomes the
+          // shared refresh, so parallel visitors don't multiply feed hits.
+          const winner = await Promise.race([
+            startRefresh().then(
+              (episodes) => episodes,
+              () => null,
+            ),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+          ]);
+          if (winner && winner.length > 0) return serve(winner, "live", 600);
+          if (winner) return serve(winner, "seed", 120);
+          // Timed out — serve the bundled snapshot now; the background
+          // refresh keeps going and later requests get the real catalog.
+          return serve(dedupeEpisodes(ANIME_SEED), "seed", 120);
         } catch {
           const seed = dedupeEpisodes(ANIME_SEED);
           return Response.json(

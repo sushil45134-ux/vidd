@@ -79,6 +79,40 @@ export default function MovieModal({
   const [selectedEpIdx, setSelectedEpIdx] = useState(0);
   const previousMovieId = useRef(movie.id);
 
+  // Titles that arrived from a trimmed library page (see moviesRepo
+  // fetchAllMovies — pages 2+ skip the heavy description/cast text columns to
+  // keep the boot fetch small) get their synopsis filled in here: one tiny
+  // single-row query, exactly when someone actually opens the title.
+  const needsDetailsFill = !movie.isCollection && !movie.description;
+  const [detailsFill, setDetailsFill] = useState<Partial<Movie> | null>(null);
+  useEffect(() => {
+    setDetailsFill(null);
+    if (!needsDetailsFill) return;
+    let alive = true;
+    import("../lib/moviesRepo")
+      .then(({ fetchMovieById }) => fetchMovieById(movie.id))
+      .then((full) => {
+        if (!alive || !full || !full.description) return;
+        setDetailsFill({
+          description: full.description,
+          cast: full.cast,
+          creator: full.creator,
+          year: full.year,
+          rating: full.rating,
+          duration: full.duration,
+          match: full.match,
+        });
+      })
+      .catch(() => {
+        /* cosmetic fill only — the modal already works without it */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [needsDetailsFill, movie.id]);
+  // Render-time view object: original movie with the fetched text merged in.
+  const view: Movie = detailsFill ? { ...movie, ...detailsFill } : movie;
+
   // Episodes row paging. The forward arrow used to render without any click
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
   // smooth scroll on desktop, one synchronous card-step on Tizen's slow
@@ -210,7 +244,7 @@ export default function MovieModal({
     ? `${seasons.length} seasons • ${movie.episodes!.length} episodes`
     : isCollection
       ? `Season ${activeSeason?.seasonNumber} • Episode ${currentEp.episodeNumber || selectedEpIdx + 1}: ${currentEp.title}`
-      : movie.description;
+      : view.description;
 
   const episodeCount = isCollection ? movie.episodes!.length : 0;
 
@@ -424,11 +458,11 @@ export default function MovieModal({
 
         {/* Meta strip */}
         <div className="px-6 md:px-12 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50 border-b border-white/5">
-          <span>{movie.year}</span>
+          <span>{view.year}</span>
           <span className="text-white/20">|</span>
-          {movie.creator && (
+          {view.creator && (
             <>
-              <span>{movie.creator}</span>
+              <span>{view.creator}</span>
               <span className="text-white/20">|</span>
             </>
           )}
@@ -437,10 +471,10 @@ export default function MovieModal({
               ? `${seasons.length} Seasons • ${episodeCount} Episodes`
               : isCollection
                 ? `${episodeCount} Episodes`
-                : movie.duration || "Movie"}
+                : view.duration || "Movie"}
           </span>
           <span className="text-white/20">|</span>
-          <span>{movie.rating}</span>
+          <span>{view.rating}</span>
           <span className="ml-auto">Genres: {movie.genre.join(", ")}</span>
         </div>
 

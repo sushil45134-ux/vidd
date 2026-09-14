@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+
+// NOTE: deliberately NO static supabase import here. A static import pulls the
+// whole @supabase/supabase-js bundle (~200 kB minified) into the eagerly-loaded
+// entry chunk, which every visitor pays for before first paint. Every function
+// below awaits the client instead, so the SDK loads as its own parallel chunk
+// after the app shell is on screen.
 
 const KEY = "vid:collectionCovers:v1";
 const EVENT = "vid:collectionCovers";
@@ -28,6 +33,7 @@ function writeLocal(covers: CollectionCovers) {
 
 async function fetchRemote(): Promise<CollectionCovers | null> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase
       .from("collection_covers")
       .select("playlist_id,image_url");
@@ -48,10 +54,13 @@ async function fetchRemote(): Promise<CollectionCovers | null> {
 
 async function saveRemoteOne(playlistId: string, url: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from("collection_covers").upsert(
-      { playlist_id: playlistId, image_url: url, updated_at: new Date().toISOString() },
-      { onConflict: "playlist_id" }
-    );
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { error } = await supabase
+      .from("collection_covers")
+      .upsert(
+        { playlist_id: playlistId, image_url: url, updated_at: new Date().toISOString() },
+        { onConflict: "playlist_id" },
+      );
     if (error) {
       console.warn("[collectionCovers] save error", error);
       return false;
@@ -65,6 +74,7 @@ async function saveRemoteOne(playlistId: string, url: string): Promise<boolean> 
 
 async function deleteRemoteOne(playlistId: string): Promise<boolean> {
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     const { error } = await supabase
       .from("collection_covers")
       .delete()
@@ -80,10 +90,9 @@ async function deleteRemoteOne(playlistId: string): Promise<boolean> {
   }
 }
 
-
 export async function setCollectionCover(
   playlistId: string | undefined,
-  url: string
+  url: string,
 ): Promise<boolean> {
   if (!playlistId || typeof window === "undefined") return false;
   const saved = await saveRemoteOne(playlistId, url);
