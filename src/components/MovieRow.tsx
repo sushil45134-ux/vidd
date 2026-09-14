@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import type { Movie } from "../data";
 import MovieCard from "./MovieCard";
@@ -33,7 +33,7 @@ const TITLE_SIZE_CLASS: Record<string, string> = {
   "2xl": "text-2xl md:text-3xl",
 };
 
-export default function MovieRow({
+function MovieRow({
   title,
   titleSize = "lg",
   movies = [],
@@ -57,12 +57,17 @@ export default function MovieRow({
   // scrolling makes row paging feel laggy and lands on half-cut cards.
   const isTv = isTvBrowser();
 
+  const scrollRaf = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
   const handleScroll = () => {
-    if (rowRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      setShowLeftArrow(scrollLeft > 20);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
-    }
+    cancelAnimationFrame(scrollRaf.current);
+    scrollRaf.current = requestAnimationFrame(() => {
+      if (rowRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+        setShowLeftArrow(scrollLeft > 20);
+        setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
+      }
+    });
   };
 
   const scroll = (direction: "left" | "right") => {
@@ -96,7 +101,7 @@ export default function MovieRow({
   };
 
   return (
-    <div className="relative px-4 md:px-12 mb-8 group/row">
+    <div className="relative px-4 md:px-12 mb-8 group/row cv-row">
       {title && (
         <h2
           className={`text-white ${TITLE_SIZE_CLASS[titleSize] || TITLE_SIZE_CLASS.lg} font-bold mb-2 hover:text-gray-300 cursor-pointer transition-colors`}
@@ -189,3 +194,5 @@ function PlaceholderCard({ title, isLarge = false }: { title: string; isLarge?: 
     </div>
   );
 }
+
+export default memo(MovieRow);

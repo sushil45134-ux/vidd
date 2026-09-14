@@ -621,3 +621,14 @@
   outline: none;
   box-shadow: none;
 }
+
+/* Rendering fast-paths: skip offscreen rows/cards until scrolled near.
+/* Unknown to old TV browsers, which safely ignore these declarations. */
+.cv-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+.cv-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
+}

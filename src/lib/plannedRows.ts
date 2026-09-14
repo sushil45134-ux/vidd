@@ -100,14 +100,21 @@ function similarity(a: string, b: string): number {
   return dist > maxDist ? 0 : 1 - dist / maxLen;
 }
 
-function matchScore(planned: string, name: string): number {
+/** Query-side derivations, computed once per matchPlannedTitle call. */
+interface PlannedPrecomp {
+  stripped: string;
+  sorted: string;
+  forms: string[];
+}
+
+function matchScore(planned: string, name: string, pre: PlannedPrecomp): number {
   if (!planned || !name) return 0;
   if (name === planned) return 3;
   if (name.startsWith(planned)) return 2;
   if (planned.length >= 3 && name.includes(planned)) return 1.5;
   // "Demon Slayer — Season 3" still finds the base entry.
-  const ps = stripQualifier(planned);
-  const ns = stripQualifier(name);
+  const ps = pre.stripped;
+  const ns = /\d/.test(name) ? stripQualifier(name) : name;
   if (ps && ns && (ps !== planned || ns !== name)) {
     if (ns === ps) return 1.25;
     if (ns.startsWith(ps) || ps.startsWith(ns)) return 1;
@@ -115,7 +122,7 @@ function matchScore(planned: string, name: string): number {
   }
   if (planned.length >= 6 && name.length >= 6) {
     // Word-order differences: "Shippuden Naruto" finds "Naruto Shippuden".
-    if (sortedTokens(name) === sortedTokens(planned)) return 1.4;
+    if (sortedTokens(name) === pre.sorted) return 1.4;
     // Small typos on the full title ("Narruto", "One Peice"). Outranks a bare
     // substring below, so "Naruto Shippduen" picks Shippuden over plain Naruto.
     if (similarity(planned, name) >= 0.85) return 0.8;
@@ -126,11 +133,9 @@ function matchScore(planned: string, name: string): number {
   // "Demon Slayer: Kimetsu no Yaiba"). Strict on purpose — long titles only,
   // so short lookalikes like Naruto/Boruto never cross-match.
   if (planned.length >= 6 && name.length >= 6) {
-    const pst = sortedTokens(planned);
     const nst = sortedTokens(name);
-    const pForms = Array.from(new Set([pst, ...leadingSubsets(planned), ...leadingSubsets(pst)]));
-    const nForms = Array.from(new Set([nst, ...leadingSubsets(name), ...leadingSubsets(nst)]));
-    for (const pf of pForms) {
+    const nForms = [nst, ...leadingSubsets(name), ...leadingSubsets(nst)];
+    for (const pf of pre.forms) {
       for (const nf of nForms) {
         if (similarity(pf, nf) >= 0.85) return 0.5;
       }
@@ -147,12 +152,19 @@ export function matchPlannedTitle(
 ): Movie | null {
   const planned = normalizeTitle(plannedTitle);
   if (!planned) return null;
+  // Hoisted out of the per-movie loop: these depend only on the query.
+  const pSorted = sortedTokens(planned);
+  const pre: PlannedPrecomp = {
+    stripped: /\d/.test(planned) ? stripQualifier(planned) : planned,
+    sorted: pSorted,
+    forms: Array.from(new Set([pSorted, ...leadingSubsets(planned), ...leadingSubsets(pSorted)])),
+  };
   let best: Movie | null = null;
   let bestScore = 0;
   for (const movie of items) {
     if (excludeIds?.has(movie.id)) continue;
     for (const name of candidateNames(movie)) {
-      const score = matchScore(planned, name);
+      const score = matchScore(planned, name, pre);
       if (score > bestScore) {
         bestScore = score;
         best = movie;

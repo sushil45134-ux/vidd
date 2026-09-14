@@ -70,7 +70,7 @@ export default function SearchResults({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {shown.map((movie) => (
-          <div key={movie.id} className="group">
+          <div key={movie.id} className="group cv-card">
             <div
               className="legacy-media relative overflow-hidden rounded-md bg-gray-800 cursor-pointer"
               onClick={() => onSelectMovie(movie)}

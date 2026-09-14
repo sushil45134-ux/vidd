@@ -85,12 +85,18 @@ export default function MovieModal({
   // compositor. The arrow steps aside once the row cannot scroll further.
   const isTv = isTvBrowser();
   const episodesRowRef = useRef<HTMLDivElement>(null);
+  const episodesRaf = useRef(0);
   const [showEpisodesArrow, setShowEpisodesArrow] = useState(true);
 
+  useEffect(() => () => cancelAnimationFrame(episodesRaf.current), []);
+
   const updateEpisodesArrow = useCallback(() => {
-    const el = episodesRowRef.current;
-    if (!el) return;
-    setShowEpisodesArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 20);
+    cancelAnimationFrame(episodesRaf.current);
+    episodesRaf.current = requestAnimationFrame(() => {
+      const el = episodesRowRef.current;
+      if (!el) return;
+      setShowEpisodesArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 20);
+    });
   }, []);
 
   const scrollEpisodesForward = useCallback(() => {

@@ -140,6 +140,13 @@ function App() {
   const [myList, setMyList] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  // Filter/render on the debounced value so every keystroke doesn't refilter
+  // 2000+ titles and rebuild the results grid (the input itself stays live).
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 120);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [activeCategory, setActiveCategory] = useState<Category>("home");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -207,6 +214,22 @@ function App() {
         }
       })
       .catch(() => {});
+
+    // Warm on-demand modal/player chunks when idle so first open is instant.
+    if (typeof requestIdleCallback !== "undefined") {
+      requestIdleCallback(
+        () => {
+          import("./components/MovieModal").catch(() => {});
+          import("./components/PlayerOverlay").catch(() => {});
+        },
+        { timeout: 3000 },
+      );
+    } else {
+      setTimeout(() => {
+        import("./components/MovieModal").catch(() => {});
+        import("./components/PlayerOverlay").catch(() => {});
+      }, 2000);
+    }
 
     return undefined;
   }, []);
@@ -293,6 +316,16 @@ function App() {
     [displayItems, resolveCustomRowItems],
   );
 
+  // Per-row slots memoized as a whole: each row's array keeps its identity
+  // across unrelated renders, so memo()'d rows below skip re-rendering.
+  const rowSlotsById = useMemo(() => {
+    const map = new Map<string, RowSlot[]>();
+    cfg.customRows?.forEach((row) => {
+      map.set(row.id, resolveRowSlots(row));
+    });
+    return map;
+  }, [cfg.customRows, resolveRowSlots]);
+
   const existingYtIds = useMemo(() => {
     const ids = new Set<string>();
     allMovies.forEach((m) => {
@@ -355,8 +388,8 @@ function App() {
   const isLiked = useCallback((movieId: number) => likedMovies.has(movieId), [likedMovies]);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase();
+    if (!debouncedQuery.trim()) return [];
+    const q = debouncedQuery.toLowerCase();
     return displayItems.filter(
       (m) =>
         m.title.toLowerCase().includes(q) ||
@@ -365,7 +398,7 @@ function App() {
         (m.cast && m.cast.some((c) => c.toLowerCase().includes(q))) ||
         (m.creator && m.creator.toLowerCase().includes(q)),
     );
-  }, [searchQuery, displayItems]);
+  }, [debouncedQuery, displayItems]);
 
   const getCategoryMovies = useCallback(() => {
     if (activeCategory === "mylist") return myList;
@@ -388,6 +421,13 @@ function App() {
     setResumeAt(opts?.fromStart ? 0 : getSavedProgress(movie));
     setPlayingMovie(movie);
   }, []);
+
+  // Stable "play first episode" for row cards (avoids inline arrows that
+  // would defeat memo() on every render).
+  const playFirstEpisode = useCallback(
+    (m: Movie) => handlePlay(m.episodes?.[0] || m),
+    [handlePlay],
+  );
 
   // Continue Watching: throttled clock from the players (attributed to the
   // episode actually on screen by PlayerOverlay).
@@ -584,7 +624,7 @@ function App() {
     } catch {}
   }, []);
 
-  const showingSearch = searchQuery.trim().length > 0;
+  const showingSearch = debouncedQuery.trim().length > 0;
   const showingDiscover = activeCategory === "discover" && !showingSearch;
   const showingCategory =
     activeCategory !== "home" && activeCategory !== "discover" && !showingSearch;
@@ -644,9 +684,9 @@ function App() {
         {showingSearch && (
           <SearchResults
             results={searchResults}
-            query={searchQuery}
+            query={debouncedQuery}
             onSelectMovie={setSelectedMovie}
-            onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
+            onPlay={playFirstEpisode}
             isInMyList={isInMyList}
             isLiked={isLiked}
             toggleMyList={toggleMyList}
@@ -701,7 +741,7 @@ function App() {
               if (!row.visible) return null;
               const sec = row.section || "home";
               if (sec !== "all" && sec !== activeCategory) return null;
-              const slots = resolveRowSlots(row);
+              const slots = rowSlotsById.get(row.id) || [];
               if (slots.length === 0) return null;
               return (
                 <MovieRow
@@ -711,7 +751,7 @@ function App() {
                   slots={slots}
                   isLargeRow={row.isLarge}
                   onSelectMovie={setSelectedMovie}
-                  onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
+                  onPlay={playFirstEpisode}
                   isInMyList={isInMyList}
                   isLiked={isLiked}
                   toggleMyList={toggleMyList}
@@ -741,7 +781,7 @@ function App() {
                   {categoryMovies.slice(0, gridVisible).map((movie) => (
                     <div
                       key={movie.id}
-                      className="tv-category-card group cursor-pointer"
+                      className="tv-category-card cv-card group cursor-pointer"
                       onClick={() => setSelectedMovie(movie)}
                       tabIndex={0}
                       role="button"
@@ -839,7 +879,7 @@ function App() {
                   if (!row.visible) return;
                   const sec = row.section || "home";
                   if (sec !== "home" && sec !== "all") return;
-                  const slots = resolveRowSlots(row);
+                  const slots = rowSlotsById.get(row.id) || [];
                   if (slots.length === 0) return;
                   elements.push(
                     <MovieRow
@@ -849,7 +889,7 @@ function App() {
                       slots={slots}
                       isLargeRow={row.isLarge}
                       onSelectMovie={setSelectedMovie}
-                      onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
+                      onPlay={playFirstEpisode}
                       isInMyList={isInMyList}
                       isLiked={isLiked}
                       toggleMyList={toggleMyList}

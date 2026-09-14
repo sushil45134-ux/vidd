@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Play, RotateCcw, X } from "lucide-react";
 import type { Movie } from "../data";
 import SmartImage from "./SmartImage";
@@ -14,7 +14,7 @@ interface ContinueWatchingRowProps {
   onRemove: (key: string) => void;
 }
 
-export default function ContinueWatchingRow({
+function ContinueWatchingRow({
   title = "Continue Watching",
   items,
   onPlay,
@@ -28,12 +28,17 @@ export default function ContinueWatchingRow({
   // synchronous card-step on Tizen's slow compositor.
   const isTv = isTvBrowser();
 
+  const scrollRaf = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
   const handleScroll = () => {
-    if (rowRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      setShowLeftArrow(scrollLeft > 20);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
-    }
+    cancelAnimationFrame(scrollRaf.current);
+    scrollRaf.current = requestAnimationFrame(() => {
+      if (rowRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+        setShowLeftArrow(scrollLeft > 20);
+        setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
+      }
+    });
   };
 
   const scroll = (direction: "left" | "right") => {
@@ -67,7 +72,7 @@ export default function ContinueWatchingRow({
   if (items.length === 0) return null;
 
   return (
-    <div className="relative px-4 md:px-12 mb-8 group/row">
+    <div className="relative px-4 md:px-12 mb-8 group/row cv-row">
       {title && (
         <h2 className="text-white text-lg md:text-xl font-bold mb-2 hover:text-gray-300 cursor-pointer transition-colors">
           {title}
@@ -252,3 +257,5 @@ function ResumeCard({
     </div>
   );
 }
+
+export default memo(ContinueWatchingRow);
