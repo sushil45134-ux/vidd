@@ -18,6 +18,12 @@ import SmartImage from "./SmartImage";
 import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { isTvBrowser } from "../lib/browser";
+import {
+  episodeTag,
+  formatClock,
+  formatTimeLeft,
+  useResumeForMovie,
+} from "../lib/continueWatching";
 
 interface MovieModalProps {
   movie: Movie;
@@ -51,6 +57,10 @@ export default function MovieModal({
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const heroBanners = useHeroBanners();
   const isHeroBanner = heroBanners.some((b) => b.movieId === movie.id);
+  // Continue Watching: exact match for singles, newest episode for series.
+  const resume = useResumeForMovie(movie);
+  const resumeFromSec =
+    resume && resume.durationSec > 0 && resume.progressSec > 0 ? resume.progressSec : 0;
 
   const isCollection = !!(movie.isCollection && movie.episodes && movie.episodes.length > 0);
   const seasons: Season[] = useMemo(() => {
@@ -276,11 +286,24 @@ export default function MovieModal({
                     ? `Play S${seasons[0]?.seasonNumber} E${seasons[0]?.episodes[0]?.episodeNumber || 1}`
                     : isCollection
                       ? `Play Episode ${currentEp.episodeNumber || selectedEpIdx + 1}`
-                      : "Continue Watching"}
+                      : resumeFromSec > 0
+                        ? `Resume from ${formatClock(resumeFromSec)}`
+                        : "Play"}
                   <span className="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center">
                     <Play size={12} fill="white" className="text-white ml-0.5" />
                   </span>
                 </button>
+                {isCollection && resume && (
+                  <button
+                    onClick={() => onPlay(resume.movie)}
+                    className="flex items-center gap-2 border border-[#f47521]/70 bg-[#f47521]/15 hover:bg-[#f47521] text-white font-semibold px-5 py-2.5 rounded-full text-sm transition-colors whitespace-nowrap"
+                    title={`Resume ${resume.movie.title}`}
+                  >
+                    {resume.durationSec > 0
+                      ? `Resume ${episodeTag(resume.movie) || "Episode"} • ${formatTimeLeft(resume.durationSec - resume.progressSec)}`
+                      : `Resume ${episodeTag(resume.movie) || "Episode"}`}
+                  </button>
+                )}
                 <button
                   onClick={onToggleMyList}
                   className="flex items-center gap-2 border border-white/30 hover:border-white text-white font-semibold px-5 py-2.5 rounded-full text-sm transition-colors"
@@ -342,6 +365,19 @@ export default function MovieModal({
                   </button>
                 )}
               </div>
+              {!isCollection && resume && resume.durationSec > 0 && (
+                <div className="mt-3 max-w-xs">
+                  <div className="h-1 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className="h-full bg-[#f47521] rounded-full"
+                      style={{ width: `${Math.round(resume.percent * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-white/60 text-[11px] mt-1.5">
+                    {formatTimeLeft(resume.durationSec - resume.progressSec)} left
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

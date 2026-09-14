@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import type { Movie } from "../data";
 import { VideoPlayer } from "./VideoPlayer";
 import { EmbedPlayer } from "./EmbedPlayer";
@@ -7,10 +7,19 @@ export default function PlayerOverlay({
   movie,
   onClose,
   episodes,
+  startAt = 0,
+  onProgress,
+  onEnded,
 }: {
   movie: Movie;
   onClose(): void;
   episodes?: Movie[];
+  /** Resume offset (seconds) — applies only to the initially opened video. */
+  startAt?: number;
+  /** Playback clock, attributed to the episode actually on screen. */
+  onProgress?: (movie: Movie, currentSec: number, durationSec: number) => void;
+  /** The episode on screen ended. */
+  onEnded?: (movie: Movie) => void;
 }) {
   const queue = useMemo(() => {
     if (!episodes || episodes.length < 2) return [];
@@ -29,6 +38,15 @@ export default function PlayerOverlay({
   }, [initialIdx, movie.id]);
 
   const current = queue[idx] || movie;
+
+  // Queue siblings start from 0 — only the video the user pressed Play on
+  // carries the saved resume offset.
+  const effectiveStartAt = current.id === movie.id ? startAt : 0;
+  const handleProgress = useCallback(
+    (sec: number, dur: number) => onProgress?.(current, sec, dur),
+    [onProgress, current],
+  );
+  const handleEnded = useCallback(() => onEnded?.(current), [onEnded, current]);
 
   // Series queue (same playlistId) works for embeds/videos just like YouTube —
   // Prev / Next swap `idx` and PlayerOverlay re-renders the player with the
@@ -50,6 +68,9 @@ export default function PlayerOverlay({
         hasNext={hasNext}
         onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
+        startAt={effectiveStartAt}
+        onProgress={handleProgress}
+        onEnded={handleEnded}
       />
     );
   }
@@ -66,6 +87,9 @@ export default function PlayerOverlay({
         hasNext={hasNext}
         onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
+        startAt={effectiveStartAt}
+        onProgress={handleProgress}
+        onEnded={handleEnded}
       />
     );
   }
@@ -93,6 +117,9 @@ export default function PlayerOverlay({
       onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
       hasNext={hasNext}
       hasPrev={hasPrev}
+      startAt={effectiveStartAt}
+      onProgress={handleProgress}
+      onEnded={handleEnded}
     />
   );
 }

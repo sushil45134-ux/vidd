@@ -7,6 +7,7 @@ import SearchResults from "./components/SearchResults";
 import UnifiedSearch from "./components/UnifiedSearch";
 import SmartImage from "./components/SmartImage";
 import AnimeSection from "./components/AnimeSection";
+import ContinueWatchingRow from "./components/ContinueWatchingRow";
 
 // Heavy modals / overlays — loaded on demand to keep the initial bundle small.
 const MovieModal = lazy(() => import("./components/MovieModal"));
@@ -19,6 +20,14 @@ const ThumbnailEditor = lazy(() => import("./components/ThumbnailEditor"));
 
 import type { Movie, Category } from "./data";
 import { getMovieRef, useSiteConfig, type CustomRow, type RowKey } from "./lib/customization";
+import {
+  getSavedProgress,
+  markWatchFinished,
+  removeContinueWatching,
+  removeContinueWatchingForMovie,
+  saveWatchProgress,
+  useContinueWatching,
+} from "./lib/continueWatching";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
@@ -129,6 +138,7 @@ function mergeCollection(existing: Movie, incoming: Movie): Movie {
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
+  const [resumeAt, setResumeAt] = useState(0);
   const [myList, setMyList] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -214,6 +224,33 @@ function App() {
   const displayItems = useMemo(
     () => [...uploadedCollections, ...syncedCollections],
     [uploadedCollections, syncedCollections],
+  );
+
+  // Continue Watching — stored snapshots reconciled with fresh library data.
+  const continueWatchingLibrary = useMemo(
+    () => [...allMovies, ...animeEpisodes],
+    [allMovies, animeEpisodes],
+  );
+  const continueWatchingItems = useContinueWatching(continueWatchingLibrary);
+
+  // "More info" from the Continue Watching row opens the series modal for
+  // episodes (so seasons / episode lists stay one tap away).
+  const openResumeDetails = useCallback(
+    (movie: Movie) => {
+      if (movie.playlistId) {
+        const collection = displayItems.find(
+          (m) =>
+            m.isCollection &&
+            (m.playlistId === movie.playlistId || m.episodes?.[0]?.playlistId === movie.playlistId),
+        );
+        if (collection) {
+          setSelectedMovie(collection);
+          return;
+        }
+      }
+      setSelectedMovie(movie);
+    },
+    [displayItems],
   );
 
   const resolveCustomRowItems = useCallback(
@@ -330,9 +367,24 @@ function App() {
     return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
   }, [activeCategory, myList, displayItems, cfg.customRows, resolveCustomRowItems]);
 
-  const handlePlay = useCallback((movie: Movie) => {
+  const handlePlay = useCallback((movie: Movie, opts?: { fromStart?: boolean }) => {
     setSelectedMovie(null);
+    // Auto-resume: any saved progress for this exact video is picked up, no
+    // matter which row / modal / screen the Play press came from.
+    setResumeAt(opts?.fromStart ? 0 : getSavedProgress(movie));
     setPlayingMovie(movie);
+  }, []);
+
+  // Continue Watching: throttled clock from the players (attributed to the
+  // episode actually on screen by PlayerOverlay).
+  const handleWatchProgress = useCallback(
+    (movie: Movie, currentSec: number, durationSec: number) => {
+      saveWatchProgress(movie, currentSec, durationSec);
+    },
+    [],
+  );
+  const handleWatchEnded = useCallback((movie: Movie) => {
+    markWatchFinished(movie);
   }, []);
 
   // Stable so AnimeSection's effect doesn't re-fire on every render.
@@ -377,6 +429,7 @@ function App() {
     async (movie: Movie) => {
       // Whole playlist collection: drop every synced episode sharing the playlistId.
       if (movie.isCollection && movie.episodes && movie.episodes.length > 0) {
+        removeContinueWatchingForMovie(movie);
         const pid = movie.episodes[0].playlistId;
         const epIds = new Set(movie.episodes.map((e) => e.id));
         const { deleteMovieById, deleteMoviesByPlaylist } = await import("./lib/moviesRepo");
@@ -401,6 +454,7 @@ function App() {
         return;
       }
       // Single item (uploaded or standalone synced).
+      removeContinueWatchingForMovie(movie);
       const { deleteMovieById } = await import("./lib/moviesRepo");
       await deleteMovieById(movie.id);
       setUploadedMovies((prev) => prev.filter((m) => m.id !== movie.id));
@@ -739,6 +793,15 @@ function App() {
               {/* Synced playlists no longer auto-appear on home.
                 Admin adds them via Custom Rows when desired. */}
 
+              {continueWatchingItems.length > 0 && (
+                <ContinueWatchingRow
+                  items={continueWatchingItems}
+                  onPlay={handlePlay}
+                  onSelectMovie={openResumeDetails}
+                  onRemove={removeContinueWatching}
+                />
+              )}
+
               {cfg.customRows?.map((row) => {
                 if (!row.visible) return null;
                 const sec = row.section || "home";
@@ -828,6 +891,9 @@ function App() {
           <PlayerOverlay
             movie={playingMovie}
             onClose={closePlayer}
+            startAt={resumeAt}
+            onProgress={handleWatchProgress}
+            onEnded={handleWatchEnded}
             episodes={(() => {
               const pid = playingMovie.playlistId;
               if (!pid) return undefined;
