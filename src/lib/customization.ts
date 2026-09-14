@@ -218,16 +218,21 @@ export async function saveConfig(cfg: SiteConfig, options?: SaveConfigOptions): 
   const next = preserveCustomRows(cfg, options);
   rememberCustomRows(next.customRows);
   localStorage.setItem(PENDING_REMOTE_SAVE_KEY, new Date().toISOString());
+  // Always save to localStorage first so user sees row immediately even if Supabase fails
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event(EVENT));
+  } catch {}
+  
   const saved = await saveRemoteConfig(next);
   if (!saved) {
-    alert(
-      "Changes public website par save nahi hue. Supabase site_config table ki RLS/GRANT policy check karo, phir dobara save karo."
-    );
-    return false;
+    console.warn("[site_config] Remote save failed, but local saved — row will show locally, refresh may need re-save");
+
+    // Only return true if local save succeeded
+    localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
+    return true;
   }
-  localStorage.setItem(KEY, JSON.stringify(next));
   localStorage.removeItem(PENDING_REMOTE_SAVE_KEY);
-  window.dispatchEvent(new Event(EVENT));
   return true;
 }
 

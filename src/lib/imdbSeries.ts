@@ -16,17 +16,17 @@ export interface ImdbProvider {
 
 export const IMDB_PROVIDERS: ImdbProvider[] = [
   {
-    id: "nhd",
-    name: "NHD",
-    template: "https://nhdapi.com/tv/{id}/{s}/{e}",
-    hint: "nhdapi.com — IMDb/TMDB ID se har episode",
-  },
-  {
     id: "nxsha",
     name: "Nxsha",
     template:
       "https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true",
     hint: "Hindi audio verified by user; popup risk accepted",
+  },
+  {
+    id: "nhd",
+    name: "NHD",
+    template: "https://nhdapi.com/tv/{id}/{s}/{e}",
+    hint: "nhdapi.com — IMDb/TMDB ID se har episode",
   },
 ];
 
