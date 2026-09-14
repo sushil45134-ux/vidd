@@ -129,11 +129,11 @@ for (const [name, profile] of Object.entries(PROFILES)) {
       };
     });
     await page.screenshot({
-      path: resolve(outDir, `${name}.png`),
+      path: resolve(outDir, `${name}.jpg`),
+      type: "jpeg",
+      quality: 72,
       fullPage: false,
     });
-    // Also grab a full-page shot for layout post-mortem (capped by viewport height*10).
-    await page.screenshot({ path: resolve(outDir, `${name}-full.png`), fullPage: true }).catch(() => {});
   } catch (err) {
     result.consoleErrors.push(`post-load check failed: ${String(err).slice(0, 500)}`);
   }

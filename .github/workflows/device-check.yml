@@ -2,11 +2,12 @@ name: Device check
 
 # Real-browser compatibility check of BOTH the live production site and the
 # freshly built candidate, under TV + phone device profiles.
-# Results (console errors, failed requests, screenshots) are uploaded as
-# artifacts and printed into the run summary.
+# Results are committed to .device-check/ on this branch (so they can be
+# read from clones without artifact-store access) and uploaded as artifacts.
 on:
   push:
     branches: ["arena/01a09fd9-vidd"]
+    paths-ignore: [".device-check/**"]
   workflow_dispatch:
     inputs:
       live_url:
@@ -15,7 +16,7 @@ on:
         default: "https://vidd-zeta.vercel.app"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   check:
@@ -68,6 +69,19 @@ jobs:
             device-local/
             device-live/
           if-no-files-found: warn
+
+      - name: Commit results to branch (readable from clones)
+        if: always()
+        run: |
+          git config user.name "arena-agent"
+          git config user.email "arena-agent@users.noreply.github.com"
+          mkdir -p .device-check
+          rm -rf .device-check/*
+          cp -r device-local .device-check/local 2>/dev/null || true
+          cp -r device-live .device-check/live 2>/dev/null || true
+          git add .device-check
+          git commit -m "Device check results [skip ci]" || echo "nothing to commit"
+          git push origin HEAD:arena/01a09fd9-vidd || echo "push skipped"
 
       - name: Write summary
         if: always()
