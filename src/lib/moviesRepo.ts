@@ -62,23 +62,41 @@ export function movieToRow(m: Movie, sourceType: "uploaded" | "synced" | "demo")
   };
 }
 
+// Supabase caps a single response at 1,000 rows. The library outgrew that, so
+// one plain select() silently dropped every video older than the newest 1,000
+// — and every row referencing those videos vanished from the site with them.
+const MOVIES_PAGE_SIZE = 1000;
+
 export async function fetchAllMovies(): Promise<{
   uploaded: Movie[];
   synced: Movie[];
 }> {
-  const { data, error } = await supabase
-    .from("movies")
-    .select(
-      "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at"
-    )
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[moviesRepo] fetch error", error);
-    return { uploaded: [], synced: [] };
+  // Page through the whole table (newest first) until a short/empty page ends it.
+  // created_at ties (bulk inserts share one timestamp) need the id tiebreak,
+  // otherwise a page boundary inside a tied group could skip/duplicate rows.
+  const rows: Array<Record<string, unknown>> = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("movies")
+      .select(
+        "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at"
+      )
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, from + MOVIES_PAGE_SIZE - 1);
+    if (error) {
+      console.error("[moviesRepo] fetch error", error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < MOVIES_PAGE_SIZE) break;
+    from += MOVIES_PAGE_SIZE;
   }
   const uploaded: Movie[] = [];
   const synced: Movie[] = [];
-  (data ?? []).forEach((r: any) => {
+  rows.forEach((r: any) => {
     const m = rowToMovie(r);
     if (r.source_type === "synced") synced.push(m);
     else uploaded.push(m); // 'uploaded' + 'demo' both shown as library items
