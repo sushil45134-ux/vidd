@@ -3,12 +3,19 @@ import type { Movie } from "../data";
 /** One ordered slot inside a planned (wishlist) row. */
 export type RowSlot = { kind: "movie"; movie: Movie } | { kind: "placeholder"; title: string };
 
-/** Normalize for title matching: case, punctuation, ×/x, extra spaces. */
+/**
+ * Normalize for title matching: case, punctuation, ×/x, extra spaces.
+ * All apostrophe variants (straight, curly, fullwidth…) are stripped so
+ * "Journey's" (typed) and "Journey’s" (AniList) normalize identically.
+ * Accents are folded too, so "Pokémon" and "Pokemon" are the same.
+ */
 export function normalizeTitle(input: string): string {
   return (input || "")
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[×✕]/g, "x")
-    .replace(/[''ʼ`]/g, "")
+    .replace(/[\u0027\u0060\u00b4\u2018\u2019\u201a\u201b\u02bb\u02bc\u02bd\u055a\uff07]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
