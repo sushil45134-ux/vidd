@@ -6,6 +6,7 @@ import NotificationPanel from "./components/NotificationPanel";
 import SearchResults from "./components/SearchResults";
 import UnifiedSearch from "./components/UnifiedSearch";
 import SmartImage from "./components/SmartImage";
+import { useVisibleCount } from "./lib/useVisibleCount";
 import AnimeSection from "./components/AnimeSection";
 import ContinueWatchingRow from "./components/ContinueWatchingRow";
 
@@ -192,9 +193,18 @@ function App() {
       .then(({ uploaded, synced }) => {
         setUploadedMovies(uploaded);
         setSyncedMovies(synced);
-        try {
-          localStorage.setItem("vid:moviesCache:v2", JSON.stringify({ uploaded, synced }));
-        } catch {}
+        // Stringifying 2000+ rows blocks the main thread — write the cache
+        // when idle so the fresh paint is never held up by it.
+        const writeCache = () => {
+          try {
+            localStorage.setItem("vid:moviesCache:v2", JSON.stringify({ uploaded, synced }));
+          } catch {}
+        };
+        if (typeof requestIdleCallback !== "undefined") {
+          requestIdleCallback(writeCache, { timeout: 2000 });
+        } else {
+          setTimeout(writeCache, 0);
+        }
       })
       .catch(() => {});
 
@@ -366,6 +376,10 @@ function App() {
     const scoped = collectPlacedIds(cfg.customRows, resolveRowSlots);
     return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
   }, [activeCategory, myList, displayItems, cfg.customRows, resolveRowSlots]);
+
+  // Computed once per data change instead of on every render pass.
+  const categoryMovies = useMemo(() => getCategoryMovies(), [getCategoryMovies]);
+  const { visible: gridVisible, showMore: showMoreGrid } = useVisibleCount(activeCategory);
 
   const handlePlay = useCallback((movie: Movie, opts?: { fromStart?: boolean }) => {
     setSelectedMovie(null);
@@ -711,7 +725,7 @@ function App() {
             })}
 
             <div className="px-4 md:px-12">
-              {getCategoryMovies().length === 0 ? (
+              {categoryMovies.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <p className="text-gray-400 text-lg">No titles found</p>
                   <p className="text-gray-600 text-sm mt-2">
@@ -724,7 +738,7 @@ function App() {
                 </div>
               ) : (
                 <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {getCategoryMovies().map((movie) => (
+                  {categoryMovies.slice(0, gridVisible).map((movie) => (
                     <div
                       key={movie.id}
                       className="tv-category-card group cursor-pointer"
@@ -769,6 +783,19 @@ function App() {
                       <p className="text-gray-300 text-sm mt-2 truncate">{movie.title}</p>
                     </div>
                   ))}
+                </div>
+              )}
+              {categoryMovies.length > gridVisible && (
+                <div className="flex flex-col items-center gap-2 py-8">
+                  <p className="text-gray-500 text-xs">
+                    Showing {gridVisible} of {categoryMovies.length}
+                  </p>
+                  <button
+                    onClick={showMoreGrid}
+                    className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+                  >
+                    Load more
+                  </button>
                 </div>
               )}
             </div>

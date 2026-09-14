@@ -15,6 +15,7 @@ import type { Movie, Season } from "../data";
 import { FALLBACK_THUMBNAIL, isGenericPoster, movieImageSources } from "../lib/media";
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
+import { useVisibleCount } from "../lib/useVisibleCount";
 import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { isTvBrowser } from "../lib/browser";
@@ -158,6 +159,12 @@ export default function MovieModal({
   const episodes: Movie[] = useMemo(
     () => (activeSeason ? activeSeason.episodes : []),
     [activeSeason],
+  );
+  // 1000+ episode series (One Piece) must not mount 1000 cards at once.
+  const { visible: visibleEps, showMore: showMoreEps } = useVisibleCount(
+    `${movie.id}-${selectedSeason ?? "all"}`,
+    60,
+    120,
   );
   const currentEp: Movie = isCollection
     ? episodes[selectedEpIdx] || episodes[0] || movie.episodes![0]
@@ -452,7 +459,7 @@ export default function MovieModal({
               onScroll={updateEpisodesArrow}
               className="flex gap-4 overflow-x-auto scrollbar-hide pb-2"
             >
-              {episodes.map((ep, i) => (
+              {episodes.slice(0, visibleEps).map((ep, i) => (
                 <EpisodeCard
                   key={ep.id}
                   movie={ep}
@@ -468,6 +475,17 @@ export default function MovieModal({
                   onDelete={onDelete}
                 />
               ))}
+              {episodes.length > visibleEps && (
+                <button
+                  onClick={showMoreEps}
+                  className="shrink-0 w-36 self-stretch rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold transition"
+                >
+                  Show {Math.min(120, episodes.length - visibleEps)} more
+                  <span className="block text-[10px] text-white/50 font-normal mt-1">
+                    {visibleEps} of {episodes.length}
+                  </span>
+                </button>
+              )}
             </div>
           ) : similarMovies.length > 0 ? (
             <>

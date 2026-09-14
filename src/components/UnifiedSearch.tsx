@@ -6,6 +6,7 @@ import { isTvBrowser } from "../lib/browser";
 
 const IS_TV = isTvBrowser();
 import SmartImage from "./SmartImage";
+import { useVisibleCount } from "../lib/useVisibleCount";
 
 interface Props {
   onPlay: (movie: Movie) => void;
@@ -16,6 +17,7 @@ interface Props {
 
 export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props) {
   const [query, setQuery] = useState("");
+  const { visible, showMore } = useVisibleCount(query, 60, 60);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -65,7 +67,7 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
         </div>
       ) : (
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filtered.map((m) => (
+          {filtered.slice(0, visible).map((m) => (
             <div
               key={m.id}
               className="group bg-[#1a1a1a] rounded-lg overflow-hidden hover:bg-[#222] transition-colors border border-gray-800 hover:border-gray-700 cursor-pointer"
@@ -109,6 +111,19 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {filtered.length > visible && (
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-gray-500 text-xs">
+            Showing {Math.min(visible, filtered.length)} of {filtered.length}
+          </p>
+          <button
+            onClick={showMore}
+            className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+          >
+            Load more
+          </button>
         </div>
       )}
     </div>

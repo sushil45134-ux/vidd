@@ -2,6 +2,7 @@ import { Play, Plus, Check, ThumbsUp } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
+import { useVisibleCount } from "../lib/useVisibleCount";
 import { isTvBrowser } from "../lib/browser";
 
 const IS_TV = isTvBrowser();
@@ -34,6 +35,8 @@ export default function SearchResults({
   toggleMyList,
   toggleLike,
 }: SearchResultsProps) {
+  const { visible, showMore } = useVisibleCount(query, 60, 60);
+  const shown = results.slice(0, visible);
   return (
     <div className="pt-6 px-4 md:px-12 min-h-screen">
       <h2 className="text-gray-400 text-sm mb-6">
@@ -66,7 +69,7 @@ export default function SearchResults({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {results.map((movie) => (
+        {shown.map((movie) => (
           <div key={movie.id} className="group">
             <div
               className="legacy-media relative overflow-hidden rounded-md bg-gray-800 cursor-pointer"
@@ -143,6 +146,19 @@ export default function SearchResults({
           </div>
         ))}
       </div>
+      {results.length > shown.length && (
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-gray-500 text-xs">
+            Showing {shown.length} of {results.length}
+          </p>
+          <button
+            onClick={showMore}
+            className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+          >
+            Load more
+          </button>
+        </div>
+      )}
     </div>
   );
 }
