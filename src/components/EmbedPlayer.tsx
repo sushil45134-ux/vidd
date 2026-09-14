@@ -1,10 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { X, Maximize, Minimize } from "lucide-react";
+import { X, Maximize, Minimize, ChevronLeft, ChevronRight } from "lucide-react";
+import { isTvBrowser } from "../lib/browser";
 
 interface EmbedPlayerProps {
   src: string;
   kind: "iframe" | "video";
   onClose: () => void;
+  /** Series queue (same playlistId) — previous episode. */
+  onPrev?: () => void;
+  /** Series queue (same playlistId) — next episode. */
+  onNext?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }
 
 /**
@@ -53,7 +60,9 @@ function normalizeDailymotionUrl(url: string): string {
 }
 
 function getDailymotionVideoId(url: string): string | null {
-  const match = url.match(/(?:dailymotion\.com\/video\/|dai\.ly\/|dailymotion\.com\/embed\/video\/)([A-Za-z0-9]+)/);
+  const match = url.match(
+    /(?:dailymotion\.com\/video\/|dai\.ly\/|dailymotion\.com\/embed\/video\/)([A-Za-z0-9]+)/,
+  );
   return match?.[1] ?? null;
 }
 
@@ -73,7 +82,10 @@ function getDailymotionMessageEvents(data: unknown): string[] {
         if (event) events.push(event.toLowerCase());
       } catch {}
 
-      if ((value.startsWith("{") && value.endsWith("}")) || (value.startsWith("[") && value.endsWith("]"))) {
+      if (
+        (value.startsWith("{") && value.endsWith("}")) ||
+        (value.startsWith("[") && value.endsWith("]"))
+      ) {
         try {
           visit(JSON.parse(value));
         } catch {}
@@ -131,7 +143,8 @@ function isDailymotionStopEvent(data: unknown): boolean {
   ];
 
   return getDailymotionMessageEvents(data).some(
-    (event) => exactStopEvents.has(event) || rawStopPatterns.some((pattern) => event.includes(pattern)),
+    (event) =>
+      exactStopEvents.has(event) || rawStopPatterns.some((pattern) => event.includes(pattern)),
   );
 }
 
@@ -156,7 +169,11 @@ function getDailymotionProgress(data: unknown): { currentTime?: number; duration
     if (["duration", "videoduration", "totalduration"].includes(normalized)) {
       duration = numberValue;
     }
-    if (["time", "currenttime", "current", "position", "videotime", "elapsedtime"].includes(normalized)) {
+    if (
+      ["time", "currenttime", "current", "position", "videotime", "elapsedtime"].includes(
+        normalized,
+      )
+    ) {
       currentTime = numberValue;
     }
   };
@@ -170,7 +187,10 @@ function getDailymotionProgress(data: unknown): { currentTime?: number; duration
         params.forEach((paramValue, key) => assignByKey(key, paramValue));
       } catch {}
 
-      if ((value.startsWith("{") && value.endsWith("}")) || (value.startsWith("[") && value.endsWith("]"))) {
+      if (
+        (value.startsWith("{") && value.endsWith("}")) ||
+        (value.startsWith("[") && value.endsWith("]"))
+      ) {
         try {
           visit(JSON.parse(value));
         } catch {}
@@ -183,7 +203,11 @@ function getDailymotionProgress(data: unknown): { currentTime?: number; duration
       for (const [key, childValue] of Object.entries(record)) {
         assignByKey(key, childValue);
         if (childValue && typeof childValue === "object") visit(childValue);
-        if (typeof childValue === "string" && (childValue.includes("=") || childValue.startsWith("{"))) visit(childValue);
+        if (
+          typeof childValue === "string" &&
+          (childValue.includes("=") || childValue.startsWith("{"))
+        )
+          visit(childValue);
       }
     }
   };
@@ -202,8 +226,22 @@ function isDailymotionLastFiveSeconds(data: unknown): boolean {
  * Generic player for non-YouTube sources (Vimeo, Dailymotion, Odysee,
  * BitChute, Rumble, Bilibili, Twitch, Streamable, Facebook, Google Drive,
  * MEGA, arbitrary iframe embeds, and uploaded/blob video files).
+ *
+ * When `onPrev`/`onNext` are provided the player is part of a series queue
+ * (same playlistId): Prev / Next buttons appear top-right next to fullscreen,
+ * and ← / → jump between episodes inside Vidd. There is deliberately NO
+ * auto-next — third-party iframes (Nxsha & co.) expose no reliable
+ * end-of-video event, so the user moves to the next episode manually.
  */
-export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
+export function EmbedPlayer({
+  src,
+  kind,
+  onClose,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
+}: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
@@ -226,6 +264,35 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inField =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        // ← prev / → next inside Vidd's series queue. Never hijack native
+        // seek on a focused <video> (uploaded files) or typing in a field.
+        // On TV the D-pad belongs to spatial navigation (the Prev/Next
+        // buttons stay reachable via focus + Enter), like VideoPlayer.
+        const inVideo = target?.tagName === "VIDEO";
+        if (!isTvBrowser() && !inField && !inVideo) {
+          if (e.key === "ArrowRight" && onNext) {
+            e.preventDefault();
+            onNext();
+            return;
+          }
+          if (e.key === "ArrowLeft" && onPrev) {
+            e.preventDefault();
+            onPrev();
+            return;
+          }
+        }
+        return;
+      }
+
       if (e.key === "Escape") {
         if (document.fullscreenElement) {
           document.exitFullscreen();
@@ -279,7 +346,9 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
           }
         };
 
-        let script = document.querySelector<HTMLScriptElement>('script[data-dailymotion-player-sdk="true"]');
+        let script = document.querySelector<HTMLScriptElement>(
+          'script[data-dailymotion-player-sdk="true"]',
+        );
         if (!script) {
           script = document.createElement("script");
           script.src = "https://geo.dailymotion.com/libs/player.js";
@@ -387,7 +456,9 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
         } catch {}
 
         const events = (window as any).dailymotion?.events ?? {};
-        const stopEvents = [events.PLAYER_END, events.VIDEO_END, events.PLAYER_RECODISPLAY].filter(Boolean);
+        const stopEvents = [events.PLAYER_END, events.VIDEO_END, events.PLAYER_RECODISPLAY].filter(
+          Boolean,
+        );
         const progressEvents = [
           events.PLAYER_START,
           events.VIDEO_START,
@@ -453,7 +524,6 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion]);
 
-
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -485,12 +555,7 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
             referrerPolicy="no-referrer-when-downgrade"
           />
         ) : (
-          <video
-            src={src}
-            controls
-            autoPlay
-            className="absolute inset-0 w-full h-full bg-black"
-          />
+          <video src={src} controls autoPlay className="absolute inset-0 w-full h-full bg-black" />
         )}
 
         {isDailymotionStopped && <div className="absolute inset-0 z-20 bg-black" />}
@@ -524,11 +589,9 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
         <div
           className="absolute top-0 left-0 right-0 h-24 z-20 pointer-events-none"
           style={{
-            background:
-              "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
           }}
         />
-
 
         {/* Close */}
         <button
@@ -539,18 +602,38 @@ export function EmbedPlayer({ src, kind, onClose }: EmbedPlayerProps) {
           <X size={22} className="text-white" />
         </button>
 
-        {/* Fullscreen */}
-        <button
-          onClick={toggleFullscreen}
-          className="absolute top-4 right-4 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-          title="Fullscreen (f)"
-        >
-          {isFullscreen ? (
-            <Minimize size={20} className="text-white" />
-          ) : (
-            <Maximize size={20} className="text-white" />
+        {/* Prev / Next (series queue) + Fullscreen — top-right */}
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+          {hasPrev && (
+            <button
+              onClick={onPrev}
+              className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+              title="Previous episode (←)"
+            >
+              <ChevronLeft size={22} className="text-white" />
+            </button>
           )}
-        </button>
+          {hasNext && (
+            <button
+              onClick={onNext}
+              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all backdrop-blur-sm"
+              title="Next episode (→)"
+            >
+              <ChevronRight size={22} className="text-white" />
+            </button>
+          )}
+          <button
+            onClick={toggleFullscreen}
+            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+            title="Fullscreen (f)"
+          >
+            {isFullscreen ? (
+              <Minimize size={20} className="text-white" />
+            ) : (
+              <Maximize size={20} className="text-white" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
