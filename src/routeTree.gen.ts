@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
+import { Route as ApiAnimeSeriesRouteImport } from './routes/api/anime-series'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 
 const AdminRoute = AdminRouteImport.update({
@@ -29,6 +30,11 @@ const ApiAuthRoute = ApiAuthRouteImport.update({
   path: '/api/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAnimeSeriesRoute = ApiAnimeSeriesRouteImport.update({
+  id: '/api/anime-series',
+  path: '/api/anime-series',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAnimeRoute = ApiAnimeRouteImport.update({
   id: '/api/anime',
   path: '/api/anime',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/anime': typeof ApiAnimeRoute
+  '/api/anime-series': typeof ApiAnimeSeriesRoute
   '/api/auth': typeof ApiAuthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/anime': typeof ApiAnimeRoute
+  '/api/anime-series': typeof ApiAnimeSeriesRoute
   '/api/auth': typeof ApiAuthRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/anime': typeof ApiAnimeRoute
+  '/api/anime-series': typeof ApiAnimeSeriesRoute
   '/api/auth': typeof ApiAuthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/api/anime' | '/api/auth'
+  fullPaths: '/' | '/admin' | '/api/anime' | '/api/anime-series' | '/api/auth'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/api/anime' | '/api/auth'
-  id: '__root__' | '/' | '/admin' | '/api/anime' | '/api/auth'
+  to: '/' | '/admin' | '/api/anime' | '/api/anime-series' | '/api/auth'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/api/anime'
+    | '/api/anime-series'
+    | '/api/auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   ApiAnimeRoute: typeof ApiAnimeRoute
+  ApiAnimeSeriesRoute: typeof ApiAnimeSeriesRoute
   ApiAuthRoute: typeof ApiAuthRoute
 }
 
@@ -92,6 +108,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/anime-series': {
+      id: '/api/anime-series'
+      path: '/api/anime-series'
+      fullPath: '/api/anime-series'
+      preLoaderRoute: typeof ApiAnimeSeriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/anime': {
       id: '/api/anime'
       path: '/api/anime'
@@ -106,6 +129,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   ApiAnimeRoute: ApiAnimeRoute,
+  ApiAnimeSeriesRoute: ApiAnimeSeriesRoute,
   ApiAuthRoute: ApiAuthRoute,
 }
 export const routeTree = rootRouteImport
