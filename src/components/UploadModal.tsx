@@ -11,10 +11,8 @@ import {
   Globe,
   Layers,
   Wand2,
-  Crown,
 } from "lucide-react";
 import type { Movie } from "../data";
-import RajaAgent from "./RajaAgent";
 import { youtubeThumbnailSources } from "../lib/media";
 import {
   detectEpisodeNumber,
@@ -377,7 +375,7 @@ const PLATFORMS = [
 ];
 
 type CloudTab = CloudProvider; // "drive" | "mega"
-type SourceTab = "file" | "embed" | "series" | "anime" | "raja" | CloudTab;
+type SourceTab = "file" | "embed" | "series" | "anime" | CloudTab;
 
 /** One episode row in the "Series" (bulk embed) tab. */
 interface EmbedEpisode {
@@ -693,7 +691,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         ? !!detected
         : sourceTab === "series"
           ? embedEpisodes.length > 0
-          : sourceTab === "anime" || sourceTab === "raja"
+          : sourceTab === "anime"
             ? true
             : cloudEpisodes[sourceTab as CloudTab].length > 0;
 
@@ -1119,12 +1117,6 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                 className={`flex-1 min-w-[60px] flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "anime" ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}
               >
                 <Wand2 size={14} /> Anime
-              </button>
-              <button
-                onClick={() => setSourceTab("raja")}
-                className={`flex-1 min-w-[70px] flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-bold transition-all ${sourceTab === "raja" ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow" : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20"}`}
-              >
-                <Crown size={14} /> Raja
               </button>
               {(["drive", "mega"] as CloudTab[]).map((tab) => (
                 <button
@@ -1679,21 +1671,6 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
               </div>
             )}
 
-            {/* ── RAJA AI AGENT TAB ── */}
-            {sourceTab === "raja" && (
-              <div className="bg-[#111]/50 rounded-xl p-1">
-                <RajaAgent
-                  availableMovies={[]}
-                  onDone={() => {
-                    // Refresh will happen via page reload / re-fetch in parent
-                  }}
-                />
-                <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/70">
-                  💡 <b className="text-amber-300">Raja yahin se kaam karta hai</b> — yehi tera admin home hai. List de, row title de (jaise POPULAR MOVIES), section chun (Movies), aur Raja khud anime fetch karke row bana dega. Public ko ye tab nahi dikhega, sirf admin ko.
-                </div>
-              </div>
-            )}
-
             {/* ── CLOUD SERIES TAB (Google Drive / MEGA) ── */}
             {cloudTab && cloudConfig && (
               <div>
@@ -1809,7 +1786,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
             )}
 
             {/* Actions */}
-            {sourceTab !== "anime" && sourceTab !== "raja" && (
+            {sourceTab !== "anime" && (
               <div className="flex justify-end mt-6 gap-3">
                 <button
                   onClick={onClose}

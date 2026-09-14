@@ -16,6 +16,8 @@ import {
   Drama,
   Palette,
   Tv,
+  Crown,
+  Bot,
 } from "lucide-react";
 import type { Category } from "../data";
 import { useSiteConfig } from "../lib/customization";
@@ -34,6 +36,7 @@ interface NavbarProps {
   onSyncClick: () => void;
   onAiClick: () => void;
   onCustomizeClick: () => void;
+  onRajaClick: () => void;
   isAdmin: boolean;
   onLogout: () => void;
 }
@@ -64,6 +67,7 @@ export default function Navbar({
   onSyncClick,
   onAiClick,
   onCustomizeClick,
+  onRajaClick,
   isAdmin,
   onLogout,
 }: NavbarProps) {
@@ -181,21 +185,33 @@ export default function Navbar({
 
                 {isAdmin ? (
                   <>
-                    <button
-                      onClick={onUploadClick}
-                      className="h-8 px-3 md:px-4 ml-1 rounded-full bg-gradient-to-r from-[#ff6a00] to-[#ee0979] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#ee0979]/20 transition active:scale-95"
-                      title="Upload"
-                    >
-                      <Upload size={13} />
-                      <span className="hidden sm:inline">Upload</span>
-                    </button>
-                    <button
-                      onClick={onLogout}
-                      className="h-8 w-8 ml-1 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 flex items-center justify-center text-white/70 hover:text-white transition"
-                      title="Logout"
-                    >
-                      <LogOut size={14} />
-                    </button>
+                    <div className="flex flex-col items-end gap-1 ml-1">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={onUploadClick}
+                          className="h-8 px-3 md:px-4 rounded-full bg-gradient-to-r from-[#ff6a00] to-[#ee0979] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#ee0979]/20 transition active:scale-95"
+                          title="Upload"
+                        >
+                          <Upload size={13} />
+                          <span className="hidden sm:inline">Upload</span>
+                        </button>
+                        <button
+                          onClick={onRajaClick}
+                          className="h-8 px-3 md:px-4 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition active:scale-95 animate-pulse"
+                          title="Raja AI Agent - Bas naam bolo, upload kar dega"
+                        >
+                          <Crown size={13} />
+                          <span className="hidden sm:inline">Raja</span>
+                        </button>
+                        <button
+                          onClick={onLogout}
+                          className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 flex items-center justify-center text-white/70 hover:text-white transition"
+                          title="Logout"
+                        >
+                          <LogOut size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </>
                 ) : null}
 

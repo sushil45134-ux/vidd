@@ -16,6 +16,7 @@ const PlaylistSync = lazy(() => import("./components/PlaylistSync"));
 const AiAssistant = lazy(() => import("./components/AiAssistant"));
 const AdminRowsEditor = lazy(() => import("./components/AdminRowsEditor"));
 const ThumbnailEditor = lazy(() => import("./components/ThumbnailEditor"));
+const RajaChatBot = lazy(() => import("./components/RajaChatBot"));
 
 import type { Movie, Category } from "./data";
 import { getMovieRef, useSiteConfig, type CustomRow, type RowKey } from "./lib/customization";
@@ -138,6 +139,7 @@ function App() {
   const [showPlaylistSync, setShowPlaylistSync] = useState(false);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
   const [showAdminEditor, setShowAdminEditor] = useState(false);
+  const [showRajaChat, setShowRajaChat] = useState(false);
   const [thumbnailEditMovie, setThumbnailEditMovie] = useState<Movie | null>(null);
 
   const [uploadedMovies, setUploadedMovies] = useState<Movie[]>([]);
@@ -554,6 +556,7 @@ function App() {
         onSyncClick={() => setShowPlaylistSync(true)}
         onAiClick={() => setShowAiAssistant(true)}
         onCustomizeClick={() => setShowAdminEditor(true)}
+        onRajaClick={() => setShowRajaChat(true)}
         isAdmin={isAdmin}
         onLogout={handleLogout}
       />
@@ -821,6 +824,19 @@ function App() {
             movie={thumbnailEditMovie}
             onClose={() => setThumbnailEditMovie(null)}
             onSave={(url) => handleUpdateThumbnail(thumbnailEditMovie, url)}
+          />
+        )}
+
+        {showRajaChat && (
+          <RajaChatBot
+            onClose={() => setShowRajaChat(false)}
+            onDone={() => {
+              // Refresh movies after Raja adds
+              import("./lib/moviesRepo").then(({ fetchAllMovies }) => fetchAllMovies().then(({ uploaded, synced }) => {
+                setUploadedMovies(uploaded);
+                setSyncedMovies(synced);
+              }));
+            }}
           />
         )}
 
