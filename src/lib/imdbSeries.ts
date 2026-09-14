@@ -78,23 +78,38 @@ export interface GeneratedEpisode {
   url: string;
 }
 
-/** Expand a provider template into every (season, episode) URL. Max 500. */
+/**
+ * Expand a provider template into every (season, episode) URL. Max 500.
+ *
+ * `episodesPerSeason` is either a uniform count (rectangular grid, manual
+ * mode) or a per-season array from the real show structure (MAL/AniList), e.g.
+ * [12, 24] → S1E1..S1E12 then S2E1..S2E24.
+ */
 export function buildImdbSeries(
   template: string,
   id: string,
   seasons: number,
-  episodesPerSeason: number,
+  episodesPerSeason: number | number[],
 ): { ok: boolean; episodes?: GeneratedEpisode[]; reason?: "bad-template" | "too-many" } {
   if (!template.includes("{id}") || !template.includes("{s}") || !template.includes("{e}")) {
     return { ok: false, reason: "bad-template" };
   }
-  const total = seasons * episodesPerSeason;
-  if (!Number.isFinite(total) || seasons < 1 || episodesPerSeason < 1 || total > 500) {
+  const perSeason = Array.isArray(episodesPerSeason)
+    ? episodesPerSeason.map((n) => Math.max(0, Math.floor(n)))
+    : Array.from({ length: Math.max(1, Math.floor(seasons)) }, () =>
+        Math.max(1, Math.floor(episodesPerSeason)),
+      );
+  if (perSeason.length === 0 || perSeason.some((n) => n < 1)) {
+    return { ok: false, reason: "too-many" };
+  }
+  const total = perSeason.reduce((a, b) => a + b, 0);
+  if (!Number.isFinite(total) || total > 500) {
     return { ok: false, reason: "too-many" };
   }
   const episodes: GeneratedEpisode[] = [];
-  for (let s = 1; s <= Math.floor(seasons); s++) {
-    for (let e = 1; e <= Math.floor(episodesPerSeason); e++) {
+  perSeason.forEach((count, i) => {
+    const s = i + 1;
+    for (let e = 1; e <= count; e++) {
       episodes.push({
         season: s,
         episode: e,
@@ -104,6 +119,90 @@ export function buildImdbSeries(
           .replace(/\{e\}/g, String(e)),
       });
     }
-  }
+  });
   return { ok: true, episodes };
+}
+
+/* ── Anime series structure (seasons × episodes + stills, keyless) ── */
+/**
+ * Fetched from the /api/anime-series server route. Primary source is Jikan
+ * (MyAnimeList — real season chain + each episode's own still image);
+ * fallback is AniList (season chain + counts, no stills). Both are free and
+ * need NO API key. One entry per real season — this auto-fills the upload
+ * form and pictures every episode row.
+ */
+export interface AnimeEpisode {
+  episode: number;
+  name?: string;
+  /** Per-episode still (Jikan only; AniList fallback has none). */
+  still?: string;
+}
+
+export interface AnimeSeason {
+  season: number;
+  episodes: AnimeEpisode[];
+}
+
+export interface AnimeShowInfo {
+  source: "jikan" | "anilist";
+  /** MAL id (Jikan) or AniList id. */
+  externalId: number;
+  name: string;
+  firstYear?: number;
+  totalEpisodes: number;
+  seasons: AnimeSeason[];
+  posterUrl?: string;
+  backdropUrl?: string;
+  /** 500-episode cap hit — the rest goes in via "Add to Existing Series". */
+  truncated?: boolean;
+}
+
+export function totalAnimeEpisodes(info: AnimeShowInfo): number {
+  return info.seasons.reduce((sum, s) => sum + s.episodes.length, 0);
+}
+
+/**
+ * Resolve an anime's full structure from the server-side Jikan/AniList route.
+ * Throws an Error whose `code` is "not-found" | "upstream" | "network" and
+ * which may carry `suggestions` (search candidates to try instead).
+ */
+export async function fetchAnimeSeriesInfo(opts: {
+  q: string;
+  imdb?: string | null;
+}): Promise<AnimeShowInfo> {
+  const params = new URLSearchParams();
+  params.set("q", opts.q);
+  if (opts.imdb) params.set("imdb", opts.imdb);
+  let res: Response;
+  try {
+    res = await fetch(`/api/anime-series?${params.toString()}`);
+  } catch {
+    const err = new Error("Server se connect nahi hua — internet/preview check karo.") as Error & {
+      code?: string;
+    };
+    err.code = "network";
+    throw err;
+  }
+  let data:
+    | (AnimeShowInfo & {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+        suggestions?: string[];
+      })
+    | null = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data || data.ok !== true) {
+    const err = new Error(
+      (data && data.message) || `Server ${res.status} se jawab nahi diya.`,
+    ) as Error & { code?: string; suggestions?: string[] };
+    err.code = (data && data.error) || "upstream";
+    err.suggestions = data?.suggestions;
+    throw err;
+  }
+  return data;
 }

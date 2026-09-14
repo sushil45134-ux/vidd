@@ -28,8 +28,11 @@ import {
   detectProviderFromEmbed,
   detectSeasonEpisode,
   extractImdbId,
+  fetchAnimeSeriesInfo,
   getProvider,
   isBareRootUrl,
+  totalAnimeEpisodes,
+  type AnimeShowInfo,
 } from "../lib/imdbSeries";
 import {
   isCloudLink,
@@ -47,7 +50,11 @@ interface UploadModalProps {
   onUpload: (movie: Movie | Movie[]) => void;
   /** Existing uploaded series (playlistId + title + season summary) the admin
    *  can add more episodes/seasons into instead of creating a new card. */
-  existingSeries?: { playlistId: string; title: string; seasons: { season: number; count: number }[] }[];
+  existingSeries?: {
+    playlistId: string;
+    title: string;
+    seasons: { season: number; count: number }[];
+  }[];
 }
 
 const GENRES = [
@@ -384,6 +391,8 @@ interface EmbedEpisode {
   host: string;
   season?: number;
   num?: number;
+  /** Per-episode still from MAL/Jikan (auto-series) — becomes the episode image. */
+  still?: string;
 }
 
 const epSort = (a: EmbedEpisode, b: EmbedEpisode): number =>
@@ -488,6 +497,14 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
   const [imdbTemplate, setImdbTemplate] = useState("");
   const [imdbSeasons, setImdbSeasons] = useState(1);
   const [imdbEps, setImdbEps] = useState(12);
+  // Anime auto-detect (Jikan/MAL, keyless — fallback AniList): seasons ×
+  // episodes + per-episode stills for the name pasted above. When set,
+  // Generate uses the REAL per-season episode counts instead of the
+  // rectangular Seasons × Episodes grid; editing those inputs drops back to
+  // manual mode.
+  const [showInfo, setShowInfo] = useState<AnimeShowInfo | null>(null);
+  const [showInfoLoading, setShowInfoLoading] = useState(false);
+  const [showInfoError, setShowInfoError] = useState("");
 
   // The active cloud tab, when the user picked the Drive or MEGA source tab.
   const cloudTab: CloudTab | null =
@@ -539,9 +556,18 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     if (provider) {
       setImdbProvider(provider.id);
       setSourceTab("series");
-      setEmbedSeriesError(
-        `IMDb player detect hua: ${provider.name}. Neeche "IMDb Auto-Series" me sirf IMDb ID daalo (jaise tt15765670) aur poora season ek baar me banao — bar bar link paste karne ki zaroorat nahi.`,
-      );
+      if (id) {
+        // Link ke andar hi IMDb ID hai — Auto-Series box me bhar do taaki
+        // TMDb auto-detect (seasons/episodes/images) khud trigger ho jaye.
+        setImdbInput((prev) => (prev.trim() ? prev : id));
+        setEmbedSeriesError(
+          `IMDb player detect hua: ${provider.name}. IMDb ID ${id} "IMDb Auto-Series" me auto-fill ho gayi — seasons, episodes aur episode images TMDb se khud aa rahe hain. Sirf "Generate" dabao.`,
+        );
+      } else {
+        setEmbedSeriesError(
+          `IMDb player detect hua: ${provider.name}. Neeche "IMDb Auto-Series" me sirf IMDb ID daalo (jaise tt15765670) aur poora series ek baar me banao — bar bar link paste karne ki zaroorat nahi.`,
+        );
+      }
       return;
     }
     if (id && !detected) {
@@ -554,23 +580,82 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedInput]);
 
-  /** IMDb auto-series: ek ID + provider template se poora series generate. */
+  // Anime auto-detect (Jikan/MAL — KEYLESS, fallback AniList): jab anime ka
+  // naam + provider ID dono valid ho jayein, khud seasons × episodes + har
+  // episode ka still fetch karke form auto-fill karo — admin seasons/
+  // episodes manually gino nahi.
+  useEffect(() => {
+    const id = extractImdbId(imdbInput);
+    const numeric = !id && /^\d{1,8}$/.test(imdbInput.trim()) ? imdbInput.trim() : null;
+    const q = seriesTitle.trim();
+    if (q.length < 3 || (!id && !numeric)) {
+      setShowInfo(null);
+      setShowInfoError("");
+      setShowInfoLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setShowInfoLoading(true);
+    setShowInfoError("");
+    const timer = setTimeout(() => {
+      fetchAnimeSeriesInfo({ q, imdb: id ?? numeric ?? undefined })
+        .then((info) => {
+          if (cancelled) return;
+          setShowInfo(info);
+          setShowInfoError("");
+          // Seasons count auto-fill (Episodes/Season sirf manual mode me hai).
+          if (info.seasons.length > 0) setImdbSeasons(info.seasons.length);
+        })
+        .catch((err: Error & { code?: string; suggestions?: string[] }) => {
+          if (cancelled) return;
+          setShowInfo(null);
+          setShowInfoError(
+            err.code === "not-found" && err.suggestions?.length
+              ? `${err.message} Yeh try karo: ${err.suggestions.slice(0, 3).join(" / ")}`
+              : err.message || "Series info fetch nahi hui.",
+          );
+        })
+        .finally(() => {
+          if (!cancelled) setShowInfoLoading(false);
+        });
+    }, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // Name + ID dono trigger karte hain (debounced); provider changes nahi.
+  }, [imdbInput, seriesTitle]);
+
+  /** IMDb auto-series: ek ID + provider template se poora series generate.
+   *  Jikan/MAL auto-detect mila ho to real seasons × episodes (per-season
+   *  counts) use hote hain, har episode ka MAL naam + apna still image lagta
+   *  hai. Warna purana rectangular Seasons × Episodes grid (manual mode). */
   const generateImdbSeries = () => {
     const id = extractImdbId(imdbInput);
-    const tmdbId = !id && /^\d{1,8}$/.test(imdbInput.trim()) ? imdbInput.trim() : null;
-    if (!id && !tmdbId) {
+    const numericId = !id && /^\d{1,8}$/.test(imdbInput.trim()) ? imdbInput.trim() : null;
+    if (!id && !numericId) {
       setEmbedSeriesError(
-        "IMDb ID nahi mila. IMDb page ke URL se tt wala ID daalo (jaise tt15765670) — ya TMDB numeric ID.",
+        "IMDb ID nahi mila. IMDb page ke URL se tt wala ID daalo (jaise tt15765670).",
+      );
+      return;
+    }
+    // NHD/Nxsha templates ko IMDb tt-ID chahiye — number wali ID se link
+    // nahi banega.
+    if (!id && numericId) {
+      setEmbedSeriesError(
+        "NHD/Nxsha ke liye IMDb ID (tt…) chahiye — number wali ID se link nahi banega. IMDb page ka tt-ID paste karo.",
       );
       return;
     }
     const preset = getProvider(imdbProvider);
     const template = preset ? preset.template : imdbTemplate.trim();
+    const templateId = id!;
+    const perSeason = showInfo ? showInfo.seasons.map((s) => s.episodes.length) : undefined;
     const result = buildImdbSeries(
       template,
-      id ?? tmdbId!,
+      templateId,
       Math.max(1, imdbSeasons),
-      Math.max(1, imdbEps),
+      perSeason && perSeason.length > 0 ? perSeason : Math.max(1, imdbEps),
     );
     if (!result.ok) {
       setEmbedSeriesError(
@@ -581,15 +666,24 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       return;
     }
     const providerName = preset ? preset.name : embedHostLabel(template);
+    const metaFor = (season: number, episode: number) =>
+      showInfo?.seasons
+        .find((s) => s.season === season)
+        ?.episodes.find((e) => e.episode === episode);
     setEmbedEpisodes(() =>
-      result.episodes!.map((gen) => ({
-        id: `${Date.now()}-${Math.random()}`,
-        title: `Episode ${gen.episode}`,
-        url: gen.url,
-        host: providerName,
-        season: gen.season,
-        num: gen.episode,
-      })),
+      result.episodes!.map((gen) => {
+        const meta = metaFor(gen.season, gen.episode);
+        return {
+          id: `${Date.now()}-${Math.random()}`,
+          // MAL me episode ka apna naam ho to wahi, warna E1/E2…
+          title: meta?.name || `Episode ${gen.episode}`,
+          url: gen.url,
+          host: providerName,
+          season: gen.season,
+          num: gen.episode,
+          still: meta?.still,
+        };
+      }),
     );
     setEmbedSeriesError("");
   };
@@ -907,18 +1001,20 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         seriesMode === "existing" && existingPid ? existingPid : `user-series-${Date.now()}`;
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
-      const cover = thumbnailUrl || fallbackImg;
+      // Series cover: admin ka thumbnail > TMDb ka official backdrop > Pexels.
+      const cover = thumbnailUrl || showInfo?.backdropUrl || fallbackImg;
       const movies: Movie[] = eps.map((ep, i) => {
         const yt = extractYouTubeId(ep.url);
-        // YouTube embeds get their own real thumbnail; non-YouTube iframe
-        // embeds have no per-episode image, so they keep the series cover.
-        const epImage = yt ? youtubeThumbnailSources(yt)[0] : cover;
+        // YouTube embeds get their own real thumbnail. IMDb auto-series me
+        // har episode ka apna MAL still hai; baaki iframe embeds series
+        // cover rakhte hain.
+        const epImage = yt ? youtubeThumbnailSources(yt)[0] : ep.still || cover;
         return {
           id: Date.now() + i,
           title: ep.title,
           description: description.trim() || `${sTitle} — ${ep.title}`,
           image: epImage,
-          backdrop: yt ? youtubeThumbnailSources(yt)[0] : thumbnailUrl || undefined,
+          backdrop: yt ? youtubeThumbnailSources(yt)[0] : ep.still || thumbnailUrl || undefined,
           year,
           rating,
           duration: "Unknown",
@@ -929,7 +1025,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
           youtubeId: yt,
           embedUrl: yt ? undefined : ep.url,
           embedPlatform: yt ? undefined : ep.host,
-          thumbnailUrl: yt ? youtubeThumbnailSources(yt)[0] : thumbnailUrl || undefined,
+          thumbnailUrl: yt ? youtubeThumbnailSources(yt)[0] : ep.still || thumbnailUrl || undefined,
           playlistId: pid,
           playlistTitle: sTitle,
           episodeNumber: ep.num ?? i + 1,
@@ -1318,9 +1414,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
               <div>
                 {/* Add to: new series OR existing series */}
                 <div className="mb-4">
-                  <label className="text-gray-300 text-sm font-medium mb-2 block">
-                    Add to
-                  </label>
+                  <label className="text-gray-300 text-sm font-medium mb-2 block">Add to</label>
                   <div className="flex gap-2 mb-3">
                     <button
                       type="button"
@@ -1367,9 +1461,8 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         </p>
                       )}
                       <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
-                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1
-                        rakho, ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar
-                        judeinge.
+                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1 rakho,
+                        ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar judeinge.
                       </p>
                     </>
                   )}
@@ -1432,34 +1525,80 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                       </select>
                     </div>
                     <div>
-                      <label className="text-gray-500 text-[10px] mb-1 block">Seasons</label>
+                      <label className="text-gray-500 text-[10px] mb-1 block">
+                        Seasons{" "}
+                        {showInfo ? (
+                          <span className="text-[#7dd87d]">(auto)</span>
+                        ) : (
+                          <span className="text-gray-600">(manual)</span>
+                        )}
+                      </label>
                       <input
                         type="number"
                         min={1}
                         max={50}
                         value={imdbSeasons}
-                        onChange={(e) =>
-                          setImdbSeasons(Math.min(50, Math.max(1, Number(e.target.value) || 1)))
-                        }
+                        onChange={(e) => {
+                          // Manual edit = auto-detect ka override.
+                          setShowInfo(null);
+                          setImdbSeasons(Math.min(50, Math.max(1, Number(e.target.value) || 1)));
+                        }}
                         className="w-full bg-[#333] border border-gray-600 rounded px-2 py-1.5 text-white text-xs outline-none focus:border-[#e50914]"
                       />
                     </div>
                     <div>
                       <label className="text-gray-500 text-[10px] mb-1 block">
-                        Episodes / Season
+                        Episodes / Season{" "}
+                        {showInfo ? (
+                          <span className="text-[#7dd87d]">(per-season auto)</span>
+                        ) : (
+                          <span className="text-gray-600">(manual)</span>
+                        )}
                       </label>
                       <input
                         type="number"
                         min={1}
                         max={200}
                         value={imdbEps}
-                        onChange={(e) =>
-                          setImdbEps(Math.min(200, Math.max(1, Number(e.target.value) || 1)))
-                        }
+                        onChange={(e) => {
+                          setShowInfo(null);
+                          setImdbEps(Math.min(200, Math.max(1, Number(e.target.value) || 1)));
+                        }}
                         className="w-full bg-[#333] border border-gray-600 rounded px-2 py-1.5 text-white text-xs outline-none focus:border-[#e50914]"
                       />
                     </div>
                   </div>
+                  {showInfoLoading && (
+                    <p className="text-gray-400 text-[10px] mt-2 flex items-center gap-1.5">
+                      <span className="w-3 h-3 border-2 border-gray-600 border-t-[#ff6b76] rounded-full animate-spin flex-shrink-0" />
+                      MAL/AniList se seasons + episodes + episode images fetch ho rahe hain…
+                    </p>
+                  )}
+                  {showInfo && !showInfoLoading && (
+                    <p className="text-[#7dd87d] text-[10px] mt-2 leading-relaxed">
+                      ✓ Auto-detected ({showInfo.source === "jikan" ? "MAL/Jikan" : "AniList"}):{" "}
+                      <span className="font-bold text-white">{showInfo.name}</span> —{" "}
+                      {showInfo.seasons.length} season
+                      {showInfo.seasons.length !== 1 ? "s" : ""}, {totalAnimeEpisodes(showInfo)}{" "}
+                      episodes{" "}
+                      {showInfo.seasons.map((s) => `S${s.season}:${s.episodes.length}`).join(" ")}.
+                      {showInfo.truncated
+                        ? " (500 episodes max — baaki baad me 'Add to Existing Series' se daalo. )"
+                        : ""}
+                      Season/episode numbers aur har episode ka image Generate pe apne aap lag
+                      jayenge.{" "}
+                      <button
+                        type="button"
+                        onClick={() => setShowInfo(null)}
+                        className="text-gray-400 hover:text-white underline"
+                      >
+                        manual mode
+                      </button>
+                    </p>
+                  )}
+                  {showInfoError && !showInfoLoading && (
+                    <p className="text-red-400 text-[10px] mt-2 leading-relaxed">{showInfoError}</p>
+                  )}
                   {imdbProvider === CUSTOM_PROVIDER_ID && (
                     <input
                       type="text"
@@ -1598,7 +1737,17 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                             className="w-12 bg-[#333] border border-gray-600 rounded px-1 py-1 text-white text-xs text-center outline-none focus:border-[#e50914] flex-shrink-0"
                             title="Episode number"
                           />
-                          <Layers size={14} className="text-[#e50914] flex-shrink-0" />
+                          {ep.still ? (
+                            <img
+                              src={ep.still}
+                              alt=""
+                              loading="lazy"
+                              className="w-14 h-8 object-cover rounded flex-shrink-0"
+                              title="Episode image (MAL)"
+                            />
+                          ) : (
+                            <Layers size={14} className="text-[#e50914] flex-shrink-0" />
+                          )}
                           <input
                             type="text"
                             value={ep.title}
