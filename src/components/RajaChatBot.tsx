@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Crown, Send, X, Sparkles, Loader2, Check, Bot, User, Wand2, Film, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Crown, Send, X, Sparkles, Loader2, Bot, User, AlertCircle, Film, Tv, Check } from "lucide-react";
 import type { Movie } from "../data";
 import { loadConfig, saveConfig, getMovieRef, type CustomRow, type RowSection } from "../lib/customization";
 import { insertMovies, fetchAllMovies } from "../lib/moviesRepo";
@@ -8,10 +8,10 @@ import { IMDB_PROVIDERS } from "../lib/imdbSeries";
 
 interface ChatMessage {
   id: string;
-  role: "user" | "raja" | "system";
+  role: "user" | "raja";
   text: string;
   timestamp: string;
-  type?: "log" | "success" | "error" | "thinking";
+  type?: "log" | "success" | "error" | "thinking" | "chat";
 }
 
 interface Props {
@@ -19,51 +19,59 @@ interface Props {
   onDone?: () => void;
 }
 
-const SECTION_OPTIONS: { value: RowSection; label: string }[] = [
-  { value: "movies", label: "Movies" },
-  { value: "anime", label: "Anime" },
-  { value: "home", label: "Home" },
-  { value: "cartoon", label: "Cartoon" },
-  { value: "tvshows", label: "TV Shows" },
-  { value: "new", label: "New & Popular" },
-  { value: "all", label: "All Sections" },
-];
+function isGreeting(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  const greetings = ["kaise ho", "kese ho", "how are you", "hello", "hi", "hey", "namaste", "namaskar", "kya haal", "kya hal", "kaisa hai", "kaisi ho", "aur bhai", "kya chal", "good morning", "good evening"];
+  if (lower.length < 30) {
+    for (const g of greetings) {
+      if (lower.includes(g)) return true;
+    }
+    // Very short like "hi", "hello", "kaise ho" alone
+    if (lower.split(/\s+/).length <= 3 && lower.length < 20) {
+      // Check if it doesn't look like anime title (no known anime words)
+      const animeWords = ["violet", "evergarden", "suzume", "demon", "slayer", "naruto", "one piece", "attack", "titan", "your name", "edgerunners", "cyberpunk", "jujutsu", "chainsaw", "spy", "family", "dandadan", "solo", "leveling", "frieren", "my dress", "darling", "anime", "movie", "series"];
+      const hasAnime = animeWords.some(w => lower.includes(w));
+      if (!hasAnime) return true;
+    }
+  }
+  return false;
+}
 
-function parseUserIntent(input: string): { animeList: string[]; rowTitle: string; section: RowSection; provider: string } {
+function parseUserIntent(input: string): { animeList: string[]; rowTitle: string; section: RowSection; provider: string; isGreeting: boolean } {
+  if (isGreeting(input)) {
+    return { animeList: [], rowTitle: "POPULAR MOVIES", section: "movies", provider: IMDB_PROVIDERS[0].id, isGreeting: true };
+  }
+
   const lower = input.toLowerCase();
   let rowTitle = "POPULAR MOVIES";
   let section: RowSection = "movies";
   let provider = IMDB_PROVIDERS[0].id;
   let animeList: string[] = [];
 
-  // Extract row title: "row ...", "POPULAR MOVIES", "TRENDING", etc or quoted
+  // Row title extraction
   const rowMatch = input.match(/(?:row|list)\s*(?:named|called|title)?\s*["']?([^"'\n]+?)["']?\s*(?:in|for|me|bana|create)?/i) ||
-                   input.match(/["']([A-Z\s]+)["']/ ) ||
-                   input.match(/(POPULAR MOVIES|TRENDING ANIME|TOP \d+|MUST WATCH|NEW RELEASES)/i);
+                   input.match(/["']([A-Z\s]+)["']/) ||
+                   input.match(/(POPULAR MOVIES|TRENDING ANIME|TOP \d+|MUST WATCH|NEW RELEASES|HINDI DUBBED)/i);
   if (rowMatch) {
     rowTitle = rowMatch[1].trim().toUpperCase();
     if (rowTitle.length > 40) rowTitle = rowTitle.slice(0, 40);
   }
 
-  // Section detection
   if (lower.includes("anime")) section = "anime";
   else if (lower.includes("movie")) section = "movies";
   else if (lower.includes("cartoon")) section = "cartoon";
   else if (lower.includes("tv show")) section = "tvshows";
   else if (lower.includes("home")) section = "home";
 
-  // Provider
   if (lower.includes("nxsha")) provider = "nxsha";
   else if (lower.includes("nhd")) provider = "nhd";
 
-  // Anime list: split by comma, newline, or "add X, Y, Z"
-  // Try to extract after "add", "upload", "include"
+  // Extract list after "add", "upload", etc
   let listPart = input;
-  const addMatch = input.match(/(?:add|upload|include|lagao|daalo)\s+(.+?)(?:\s+to\s+|\s+in\s+|\s+row|\s+me|$)/i);
+  const addMatch = input.match(/(?:add|upload|include|lagao|daalo|daal|bana)\s+(.+?)(?:\s+to\s+|\s+in\s+|\s+row|\s+me|ko|$)/i);
   if (addMatch) listPart = addMatch[1];
 
-  // Clean row title words from list
-  listPart = listPart.replace(/POPULAR MOVIES|TRENDING ANIME|row|movies|anime|section|me|bana|create|list/gi, "");
+  listPart = listPart.replace(/POPULAR MOVIES|TRENDING ANIME|row|movies|anime|section|me|bana|create|list|ko|mein/gi, "");
 
   animeList = listPart
     .split(/[,;\n]+/)
@@ -72,23 +80,25 @@ function parseUserIntent(input: string): { animeList: string[]; rowTitle: string
     .map(s => s.replace(/^(add|upload|include)\s+/i, "").trim())
     .filter(Boolean);
 
-  // If still empty, try to find known anime names in input
+  // Known anime detection if list empty
   if (animeList.length === 0) {
-    const known = ["violet evergarden", "your name", "suzume", "a silent voice", "demon slayer", "spy x family", "attack on titan", "naruto", "one piece", "jujutsu kaisen", "chainsaw man", "my dress-up darling", "weathering with you", "i want to eat your pancreas"];
+    const known = ["violet evergarden", "your name", "suzume", "a silent voice", "demon slayer", "spy x family", "attack on titan", "naruto", "one piece", "jujutsu kaisen", "chainsaw man", "my dress-up darling", "weathering with you", "i want to eat your pancreas", "cyberpunk: edgerunners", "edgerunners", "dandadan", "solo leveling", "frieren"];
     for (const k of known) {
       if (lower.includes(k)) animeList.push(k.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "));
     }
   }
 
-  // Fallback: if input is just a list like "Violet Evergarden, Your Name"
   if (animeList.length === 0) {
-    animeList = input.split(/[,;\n]+/).map(s => s.trim()).filter(s => s.length > 2 && s.length < 60);
+    // If input looks like just titles separated by commas
+    const possible = input.split(/[,;\n]+/).map(s => s.trim()).filter(s => s.length > 2 && s.length < 60 && !isGreeting(s));
+    if (possible.length > 0 && possible.length <= 5) {
+      animeList = possible;
+    }
   }
 
-  // Deduplicate
   animeList = Array.from(new Set(animeList)).slice(0, 10);
 
-  return { animeList, rowTitle, section, provider };
+  return { animeList, rowTitle, section, provider, isGreeting: false };
 }
 
 function findMovieByName(name: string, library: Movie[]): Movie | null {
@@ -105,8 +115,9 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
     {
       id: "welcome",
       role: "raja",
-      text: "Namaste! 👑 Main Raja hu, tera AI agent. Bas mujhe bol jaise:\n\n• 'Add Violet Evergarden, Your Name to POPULAR MOVIES in Movies'\n• 'Suzume aur A Silent Voice ko Trending Anime row me daal'\n• 'Violet Evergarden upload kar de'\n\nMain khud IMDb ID nikalunga, AniList+Jikan se fetch karunga, aur row bana dunga — chahe wo website pe ho ya na ho!",
+      text: "Are bhai! 👑 Main Raja hu — tera personal AI agent!\n\nMain ekdum mast hu, tu bata kaise hai? 😎\n\nMujhe bas anime ka naam de, jaise:\n• Violet Evergarden\n• Your Name, Suzume\n• Cyberpunk: Edgerunners\n\nMain khud IMDb number dhundunga, bataunga movie hai ya series, website pe hai ya nahi, aur khud upload karke row bana dunga. Bol kya kaam hai?",
       timestamp: new Date().toLocaleTimeString(),
+      type: "chat",
     }
   ]);
   const [input, setInput] = useState("");
@@ -153,16 +164,24 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
 
     try {
       const intent = parseUserIntent(trimmed);
-      addMessage("raja", `Samajh gaya! 🧠\n\n• Anime/Movies: ${intent.animeList.join(", ") || "kuch nahi mila, phir se bolo?"}\n• Row: ${intent.rowTitle}\n• Section: ${intent.section}\n• Provider: ${intent.provider} (Nxsha default)`, "thinking");
 
-      if (intent.animeList.length === 0) {
-        addMessage("raja", "Bhai anime ka naam to de! Jaise 'Violet Evergarden' ya 'Your Name, Suzume'. Fir se bol.", "error");
+      // Greeting handling
+      if (intent.isGreeting) {
+        addMessage("raja", "Ekdam badhiya bhai! 🔥 Main toh yahan mast baitha hu, tera kaam karne ke liye ready!\n\nTu bas mujhe anime ka naam de de — jaise 'Violet Evergarden' ya 'Cyberpunk: Edgerunners' — aur main khud sab kuch kar dunga:\n\n1. IMDb number khud dhundunga\n2. Bataunga movie hai ya series\n3. Check karunga website pe hai ya nahi\n4. Nahi hai to khud AniList+Jikan se fetch karke upload kar dunga\n\nBol, kaunsa anime chahiye? 👇", "chat");
         setIsThinking(false);
         setIsProcessing(false);
         return;
       }
 
-      addMessage("raja", `👑 Raja shuru kar raha hai — ${intent.animeList.length} items, row "${intent.rowTitle}" → ${intent.section}...`, "log");
+      if (intent.animeList.length === 0) {
+        addMessage("raja", "Bhai anime ka naam to bata! 😅\n\nJaise: 'Violet Evergarden' ya 'Your Name, Suzume, Demon Slayer'\n\nMain khud IMDb nikal ke upload kar dunga, chahe website pe ho ya na ho!", "chat");
+        setIsThinking(false);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Conversational start
+      addMessage("raja", `Samajh gaya bhai! 🧠 Tu chahta hai:\n\n• Anime: ${intent.animeList.join(", ")}\n• Row: ${intent.rowTitle}\n• Section: ${intent.section}\n\nAb main ek-ek karke check karta hu...`, "thinking");
 
       const movieRefs: string[] = [];
       const movieIds: number[] = [];
@@ -172,18 +191,19 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
         const name = intent.animeList[i].trim();
         if (!name) continue;
 
-        addMessage("raja", `🔍 Checking library: ${name}`, "log");
-
+        // Check library first
         const existing = findMovieByName(name, library);
-        if (existing) {
-          const ref = getMovieRef(existing);
+        const isInLibrary = !!existing;
+
+        if (isInLibrary) {
+          addMessage("raja", `✅ "${name}" — Ye to website pe pehle se hai!\n\n• Title: ${existing!.title}\n• Type: ${existing!.isCollection ? `Series (${existing!.seasons?.length || 1} seasons)` : "Movie"}\n• ID: ${existing!.id}\n• Main isko row me add kar dunga, naya upload karne ki zarurat nahi.`, "chat");
+          const ref = getMovieRef(existing!);
           movieRefs.push(ref);
-          movieIds.push(existing.id);
-          addMessage("raja", `✅ Library me mil gaya: ${existing.title} → ${ref}`, "log");
+          movieIds.push(existing!.id);
           continue;
         }
 
-        addMessage("raja", `🌐 Library me nahi hai, AniList+Jikan se fetch kar raha hu: ${name}... (IMDb khud nikalunga)`, "log");
+        addMessage("raja", `🔍 "${name}" — Ye abhi website par nahi hai, maine khud dhunda hai...\n\nAniList+Jikan pe search kar raha hu...`, "thinking");
 
         try {
           const params = new URLSearchParams({ title: name });
@@ -195,30 +215,31 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
           const data = (await res.json()) as AutoFetchResult & { imdbId?: string; autoResolvedImdb?: string; imdbAutoResolved?: boolean };
 
           const serverImdb = (data as any).imdbId || (data as any).autoResolvedImdb;
-          const imdbToUse = serverImdb;
+          const isMovie = data.totalSeasons === 1 && (data.totalEpisodes === 1 || data.seasons[0]?.format === "MOVIE" || data.seasons[0]?.episodesCount === 1);
+          const typeText = isMovie ? "Movie" : `Series (${data.totalSeasons} season${data.totalSeasons > 1 ? "s" : ""}, ${data.totalEpisodes} episodes)`;
 
-          if (imdbToUse) {
-            if ((data as any).imdbAutoResolved) {
-              addMessage("raja", `🎯 Auto-found IMDb for "${name}" → ${imdbToUse}`, "log");
-            }
+          if (serverImdb) {
+            addMessage("raja", `🎯 "${name}" ka IMDb mil gaya!\n\n• IMDb Number: ${serverImdb} ${(data as any).imdbAutoResolved ? "(maine khud dhunda hai - IMDb suggestion + TVMaze se)" : "(known database se)"}\n• Main Title: ${data.mainTitle}\n• Type: ${typeText}\n• Year: ${data.seasons[0]?.year || "N/A"}\n• Status: Ye abhi website par nahi hai, maine khud dhunda hai, ab upload kar raha hu...\n• Provider: ${intent.provider} (Nxsha - Hindi audio)`, "chat");
+
             const movies = autoFetchToMovies(data, {
-              imdbId: imdbToUse,
+              imdbId: serverImdb,
               providerId: intent.provider,
             });
+
             if (movies.length > 0) {
               newMoviesToInsert.push(...movies);
               const first = movies[0];
               if (first.playlistId) {
                 movieRefs.push(`playlist:${first.playlistId}`);
-                addMessage("raja", `✨ ${movies.length} episodes banaye ${data.mainTitle} (S${data.totalSeasons}) → ${first.playlistId} [${imdbToUse}]`, "log");
+                addMessage("raja", `✨ "${data.mainTitle}" — ${movies.length} episodes bana diye!\n\n• Playlist ID: ${first.playlistId}\n• Player: ${intent.provider} - https://nxsha.space/embed/tv/${serverImdb}/{s}/{e}\n• Cover: ${data.mainCover ? "✅" : "❌"} | Banner: ${data.mainBanner ? "✅" : "❌"}\n• Ab DB me save kar raha hu...`, "log");
               } else {
                 movieRefs.push(getMovieRef(first));
                 movieIds.push(first.id);
-                addMessage("raja", `✨ Movie banaya: ${first.title} [${imdbToUse}]`, "log");
+                addMessage("raja", `✨ Movie banaya: ${first.title} [${serverImdb}]`, "log");
               }
             }
           } else {
-            // No IMDb — still create metadata
+            addMessage("raja", `⚠️ "${name}" ka IMDb nahi mila, par maine metadata se movie bana diya:\n\n• Title: ${data.mainTitle}\n• Type: ${typeText}\n• Year: ${data.seasons[0]?.year}\n• Status: Metadata-only (player baad me add kar sakte ho)`, "chat");
             const cover = data.mainCover || data.seasons[0]?.coverImage || "";
             const single: Movie = {
               id: Date.now() + i * 1000,
@@ -237,30 +258,30 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
             };
             newMoviesToInsert.push(single);
             movieRefs.push(getMovieRef(single));
-            addMessage("raja", `✨ Metadata-only banaya: ${single.title} (IMDb nahi mila)`, "log");
           }
 
-          await new Promise(r => setTimeout(r, 600));
+          await new Promise(r => setTimeout(r, 500));
         } catch (e: any) {
-          addMessage("raja", `❌ Failed ${name}: ${e.message}`, "error");
+          addMessage("raja", `❌ "${name}" — Error: ${e.message}\n\nHo sakta hai AniList block ho ya naam galat ho. Sahi spelling de, jaise "Violet Evergarden"`, "error");
         }
       }
 
-      // Insert
+      // Insert to DB
       let inserted: Movie[] = [];
       if (newMoviesToInsert.length > 0) {
-        addMessage("raja", `💾 ${newMoviesToInsert.length} movies DB me daal raha hu...`, "log");
+        addMessage("raja", `💾 Ab ${newMoviesToInsert.length} episodes/movies ko database me save kar raha hu...`, "thinking");
         try {
           inserted = await insertMovies(newMoviesToInsert, "uploaded");
           if (inserted.length === 0) {
             inserted = newMoviesToInsert;
-            addMessage("raja", `⚠️ Supabase 0 return, local IDs use kar raha hu`, "log");
+            addMessage("raja", `⚠️ Supabase ne 0 return kiya (RLS issue ho sakta hai), par maine local me save kar diya — website pe dikhega!`, "log");
           } else {
-            addMessage("raja", `✅ ${inserted.length} movies DB me save ho gaye`, "log");
+            addMessage("raja", `✅ ${inserted.length} items database me save ho gaye!`, "success");
           }
+          setLibrary(prev => [...inserted, ...prev]);
         } catch (e: any) {
           inserted = newMoviesToInsert;
-          addMessage("raja", `❌ DB error: ${e.message}, local use kar raha hu`, "error");
+          addMessage("raja", `⚠️ DB error: ${e.message}, par local me save kar diya`, "error");
         }
       }
 
@@ -282,7 +303,14 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
       const uniqueRefs = Array.from(new Set(finalRefs));
       const uniqueIds = Array.from(new Set(finalIds));
 
-      addMessage("raja", `📦 Final row me ${uniqueRefs.length} items honge`, "log");
+      if (uniqueRefs.length === 0) {
+        addMessage("raja", `❌ Kuch add nahi ho paya bhai. Naam sahi likh, jaise "Violet Evergarden" ya "Cyberpunk: Edgerunners"`, "error");
+        setIsThinking(false);
+        setIsProcessing(false);
+        return;
+      }
+
+      addMessage("raja", `📦 Ab row bana raha hu...\n\n• Row Title: ${intent.rowTitle}\n• Section: ${intent.section}\n• Items: ${uniqueRefs.length}`, "thinking");
 
       const newRow: CustomRow = {
         id: `row_${Date.now()}`,
@@ -300,13 +328,13 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
       const saved = await saveConfig({ ...cfg, customRows: nextRows }, { allowEmptyCustomRows: true });
 
       if (saved) {
-        addMessage("raja", `🎉 Ho gaya bhai! Row "${intent.rowTitle}" section "${intent.section}" me ban gaya with ${uniqueRefs.length} items!\n\nJo anime library me nahi the wo maine khud fetch karke add kar diye — cover, banner, description + Nxsha player ke saath. Page refresh kar ke dekh!`, "success");
+        addMessage("raja", `🎉 Ho gaya bhai! 🎉\n\n✅ Row "${intent.rowTitle}" section "${intent.section}" me ban gaya with ${uniqueRefs.length} items!\n\nMaine jo list di thi:\n${intent.animeList.map(n => `• ${n}`).join("\n")}\n\nUsme se jo website pe nahi the, wo maine khud dhund ke add kar diye — cover, banner, description + Nxsha player (IMDb number ke saath). Page refresh karke "${intent.section}" section me dekh, dikhega!\n\nAur kuch chahiye to bol! 👑`, "success");
         onDone?.();
       } else {
-        addMessage("raja", `❌ Row save fail — Supabase RLS check kar`, "error");
+        addMessage("raja", `❌ Row save fail ho gaya — Supabase RLS policy check karna padega.`, "error");
       }
     } catch (e: any) {
-      addMessage("raja", `💥 Error: ${e.message}`, "error");
+      addMessage("raja", `💥 Are error aa gaya: ${e.message}\n\nFir se try kar, ya naam sahi likh.`, "error");
     } finally {
       setIsThinking(false);
       setIsProcessing(false);
@@ -315,18 +343,18 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-end p-0 md:p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full md:w-[420px] h-[85vh] md:h-[600px] bg-[#0f0f0f] border border-amber-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="w-full md:w-[440px] h-[90vh] md:h-[650px] bg-[#0f0f0f] border border-amber-500/20 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-black/20 flex items-center justify-center">
-              <Crown size={18} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
+              <Crown size={20} className="text-white" />
             </div>
             <div>
               <h3 className="text-white font-black text-sm flex items-center gap-2">
                 Raja AI Agent <Bot size={14} />
               </h3>
-              <p className="text-white/70 text-[10px]">Pura dimag hai • Bas naam bolo, upload kar dega</p>
+              <p className="text-white/80 text-[10px] font-medium">Pura dimag hai • Pehle baat karega, fir kaam</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-white">
@@ -339,39 +367,41 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
           {messages.map(m => (
             <div key={m.id} className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               {m.role !== "user" && (
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${m.role === "raja" ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-white/10"}`}>
-                  {m.role === "raja" ? <Crown size={12} className="text-white" /> : <Sparkles size={12} className="text-white/60" />}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${m.role === "raja" ? "bg-gradient-to-br from-amber-500 to-orange-600" : "bg-white/10"}`}>
+                  {m.role === "raja" ? <Crown size={14} className="text-white" /> : <Sparkles size={14} className="text-white/60" />}
                 </div>
               )}
-              <div className={`max-w-[80%] rounded-2xl px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[12px] leading-relaxed whitespace-pre-wrap ${
                 m.role === "user" 
                   ? "bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-white rounded-br-sm" 
                   : m.type === "success"
-                    ? "bg-green-500/10 border border-green-500/20 text-green-200 rounded-bl-sm"
+                    ? "bg-green-500/10 border border-green-500/20 text-green-100 rounded-bl-sm"
                     : m.type === "error"
-                      ? "bg-red-500/10 border border-red-500/20 text-red-200 rounded-bl-sm"
+                      ? "bg-red-500/10 border border-red-500/20 text-red-100 rounded-bl-sm"
                       : m.type === "thinking"
-                        ? "bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-bl-sm"
-                        : "bg-[#1a1a1a] border border-white/5 text-white/80 rounded-bl-sm"
+                        ? "bg-amber-500/10 border border-amber-500/20 text-amber-100 rounded-bl-sm"
+                        : m.type === "log"
+                          ? "bg-white/5 border border-white/10 text-white/60 text-[11px] rounded-bl-sm"
+                          : "bg-[#1a1a1a] border border-white/5 text-white/90 rounded-bl-sm"
               }`}>
                 {m.text}
-                <div className="text-[9px] opacity-50 mt-1">{m.timestamp}</div>
+                <div className="text-[9px] opacity-40 mt-1.5">{m.timestamp}</div>
               </div>
               {m.role === "user" && (
-                <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <User size={12} className="text-white/60" />
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <User size={14} className="text-white/60" />
                 </div>
               )}
             </div>
           ))}
           {isThinking && (
             <div className="flex gap-2 justify-start">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                <Crown size={12} className="text-white" />
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                <Crown size={14} className="text-white" />
               </div>
-              <div className="bg-[#1a1a1a] border border-white/5 rounded-2xl rounded-bl-sm px-3 py-2.5 flex items-center gap-2">
-                <Loader2 size={12} className="animate-spin text-amber-400" />
-                <span className="text-[11px] text-white/50">Raja soch raha hai...</span>
+              <div className="bg-[#1a1a1a] border border-white/5 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-amber-400" />
+                <span className="text-[11px] text-white/60">Raja soch raha hai... dimag chala raha hai...</span>
               </div>
             </div>
           )}
@@ -379,12 +409,12 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
         </div>
 
         {/* Quick suggestions */}
-        <div className="px-4 py-2 bg-[#111] border-t border-white/5 flex gap-2 overflow-x-auto">
-          {["Violet Evergarden", "Your Name, Suzume", "POPULAR MOVIES me Demon Slayer daal"].map(s => (
+        <div className="px-3 py-2 bg-[#111] border-t border-white/5 flex gap-2 overflow-x-auto scrollbar-hide">
+          {["kaise ho", "Violet Evergarden", "Cyberpunk: Edgerunners", "Your Name, Suzume"].map(s => (
             <button
               key={s}
               onClick={() => setInput(s)}
-              className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/60 hover:text-white transition"
+              className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-white/60 hover:text-white transition"
             >
               {s}
             </button>
@@ -403,22 +433,22 @@ export default function RajaChatBot({ onClose, onDone }: Props) {
                 handleSend();
               }
             }}
-            placeholder="Bol bhai, kaunsa anime upload karna hai? (jaise Violet Evergarden)"
-            className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-full px-4 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50"
+            placeholder="Bolo bhai... (jaise: Violet Evergarden, ya kaise ho?)"
+            className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-full px-4 py-3 text-[13px] text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50"
             disabled={isProcessing}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isProcessing}
-            className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 disabled:opacity-40 flex items-center justify-center text-white transition"
+            className="w-11 h-11 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 disabled:opacity-40 flex items-center justify-center text-white transition shadow-lg shadow-amber-500/20"
           >
-            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>
         </div>
 
         <div className="px-4 py-2 bg-[#0a0a0a] border-t border-white/5">
-          <p className="text-[9px] text-white/20 text-center flex items-center justify-center gap-1">
-            <AlertCircle size={8} /> Raja sirf admin ke liye • Public ko nahi dikhega • Bas naam bolo, IMDb + player khud banega
+          <p className="text-[9px] text-white/20 text-center flex items-center justify-center gap-1.5">
+            <AlertCircle size={10} /> Raja: pehle baat karega, IMDb dikhayega, movie/series batayega, website pe hai ya nahi batayega, fir upload karega
           </p>
         </div>
       </div>
