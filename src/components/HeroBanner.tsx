@@ -14,6 +14,8 @@ interface HeroBannerProps {
   onUploadClick?: () => void;
   onSyncClick?: () => void;
   isAdmin?: boolean;
+  /** Library fetch still in flight — show a skeleton, not "No videos yet". */
+  loading?: boolean;
 }
 
 export default function HeroBanner({
@@ -23,6 +25,7 @@ export default function HeroBanner({
   onUploadClick,
   onSyncClick,
   isAdmin,
+  loading = false,
 }: HeroBannerProps) {
   const [index, setIndex] = useState(0);
   const cfg = useSiteConfig();
@@ -42,6 +45,30 @@ export default function HeroBanner({
     const t = setInterval(() => setIndex((i) => (i + 1) % movies.length), 8000);
     return () => clearInterval(t);
   }, [movies.length]);
+
+  // Library still loading — a quiet skeleton instead of the misleading
+  // "No videos yet. Ask the admin to add content." message. On slow phone/TV
+  // networks that empty message made the site look broken while the library
+  // was still on its way.
+  if (movies.length === 0 && loading) {
+    return (
+      <div className="relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden bg-[#101014]">
+        <div className="absolute inset-0 animate-pulse">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-[#ff6a00]/5 rounded-full blur-[180px]" />
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black to-transparent" />
+        <div className="absolute bottom-16 left-4 md:left-12 right-4 md:right-12 animate-pulse">
+          <div className="h-4 w-28 rounded bg-white/10 mb-4" />
+          <div className="h-10 md:h-14 w-3/4 max-w-xl rounded bg-white/10 mb-4" />
+          <div className="h-3 w-1/2 max-w-md rounded bg-white/10 mb-8" />
+          <div className="flex gap-3">
+            <div className="h-11 w-32 rounded-full bg-white/10" />
+            <div className="h-11 w-32 rounded-full bg-white/10" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Empty state — no videos yet
   if (movies.length === 0) {

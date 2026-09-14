@@ -30,6 +30,7 @@ import {
   useContinueWatching,
 } from "./lib/continueWatching";
 import { collectPlacedIds, resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
+import { purgeLegacyMovieCaches, readMoviesCache, writeMoviesCache } from "./lib/moviesCache";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
@@ -159,6 +160,13 @@ function App() {
   const [syncedMovies, setSyncedMovies] = useState<Movie[]>([]);
   const [animeEpisodes, setAnimeEpisodes] = useState<Movie[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  // True once the first library fetch settled (or the localStorage cache
+  // already hydrated content). Until then the empty library must look like
+  // "loading", never like a broken "No videos yet" site.
+  const libraryLoaded =
+    uploadedMovies.length > 0 || syncedMovies.length > 0 || animeEpisodes.length > 0;
+  const [libraryFetchSettled, setLibraryFetchSettled] = useState(false);
+  const showLibrarySkeleton = !libraryLoaded && !libraryFetchSettled;
   const cfg = useSiteConfig();
   const heroBannerOverrides = useHeroBanners();
   const collectionCovers = useCollectionCovers();
@@ -184,28 +192,31 @@ function App() {
 
   // Load movies from Supabase on mount — hydrate from cache first for instant paint
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem("vid:moviesCache:v2");
-      if (cached) {
-        const { uploaded, synced } = JSON.parse(cached);
-        if (Array.isArray(uploaded) && Array.isArray(synced)) {
-          setUploadedMovies(uploaded);
-          setSyncedMovies(synced);
-        }
-      }
-    } catch {}
+    // Drop multi-megabyte caches from older builds (they caused the boot lag).
+    purgeLegacyMovieCaches();
+    const cached = readMoviesCache();
+    if (cached) {
+      setUploadedMovies(cached.uploaded);
+      setSyncedMovies(cached.synced);
+    }
 
     import("./lib/moviesRepo")
-      .then(({ fetchAllMovies }) => fetchAllMovies())
+      .then(({ fetchAllMovies }) =>
+        fetchAllMovies(undefined, (partial) => {
+          // First page is in — paint the hero/rows now; remaining pages land
+          // in the final .then below.
+          setUploadedMovies(partial.uploaded);
+          setSyncedMovies(partial.synced);
+        }),
+      )
       .then(({ uploaded, synced }) => {
         setUploadedMovies(uploaded);
         setSyncedMovies(synced);
-        // Stringifying 2000+ rows blocks the main thread — write the cache
-        // when idle so the fresh paint is never held up by it.
+        setLibraryFetchSettled(true);
+        // The cache is trimmed to the newest rows (see moviesCache.ts), so
+        // writing it stays cheap even for a 4,000+ row library.
         const writeCache = () => {
-          try {
-            localStorage.setItem("vid:moviesCache:v2", JSON.stringify({ uploaded, synced }));
-          } catch {}
+          writeMoviesCache(uploaded, synced);
         };
         if (typeof requestIdleCallback !== "undefined") {
           requestIdleCallback(writeCache, { timeout: 2000 });
@@ -213,7 +224,11 @@ function App() {
           setTimeout(writeCache, 0);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Offline or Supabase error — the cache (if any) is already showing;
+        // swap the loading skeleton for the real empty state.
+        setLibraryFetchSettled(true);
+      });
 
     // Warm on-demand modal/player chunks when idle so first open is instant.
     if (typeof requestIdleCallback !== "undefined") {
@@ -616,12 +631,7 @@ function App() {
         ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
         : prev,
     );
-    try {
-      localStorage.setItem(
-        "vid:moviesCache:v2",
-        JSON.stringify({ uploaded: nextUploaded, synced: nextSynced }),
-      );
-    } catch {}
+    writeMoviesCache(nextUploaded, nextSynced);
   }, []);
 
   const showingSearch = debouncedQuery.trim().length > 0;
@@ -765,7 +775,16 @@ function App() {
             })}
 
             <div className="px-4 md:px-12">
-              {categoryMovies.length === 0 ? (
+              {showLibrarySkeleton ? (
+                <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <div key={`skeleton-${i}`} className="cv-card animate-pulse">
+                      <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800" />
+                      <div className="h-3 w-2/3 rounded bg-white/10 mt-2" />
+                    </div>
+                  ))}
+                </div>
+              ) : categoryMovies.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <p className="text-gray-400 text-lg">No titles found</p>
                   <p className="text-gray-600 text-sm mt-2">
@@ -846,6 +865,7 @@ function App() {
           <>
             <HeroBanner
               movies={heroMovies}
+              loading={showLibrarySkeleton}
               onMoreInfo={(m) => setSelectedMovie(m)}
               onPlay={handlePlay}
               onUploadClick={() => setShowUploadModal(true)}

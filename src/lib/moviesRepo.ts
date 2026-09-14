@@ -106,6 +106,13 @@ function splitRows(rows: Array<Record<string, unknown>>): {
 
 export async function fetchAllMovies(
   client: typeof supabase = supabase,
+  /**
+   * Called once with the first page (the newest 1,000 rows) so callers can
+   * paint the hero and top rows immediately while the remaining pages are
+   * still on the wire. Slow phone/TV networks otherwise stare at a skeleton
+   * until every page of a 4,000+ row library has arrived.
+   */
+  onFirstPage?: (partial: { uploaded: Movie[]; synced: Movie[] }) => void,
 ): Promise<{ uploaded: Movie[]; synced: Movie[] }> {
   // Newest first; created_at ties (bulk inserts share one timestamp) need the
   // id tiebreak, otherwise a page boundary in a tied group could skip rows.
@@ -118,6 +125,13 @@ export async function fetchAllMovies(
     return splitRows(rows);
   }
   rows.push(...first.data);
+  if (onFirstPage) {
+    try {
+      onFirstPage(splitRows(rows));
+    } catch {
+      /* a partial-paint failure must never break the full fetch */
+    }
+  }
   if (first.data.length < MOVIES_PAGE_SIZE) return splitRows(rows);
   const total = first.count;
   if (total == null || total <= rows.length) {
