@@ -48,6 +48,8 @@ export interface AutoFetchSeason {
 export interface AutoFetchResult {
   query: string;
   imdbId?: string;
+  autoResolvedImdb?: string;
+  imdbAutoResolved?: boolean;
   mainTitle: string;
   mainCover: string;
   mainBanner: string;
@@ -56,7 +58,7 @@ export interface AutoFetchResult {
   totalSeasons: number;
   totalEpisodes: number;
   seasons: AutoFetchSeason[];
-  source: "anilist+jikan" | "anilist" | "jikan";
+  source: "anilist+jikan" | "anilist" | "jikan" | "static-fallback";
 }
 
 export interface FetchAnimeOptions {

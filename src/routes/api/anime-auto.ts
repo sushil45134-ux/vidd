@@ -370,16 +370,93 @@ function buildSeasonsChain(main: AniListMedia): AniListMedia[] {
   return deduped.slice(0, 10); // max 10 seasons
 }
 
+async function findImdbIdForTitle(title: string): Promise<string | null> {
+  try {
+    const q = title.trim();
+    if (!q) return null;
+    const encoded = encodeURIComponent(q);
+    const firstChar = q[0]?.toLowerCase() || 'a';
+    const safeFirst = /[a-z0-9]/.test(firstChar) ? firstChar : 'a';
+
+    const urls = [
+      `https://v2.sg.media-imdb.com/suggestion/t/${safeFirst}/${encoded}.json`,
+      `https://v2.sg.media-imdb.com/suggestion/titles/x/${encoded}.json`,
+      `https://v3.sg.media-imdb.com/suggestion/${safeFirst}/${encoded}.json`,
+      `https://v3.sg.media-imdb.com/suggestion/x/${encoded}.json`,
+    ];
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'application/json' },
+        });
+        if (!res.ok) continue;
+        const json: any = await res.json();
+        const d = json.d || [];
+        if (Array.isArray(d) && d.length > 0) {
+          const sorted = [...d].sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
+          for (const item of sorted) {
+            if (item.id && typeof item.id === 'string' && item.id.startsWith('tt')) {
+              // Prefer qid that looks like movie/tvSeries/tvMovie etc, skip videoGame etc if possible
+              const qid = (item.qid || '').toLowerCase();
+              if (qid.includes('video') && !qid.includes('movie')) continue;
+              return item.id;
+            }
+          }
+          // Fallback first tt
+          const first = d.find((x: any) => x.id && x.id.startsWith('tt'));
+          if (first) return first.id;
+        }
+      } catch {}
+    }
+
+    // TVMaze fallback - good for series
+    try {
+      const tvRes = await fetch(`https://api.tvmaze.com/search/shows?q=${encoded}`, {
+        headers: { 'User-Agent': 'vid/1.0' },
+      });
+      if (tvRes.ok) {
+        const tvData: any = await tvRes.json();
+        if (Array.isArray(tvData)) {
+          for (const entry of tvData) {
+            const imdb = entry.show?.externals?.imdb;
+            if (imdb && typeof imdb === 'string' && imdb.startsWith('tt')) return imdb;
+          }
+        }
+      }
+    } catch {}
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export const Route = createFileRoute("/api/anime-auto")({
   server: {
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const title = (url.searchParams.get("title") || "").trim();
-        const imdbId = (url.searchParams.get("imdbId") || "").trim() || undefined;
+        let imdbId = (url.searchParams.get("imdbId") || "").trim() || undefined;
+        const autoImdb = url.searchParams.get("autoImdb") !== "false"; // default true
 
         if (!title) {
           return Response.json({ error: "title query param required, e.g. ?title=Naruto" }, { status: 400 });
+        }
+
+        // Auto-resolve IMDb ID if not provided - Raja wants only name, no manual IMDb
+        let autoResolvedImdb: string | null = null;
+        if (!imdbId && autoImdb) {
+          try {
+            autoResolvedImdb = await findImdbIdForTitle(title);
+            if (autoResolvedImdb) {
+              imdbId = autoResolvedImdb;
+              console.log(`[anime-auto] Auto-resolved IMDb for "${title}" => ${imdbId}`);
+            }
+          } catch (e) {
+            console.warn(`[anime-auto] Auto IMDb resolve failed for ${title}`, e);
+          }
         }
 
         // EARLY STATIC FALLBACK for My Dress-Up Darling - guaranteed 2 seasons even if AniList/Jikan blocked
@@ -450,6 +527,8 @@ export const Route = createFileRoute("/api/anime-auto")({
           const result = {
             query: title,
             imdbId,
+            autoResolvedImdb: autoResolvedImdb || undefined,
+            imdbAutoResolved: !!autoResolvedImdb,
             mainTitle: "My Dress-Up Darling",
             mainCover: s1Cover,
             mainBanner: s1Cover,
@@ -696,6 +775,8 @@ export const Route = createFileRoute("/api/anime-auto")({
           const result = {
             query: title,
             imdbId,
+            autoResolvedImdb: autoResolvedImdb || undefined,
+            imdbAutoResolved: !!autoResolvedImdb,
             mainTitle,
             mainCover: mainDetailed.coverImage?.extraLarge || mainDetailed.coverImage?.large || seasons[0]?.coverImage || "",
             mainBanner: mainDetailed.bannerImage || seasons[0]?.bannerImage || "",

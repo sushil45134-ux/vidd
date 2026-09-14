@@ -124,23 +124,29 @@ export default function RajaAgent({ availableMovies: propMovies, onDone }: Props
           continue;
         }
 
-        // Not in library — auto-fetch via anime-auto API
+        // Not in library — auto-fetch via anime-auto API (now auto-resolves IMDb ID)
         addLog(`🌐 Not in library, fetching from AniList+Jikan: ${name}`);
         try {
           const params = new URLSearchParams({ title: name });
           if (item.imdbId) params.set("imdbId", item.imdbId);
           else if (defaultImdb.trim()) params.set("imdbId", defaultImdb.trim());
+          // autoImdb=true by default, so server will auto-find IMDb ID if not provided
 
           const res = await fetch(`/api/anime-auto?${params.toString()}`);
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `API ${res.status}`);
           }
-          const data = (await res.json()) as AutoFetchResult;
+          const data = (await res.json()) as any as AutoFetchResult & { imdbId?: string; autoResolvedImdb?: string; imdbAutoResolved?: boolean };
 
-          // If IMDb ID provided (per-item or default), generate full series with player links via autoFetchToMovies
-          const imdbToUse = item.imdbId || defaultImdb.trim() || undefined;
+          // Auto-resolved IMDb ID from server, or user-provided, or default
+          const serverImdb = (data as any).imdbId || (data as any).autoResolvedImdb;
+          const imdbToUse = item.imdbId || defaultImdb.trim() || serverImdb || undefined;
+          
           if (imdbToUse) {
+            if ((data as any).imdbAutoResolved) {
+              addLog(`🎯 Auto-found IMDb for "${name}" → ${imdbToUse} (IMDb suggestion + TVMaze)`);
+            }
             const providerId = item.providerId || defaultProvider;
             const movies = autoFetchToMovies(data, {
               imdbId: imdbToUse,
@@ -148,18 +154,16 @@ export default function RajaAgent({ availableMovies: propMovies, onDone }: Props
             });
             if (movies.length > 0) {
               newMoviesToInsert.push(...movies);
-              // For row, we want the collection ref, not individual episodes — use first movie's playlistId
               const first = movies[0];
               if (first.playlistId) {
                 movieRefs.push(`playlist:${first.playlistId}`);
-                addLog(`✨ Auto-created ${movies.length} episodes for ${data.mainTitle} (S${data.totalSeasons}) with IMDb ${imdbToUse} → playlist:${first.playlistId}`);
+                addLog(`✨ Auto-created ${movies.length} episodes for ${data.mainTitle} (S${data.totalSeasons}) with IMDb ${imdbToUse} [${providerId}] → playlist:${first.playlistId}`);
               } else {
                 movieRefs.push(getMovieRef(first));
                 movieIds.push(first.id);
-                addLog(`✨ Auto-created movie: ${first.title}`);
+                addLog(`✨ Auto-created movie: ${first.title} with player ${imdbToUse}`);
               }
             } else {
-              // Fallback single movie without episodes
               const cover = data.mainCover || data.seasons[0]?.coverImage || "";
               const single: Movie = {
                 id: Date.now() + i * 1000,
@@ -178,10 +182,10 @@ export default function RajaAgent({ availableMovies: propMovies, onDone }: Props
               };
               newMoviesToInsert.push(single);
               movieRefs.push(getMovieRef(single));
-              addLog(`✨ Auto-created (no IMDb) movie: ${single.title}`);
+              addLog(`✨ Auto-created (fallback) movie: ${single.title}`);
             }
           } else {
-            // No IMDb — create single movie card with cover/description only (admin can add IMDb later)
+            // No IMDb found even after auto-resolve — create metadata-only but still usable
             const cover = data.mainCover || data.seasons[0]?.coverImage || "";
             const single: Movie = {
               id: Date.now() + i * 1000,
@@ -200,7 +204,7 @@ export default function RajaAgent({ availableMovies: propMovies, onDone }: Props
             };
             newMoviesToInsert.push(single);
             movieRefs.push(getMovieRef(single));
-            addLog(`✨ Auto-created metadata-only: ${single.title} (IMDb nahi diya, baad me add kar sakte ho)`);
+            addLog(`✨ Auto-created metadata-only: ${single.title} (IMDb auto-resolve failed, player link nahi bana — baad me IMDb add kar sakte ho)`);
           }
 
           // Respect Jikan rate limit
@@ -315,17 +319,17 @@ export default function RajaAgent({ availableMovies: propMovies, onDone }: Props
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
           <label className="text-gray-300 text-xs font-medium mb-1.5 block flex items-center gap-2">
-            <Film size={12} /> Anime / Movie List <span className="text-red-500">*</span> <span className="text-gray-500 text-[10px]">— har line pe ek naam, ya Name | ttID | provider</span>
+            <Film size={12} /> Anime / Movie List <span className="text-red-500">*</span> <span className="text-green-400 text-[10px]">— bas naam likho, IMDb Raja khud nikal lega!</span>
           </label>
           <textarea
             value={listInput}
             onChange={(e) => setListInput(e.target.value)}
-            placeholder={"Your Name\nSuzume | tt16428256\nA Silent Voice | tt5323662 | nxsha\nWeathering With You\nViolet Evergarden"}
+            placeholder={"Your Name\nSuzume\nA Silent Voice\nWeathering With You\nViolet Evergarden\nDemon Slayer"}
             className="w-full bg-[#222] border border-gray-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none focus:border-amber-500 transition placeholder-gray-500 resize-none min-h-[140px] font-mono"
             rows={6}
           />
           <p className="text-[10px] text-gray-500 mt-1">
-            💡 Format: <span className="font-mono text-amber-300">Your Name</span> ya <span className="font-mono text-amber-300">Suzume | tt16428256</span> ya <span className="font-mono text-amber-300">A Silent Voice | tt5323662 | nxsha</span>. IMDb ID optional hai — nahi doge to sirf cover/description ayega, player baad me add kar sakte ho.
+            💡 <span className="text-green-400 font-bold">Naya: Bas naam likho!</span> <span className="font-mono text-amber-300">Your Name</span> ya <span className="font-mono text-amber-300">Suzume</span> — Raja khud IMDb ID nikal lega (IMDb suggestion + TVMaze se) aur Nxsha player link bana dega! Agar manually dena hai to <span className="font-mono text-amber-300">Name | ttID | nxsha</span> bhi chalega.
           </p>
           <p className="text-[10px] text-gray-400 mt-1">Parsed: {parsed.length} items → {parsed.map((p) => p.name).join(", ").slice(0, 100)}{parsed.length > 3 ? "..." : ""}</p>
         </div>
@@ -355,12 +359,12 @@ export default function RajaAgent({ availableMovies: propMovies, onDone }: Props
         </div>
 
         <div>
-          <label className="text-gray-300 text-xs font-medium mb-1.5 block">Default IMDb ID <span className="text-gray-500 text-[10px]">(sab ke liye same, optional)</span></label>
+          <label className="text-gray-300 text-xs font-medium mb-1.5 block">Default IMDb ID <span className="text-green-400 text-[10px]">(optional, Raja khud dhoond lega!)</span></label>
           <input
             type="text"
             value={defaultImdb}
             onChange={(e) => setDefaultImdb(e.target.value)}
-            placeholder="tt15765670 (optional)"
+            placeholder="Auto — khali chhodo, Raja khud nikal lega"
             className="w-full bg-[#222] border border-gray-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500 placeholder-gray-500 font-mono"
           />
         </div>
