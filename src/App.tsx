@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense, type ReactNode } from "react";
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
 import MovieRow from "./components/MovieRow";
@@ -793,41 +793,57 @@ function App() {
               {/* Synced playlists no longer auto-appear on home.
                 Admin adds them via Custom Rows when desired. */}
 
-              {continueWatchingItems.length > 0 && (
-                <ContinueWatchingRow
-                  items={continueWatchingItems}
-                  onPlay={handlePlay}
-                  onSelectMovie={openResumeDetails}
-                  onRemove={removeContinueWatching}
-                />
-              )}
-
-              {cfg.customRows?.map((row) => {
-                if (!row.visible) return null;
-                const sec = row.section || "home";
-                if (sec !== "home" && sec !== "all") return null;
-                const items = resolveCustomRowItems(row);
-                if (items.length === 0) return null;
-                return (
-                  <MovieRow
-                    key={row.id}
-                    title={row.title}
-                    titleSize={row.titleSize}
-                    movies={items}
-                    isLargeRow={row.isLarge}
-                    onSelectMovie={setSelectedMovie}
-                    onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
-                    isInMyList={isInMyList}
-                    isLiked={isLiked}
-                    toggleMyList={toggleMyList}
-                    toggleLike={toggleLike}
-                    canDelete={isAdmin}
-                    onDelete={handleDelete}
-                    canEditThumbnail={isAdmin}
-                    onEditThumbnail={setThumbnailEditMovie}
-                  />
-                );
-              })}
+              {(() => {
+                const elements: ReactNode[] = [];
+                const pushContinueWatching = () => {
+                  if (continueWatchingItems.length === 0) return;
+                  elements.push(
+                    <ContinueWatchingRow
+                      key="continue-watching"
+                      items={continueWatchingItems}
+                      onPlay={handlePlay}
+                      onSelectMovie={openResumeDetails}
+                      onRemove={removeContinueWatching}
+                    />,
+                  );
+                };
+                let rowsRendered = false;
+                cfg.customRows?.forEach((row) => {
+                  if (!row.visible) return;
+                  const sec = row.section || "home";
+                  if (sec !== "home" && sec !== "all") return;
+                  const items = resolveCustomRowItems(row);
+                  if (items.length === 0) return;
+                  elements.push(
+                    <MovieRow
+                      key={row.id}
+                      title={row.title}
+                      titleSize={row.titleSize}
+                      movies={items}
+                      isLargeRow={row.isLarge}
+                      onSelectMovie={setSelectedMovie}
+                      onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
+                      isInMyList={isInMyList}
+                      isLiked={isLiked}
+                      toggleMyList={toggleMyList}
+                      toggleLike={toggleLike}
+                      canDelete={isAdmin}
+                      onDelete={handleDelete}
+                      canEditThumbnail={isAdmin}
+                      onEditThumbnail={setThumbnailEditMovie}
+                    />,
+                  );
+                  // Continue Watching sits right BELOW the first row
+                  // (Trending & Popular Shows), never above it.
+                  if (!rowsRendered) {
+                    rowsRendered = true;
+                    pushContinueWatching();
+                  }
+                });
+                // No custom rows at all — Continue Watching still shows alone.
+                if (!rowsRendered) pushContinueWatching();
+                return elements;
+              })()}
             </div>
           </>
         )}
