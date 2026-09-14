@@ -12,6 +12,12 @@ interface EmbedPlayerProps {
   onNext?: () => void;
   hasPrev?: boolean;
   hasNext?: boolean;
+  /** Resume offset in seconds — direct videos + best-effort Dailymotion seek. */
+  startAt?: number;
+  /** Playback clock for Continue Watching (0,0) = started, clock unknown. */
+  onProgress?: (currentSec: number, durationSec: number) => void;
+  /** Fired when a direct video file ends (Continue Watching cleanup). */
+  onEnded?: () => void;
 }
 
 /**
@@ -241,6 +247,9 @@ export function EmbedPlayer({
   onNext,
   hasPrev,
   hasNext,
+  startAt = 0,
+  onProgress,
+  onEnded,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
@@ -250,6 +259,13 @@ export function EmbedPlayer({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Continue Watching: throttled clock for direct <video> + Dailymotion SDK.
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+  const latestClockRef = useRef<{ current: number; total: number } | null>(null);
+  const lastReportAtRef = useRef(0);
   const dailymotionRootRef = useRef<HTMLDivElement>(null);
   const dailymotionPlayerRef = useRef<any>(null);
   const dailymotionStoppedRef = useRef(false);
@@ -261,6 +277,38 @@ export function EmbedPlayer({
     setPlayerSrc(iframeSrc);
     setIsDailymotionStopped(false);
   }, [iframeSrc]);
+
+  // Continue Watching clock bookkeeping (direct <video> + Dailymotion SDK).
+  // The unmount flush keeps the row fresh when the player is closed.
+  useEffect(() => {
+    latestClockRef.current = null;
+    lastReportAtRef.current = 0;
+    return () => {
+      const last = latestClockRef.current;
+      if (last && last.total > 0) {
+        try {
+          onProgressRef.current?.(last.current, last.total);
+        } catch {
+          /* Progress listeners must never break playback. */
+        }
+      }
+    };
+  }, [src]);
+
+  // Cross-origin iframes expose no clock — after a few seconds of playback
+  // remember the title as started so it appears in Continue Watching.
+  // (Dailymotion is the exception: its SDK below reports a real clock.)
+  useEffect(() => {
+    if (kind !== "iframe" || isDailymotion) return;
+    const t = window.setTimeout(() => {
+      try {
+        onProgressRef.current?.(0, 0);
+      } catch {
+        /* Progress listeners must never break playback. */
+      }
+    }, 5000);
+    return () => window.clearTimeout(t);
+  }, [kind, src, isDailymotion]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -322,6 +370,7 @@ export function EmbedPlayer({
     let durationTimer: number | undefined;
     let knownDuration: number | undefined;
     let knownCurrentTime = 0;
+    let lastReport = 0;
 
     const loadDailymotionSdk = () =>
       new Promise<any>((resolve, reject) => {
@@ -418,6 +467,19 @@ export function EmbedPlayer({
       if (knownDuration !== undefined && durationTimer === undefined) {
         scheduleStopFromDuration(knownDuration, knownCurrentTime);
       }
+      // Real clock for Continue Watching (throttled — state arrives ~2x/sec).
+      if (knownDuration !== undefined && knownDuration > 5 && knownCurrentTime >= 0) {
+        latestClockRef.current = { current: knownCurrentTime, total: knownDuration };
+        const now = Date.now();
+        if (now - lastReport > 5000) {
+          lastReport = now;
+          try {
+            onProgressRef.current?.(knownCurrentTime, knownDuration);
+          } catch {
+            /* Progress listeners must never break playback. */
+          }
+        }
+      }
       if (knownDuration !== undefined && knownDuration - knownCurrentTime <= 5) {
         stopDailymotionPlayback();
       }
@@ -442,6 +504,19 @@ export function EmbedPlayer({
       .then((player: any) => {
         if (!player || cancelled) return;
         dailymotionPlayerRef.current = player;
+
+        // Best-effort resume via the Dailymotion JS API — silently ignored
+        // when the SDK build does not support seeking.
+        if ((startAt ?? 0) > 0 && typeof player.seek === "function") {
+          const target = startAt as number;
+          window.setTimeout(() => {
+            try {
+              player.seek(target);
+            } catch {
+              /* Progress listeners must never break playback. */
+            }
+          }, 1500);
+        }
 
         try {
           player.setCustomConfig?.({
@@ -522,7 +597,7 @@ export function EmbedPlayer({
       }
       dailymotionPlayerRef.current = null;
     };
-  }, [dailymotionContainerId, dailymotionVideoId, isDailymotion]);
+  }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -555,7 +630,53 @@ export function EmbedPlayer({
             referrerPolicy="no-referrer-when-downgrade"
           />
         ) : (
-          <video src={src} controls autoPlay className="absolute inset-0 w-full h-full bg-black" />
+          <video
+            src={src}
+            controls
+            autoPlay
+            className="absolute inset-0 w-full h-full bg-black"
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget;
+              if ((startAt ?? 0) > 0 && v.duration > 0) {
+                try {
+                  v.currentTime = Math.min(startAt, Math.max(0, v.duration - 5));
+                } catch {
+                  /* Seeking before metadata is ready is harmless. */
+                }
+              }
+            }}
+            onTimeUpdate={(e) => {
+              const v = e.currentTarget;
+              if (!(v.duration > 0)) return;
+              latestClockRef.current = { current: v.currentTime, total: v.duration };
+              const now = Date.now();
+              if (now - lastReportAtRef.current > 5000) {
+                lastReportAtRef.current = now;
+                try {
+                  onProgressRef.current?.(v.currentTime, v.duration);
+                } catch {
+                  /* Progress listeners must never break playback. */
+                }
+              }
+            }}
+            onPause={(e) => {
+              const v = e.currentTarget;
+              if (!(v.duration > 0)) return;
+              lastReportAtRef.current = Date.now();
+              try {
+                onProgressRef.current?.(v.currentTime, v.duration);
+              } catch {
+                /* Progress listeners must never break playback. */
+              }
+            }}
+            onEnded={() => {
+              try {
+                onEndedRef.current?.();
+              } catch {
+                /* Progress listeners must never break playback. */
+              }
+            }}
+          />
         )}
 
         {isDailymotionStopped && <div className="absolute inset-0 z-20 bg-black" />}

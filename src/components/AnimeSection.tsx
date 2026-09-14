@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import type { Movie } from "../data";
 import { episodesToMovies, type AnimeEpisode } from "../lib/animeCatalog";
 import MovieRow from "./MovieRow";
@@ -20,7 +20,7 @@ interface AnimeSectionProps {
  * collections, and renders them with the app's standard MovieRow cards. The
  * existing YouTube player plays every episode — no extra embed machinery.
  */
-export default function AnimeSection({
+function AnimeSection({
   onSelectMovie,
   onPlay,
   isInMyList,
@@ -31,6 +31,7 @@ export default function AnimeSection({
 }: AnimeSectionProps) {
   const [series, setSeries] = useState<Movie[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "empty">("loading");
+  const playFirst = useCallback((m: Movie) => onPlay(m.episodes?.[0] || m), [onPlay]);
 
   useEffect(() => {
     let active = true;
@@ -79,7 +80,7 @@ export default function AnimeSection({
         title="Hindi Dubbed Anime"
         movies={series}
         onSelectMovie={onSelectMovie}
-        onPlay={(m) => onPlay(m.episodes?.[0] || m)}
+        onPlay={playFirst}
         isInMyList={isInMyList}
         isLiked={isLiked}
         toggleMyList={toggleMyList}
@@ -88,3 +89,5 @@ export default function AnimeSection({
     </div>
   );
 }
+
+export default memo(AnimeSection);

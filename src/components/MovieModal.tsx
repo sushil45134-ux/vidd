@@ -15,9 +15,16 @@ import type { Movie, Season } from "../data";
 import { FALLBACK_THUMBNAIL, isGenericPoster, movieImageSources } from "../lib/media";
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
+import { useVisibleCount } from "../lib/useVisibleCount";
 import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { isTvBrowser } from "../lib/browser";
+import {
+  episodeTag,
+  formatClock,
+  formatTimeLeft,
+  useResumeForMovie,
+} from "../lib/continueWatching";
 
 interface MovieModalProps {
   movie: Movie;
@@ -51,6 +58,10 @@ export default function MovieModal({
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const heroBanners = useHeroBanners();
   const isHeroBanner = heroBanners.some((b) => b.movieId === movie.id);
+  // Continue Watching: exact match for singles, newest episode for series.
+  const resume = useResumeForMovie(movie);
+  const resumeFromSec =
+    resume && resume.durationSec > 0 && resume.progressSec > 0 ? resume.progressSec : 0;
 
   const isCollection = !!(movie.isCollection && movie.episodes && movie.episodes.length > 0);
   const seasons: Season[] = useMemo(() => {
@@ -74,12 +85,18 @@ export default function MovieModal({
   // compositor. The arrow steps aside once the row cannot scroll further.
   const isTv = isTvBrowser();
   const episodesRowRef = useRef<HTMLDivElement>(null);
+  const episodesRaf = useRef(0);
   const [showEpisodesArrow, setShowEpisodesArrow] = useState(true);
 
+  useEffect(() => () => cancelAnimationFrame(episodesRaf.current), []);
+
   const updateEpisodesArrow = useCallback(() => {
-    const el = episodesRowRef.current;
-    if (!el) return;
-    setShowEpisodesArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 20);
+    cancelAnimationFrame(episodesRaf.current);
+    episodesRaf.current = requestAnimationFrame(() => {
+      const el = episodesRowRef.current;
+      if (!el) return;
+      setShowEpisodesArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 20);
+    });
   }, []);
 
   const scrollEpisodesForward = useCallback(() => {
@@ -148,6 +165,12 @@ export default function MovieModal({
   const episodes: Movie[] = useMemo(
     () => (activeSeason ? activeSeason.episodes : []),
     [activeSeason],
+  );
+  // 1000+ episode series (One Piece) must not mount 1000 cards at once.
+  const { visible: visibleEps, showMore: showMoreEps } = useVisibleCount(
+    `${movie.id}-${selectedSeason ?? "all"}`,
+    60,
+    120,
   );
   const currentEp: Movie = isCollection
     ? episodes[selectedEpIdx] || episodes[0] || movie.episodes![0]
@@ -276,11 +299,24 @@ export default function MovieModal({
                     ? `Play S${seasons[0]?.seasonNumber} E${seasons[0]?.episodes[0]?.episodeNumber || 1}`
                     : isCollection
                       ? `Play Episode ${currentEp.episodeNumber || selectedEpIdx + 1}`
-                      : "Continue Watching"}
+                      : resumeFromSec > 0
+                        ? `Resume from ${formatClock(resumeFromSec)}`
+                        : "Play"}
                   <span className="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center">
                     <Play size={12} fill="white" className="text-white ml-0.5" />
                   </span>
                 </button>
+                {isCollection && resume && (
+                  <button
+                    onClick={() => onPlay(resume.movie)}
+                    className="flex items-center gap-2 border border-[#f47521]/70 bg-[#f47521]/15 hover:bg-[#f47521] text-white font-semibold px-5 py-2.5 rounded-full text-sm transition-colors whitespace-nowrap"
+                    title={`Resume ${resume.movie.title}`}
+                  >
+                    {resume.durationSec > 0
+                      ? `Resume ${episodeTag(resume.movie) || "Episode"} • ${formatTimeLeft(resume.durationSec - resume.progressSec)}`
+                      : `Resume ${episodeTag(resume.movie) || "Episode"}`}
+                  </button>
+                )}
                 <button
                   onClick={onToggleMyList}
                   className="flex items-center gap-2 border border-white/30 hover:border-white text-white font-semibold px-5 py-2.5 rounded-full text-sm transition-colors"
@@ -342,6 +378,19 @@ export default function MovieModal({
                   </button>
                 )}
               </div>
+              {!isCollection && resume && resume.durationSec > 0 && (
+                <div className="mt-3 max-w-xs">
+                  <div className="h-1 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className="h-full bg-[#f47521] rounded-full"
+                      style={{ width: `${Math.round(resume.percent * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-white/60 text-[11px] mt-1.5">
+                    {formatTimeLeft(resume.durationSec - resume.progressSec)} left
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -416,7 +465,7 @@ export default function MovieModal({
               onScroll={updateEpisodesArrow}
               className="flex gap-4 overflow-x-auto scrollbar-hide pb-2"
             >
-              {episodes.map((ep, i) => (
+              {episodes.slice(0, visibleEps).map((ep, i) => (
                 <EpisodeCard
                   key={ep.id}
                   movie={ep}
@@ -432,6 +481,17 @@ export default function MovieModal({
                   onDelete={onDelete}
                 />
               ))}
+              {episodes.length > visibleEps && (
+                <button
+                  onClick={showMoreEps}
+                  className="shrink-0 w-36 self-stretch rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold transition"
+                >
+                  Show {Math.min(120, episodes.length - visibleEps)} more
+                  <span className="block text-[10px] text-white/50 font-normal mt-1">
+                    {visibleEps} of {episodes.length}
+                  </span>
+                </button>
+              )}
             </div>
           ) : similarMovies.length > 0 ? (
             <>

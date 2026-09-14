@@ -34,6 +34,12 @@ interface VideoPlayerProps {
   onPrev?: () => void;
   hasNext?: boolean;
   hasPrev?: boolean;
+  /** Resume offset in seconds — applied once when the player becomes ready. */
+  startAt?: number;
+  /** Throttled playback clock for Continue Watching. */
+  onProgress?: (currentSec: number, durationSec: number) => void;
+  /** Fired when the video ends (Continue Watching cleanup). */
+  onEnded?: () => void;
   onPlayStart?: (videoId: string, title: string) => void;
   onSaveToWatchLater?: (videoId: string, title: string) => void;
   onSaveToPlaylist?: (videoId: string, title: string) => void;
@@ -71,6 +77,9 @@ export function VideoPlayer({
   onPrev,
   hasNext,
   hasPrev,
+  startAt = 0,
+  onProgress,
+  onEnded,
   onPlayStart,
   onSaveToWatchLater,
   onSaveToPlaylist,
@@ -143,6 +152,17 @@ export function VideoPlayer({
   const tvControlsHiddenRef = useRef(false);
   const tvLastActivityRef = useRef(0);
   const tvRestoreFocusRef = useRef<HTMLElement | null>(null);
+  // Continue Watching: resume target + throttled clock reporting. Refs (not
+  // state) so the 500ms interval and unmount flush never re-create the player.
+  const startAtRef = useRef(startAt);
+  startAtRef.current = startAt;
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+  const latestClockRef = useRef<{ current: number; total: number } | null>(null);
+  const lastReportAtRef = useRef(0);
+  const resumeSeekDoneRef = useRef(false);
 
   /**
    * TV-only: reveal the controls and restart the inactivity timer. Called for
@@ -260,6 +280,9 @@ export function VideoPlayer({
   // Initialize YouTube Player API
   useEffect(() => {
     hasStartedRef.current = false;
+    resumeSeekDoneRef.current = false;
+    latestClockRef.current = null;
+    lastReportAtRef.current = 0;
     setVideoTitle("");
     setIsBuffering(true);
     setProgress(0);
@@ -356,6 +379,8 @@ export function VideoPlayer({
             ytPlayerRef.current = p;
             try {
               p.setVolume(volume);
+              const resumeFrom = startAtRef.current;
+              if (resumeFrom > 0) p.seekTo(resumeFrom, true);
               if (autoPlay) p.playVideo();
             } catch (error) {
               if (!isTv) throw error;
@@ -432,6 +457,31 @@ export function VideoPlayer({
                     setProgress((current / total) * 100);
                     setCurrentTime(formatTime(current));
                     setDuration(formatTime(total));
+                    latestClockRef.current = { current, total };
+                    // One corrective seek: the onReady seek can land before the
+                    // stream knows its duration — re-assert once we have a clock.
+                    const target = startAtRef.current;
+                    if (!resumeSeekDoneRef.current && target > 0) {
+                      resumeSeekDoneRef.current = true;
+                      if (Math.abs(current - target) > 8) {
+                        try {
+                          inst.seekTo(target, true);
+                        } catch (_) {
+                          /* Optional provider APIs may be unavailable. */
+                        }
+                      }
+                    }
+                    // Throttled clock for Continue Watching (close/pause flushes
+                    // the rest via latestClockRef on unmount).
+                    const now = Date.now();
+                    if (now - lastReportAtRef.current > 5000) {
+                      lastReportAtRef.current = now;
+                      try {
+                        onProgressRef.current?.(current, total);
+                      } catch (_) {
+                        /* Progress listeners must never break playback. */
+                      }
+                    }
                   }
                 } catch (_) {
                   /* Optional provider APIs may be unavailable. */
@@ -486,6 +536,11 @@ export function VideoPlayer({
             } else if (event.data === YT.PlayerState.ENDED) {
               setIsPlaying(false);
               setProgress(100);
+              try {
+                onEndedRef.current?.();
+              } catch (_) {
+                /* Progress listeners must never break playback. */
+              }
               if (onNext) onNext();
             }
           },
@@ -543,6 +598,15 @@ export function VideoPlayer({
 
     return () => {
       cancelled = true;
+      // Last-known clock, so closing the player keeps Continue Watching fresh.
+      const last = latestClockRef.current;
+      if (last && last.total > 0) {
+        try {
+          onProgressRef.current?.(last.current, last.total);
+        } catch (_) {
+          /* Progress listeners must never break playback. */
+        }
+      }
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (autoplayCheckTimer) clearTimeout(autoplayCheckTimer);
       if (isTv) {

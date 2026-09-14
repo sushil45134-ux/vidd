@@ -103,6 +103,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "preconnect", href: "https://img.youtube.com" },
+      { rel: "preconnect", href: "https://i.ytimg.com" },
+      { rel: "preconnect", href: "https://image.tmdb.org" },
+      { rel: "preconnect", href: "https://yjakihgnxntjfjvarxmt.supabase.co" },
+      { rel: "dns-prefetch", href: "https://s4.anilist.co" },
+      { rel: "dns-prefetch", href: "https://m.media-amazon.com" },
+      { rel: "dns-prefetch", href: "https://static.tvmaze.com" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       {

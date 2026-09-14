@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense, type ReactNode } from "react";
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
 import MovieRow from "./components/MovieRow";
@@ -6,7 +6,9 @@ import NotificationPanel from "./components/NotificationPanel";
 import SearchResults from "./components/SearchResults";
 import UnifiedSearch from "./components/UnifiedSearch";
 import SmartImage from "./components/SmartImage";
+import { useVisibleCount } from "./lib/useVisibleCount";
 import AnimeSection from "./components/AnimeSection";
+import ContinueWatchingRow from "./components/ContinueWatchingRow";
 
 // Heavy modals / overlays — loaded on demand to keep the initial bundle small.
 const MovieModal = lazy(() => import("./components/MovieModal"));
@@ -19,6 +21,15 @@ const ThumbnailEditor = lazy(() => import("./components/ThumbnailEditor"));
 
 import type { Movie, Category } from "./data";
 import { getMovieRef, useSiteConfig, type CustomRow, type RowKey } from "./lib/customization";
+import {
+  getSavedProgress,
+  markWatchFinished,
+  removeContinueWatching,
+  removeContinueWatchingForMovie,
+  saveWatchProgress,
+  useContinueWatching,
+} from "./lib/continueWatching";
+import { collectPlacedIds, resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
@@ -28,8 +39,6 @@ const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
   cartoon: (m) => m.genre.some((g) => g.toLowerCase() === "cartoon"),
   movies: (m) => !m.genre.some((g) => ["anime", "cartoon"].includes(g.toLowerCase())),
-  tvshows: (m) => (m.rating || "").startsWith("TV"),
-  new: (m) => m.year === new Date().getFullYear(),
 };
 
 /**
@@ -121,17 +130,23 @@ function mergeCollection(existing: Movie, incoming: Movie): Movie {
     return true;
   });
   const rebuilt = buildCollections(unique, {});
-  return (
-    rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming
-  );
+  return rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming;
 }
 
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
+  const [resumeAt, setResumeAt] = useState(0);
   const [myList, setMyList] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  // Filter/render on the debounced value so every keystroke doesn't refilter
+  // 2000+ titles and rebuild the results grid (the input itself stays live).
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 120);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [activeCategory, setActiveCategory] = useState<Category>("home");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -185,11 +200,36 @@ function App() {
       .then(({ uploaded, synced }) => {
         setUploadedMovies(uploaded);
         setSyncedMovies(synced);
-        try {
-          localStorage.setItem("vid:moviesCache:v2", JSON.stringify({ uploaded, synced }));
-        } catch {}
+        // Stringifying 2000+ rows blocks the main thread — write the cache
+        // when idle so the fresh paint is never held up by it.
+        const writeCache = () => {
+          try {
+            localStorage.setItem("vid:moviesCache:v2", JSON.stringify({ uploaded, synced }));
+          } catch {}
+        };
+        if (typeof requestIdleCallback !== "undefined") {
+          requestIdleCallback(writeCache, { timeout: 2000 });
+        } else {
+          setTimeout(writeCache, 0);
+        }
       })
       .catch(() => {});
+
+    // Warm on-demand modal/player chunks when idle so first open is instant.
+    if (typeof requestIdleCallback !== "undefined") {
+      requestIdleCallback(
+        () => {
+          import("./components/MovieModal").catch(() => {});
+          import("./components/PlayerOverlay").catch(() => {});
+        },
+        { timeout: 3000 },
+      );
+    } else {
+      setTimeout(() => {
+        import("./components/MovieModal").catch(() => {});
+        import("./components/PlayerOverlay").catch(() => {});
+      }, 2000);
+    }
 
     return undefined;
   }, []);
@@ -216,6 +256,33 @@ function App() {
     [uploadedCollections, syncedCollections],
   );
 
+  // Continue Watching — stored snapshots reconciled with fresh library data.
+  const continueWatchingLibrary = useMemo(
+    () => [...allMovies, ...animeEpisodes],
+    [allMovies, animeEpisodes],
+  );
+  const continueWatchingItems = useContinueWatching(continueWatchingLibrary);
+
+  // "More info" from the Continue Watching row opens the series modal for
+  // episodes (so seasons / episode lists stay one tap away).
+  const openResumeDetails = useCallback(
+    (movie: Movie) => {
+      if (movie.playlistId) {
+        const collection = displayItems.find(
+          (m) =>
+            m.isCollection &&
+            (m.playlistId === movie.playlistId || m.episodes?.[0]?.playlistId === movie.playlistId),
+        );
+        if (collection) {
+          setSelectedMovie(collection);
+          return;
+        }
+      }
+      setSelectedMovie(movie);
+    },
+    [displayItems],
+  );
+
   const resolveCustomRowItems = useCallback(
     (row: CustomRow) => {
       const byId = new Map(displayItems.map((movie) => [movie.id, movie]));
@@ -238,6 +305,27 @@ function App() {
     [displayItems],
   );
 
+  // Planned (wishlist) rows resolve by title and keep a "Coming Soon" slot
+  // for every missing title; manual rows behave exactly as before.
+  const resolveRowSlots = useCallback(
+    (row: CustomRow): RowSlot[] => {
+      const planned = (row.plannedTitles || []).map((t) => t.trim()).filter(Boolean);
+      if (planned.length > 0) return resolvePlannedSlots(planned, displayItems);
+      return resolveCustomRowItems(row).map((movie) => ({ kind: "movie" as const, movie }));
+    },
+    [displayItems, resolveCustomRowItems],
+  );
+
+  // Per-row slots memoized as a whole: each row's array keeps its identity
+  // across unrelated renders, so memo()'d rows below skip re-rendering.
+  const rowSlotsById = useMemo(() => {
+    const map = new Map<string, RowSlot[]>();
+    cfg.customRows?.forEach((row) => {
+      map.set(row.id, resolveRowSlots(row));
+    });
+    return map;
+  }, [cfg.customRows, resolveRowSlots]);
+
   const existingYtIds = useMemo(() => {
     const ids = new Set<string>();
     allMovies.forEach((m) => {
@@ -251,8 +339,10 @@ function App() {
     const map = new Map<string, { title: string; seasons: Map<number, number> }>();
     uploadedMovies.forEach((m) => {
       if (!m.playlistId) return;
-      const entry =
-        map.get(m.playlistId) || { title: m.playlistTitle || "Series", seasons: new Map<number, number>() };
+      const entry = map.get(m.playlistId) || {
+        title: m.playlistTitle || "Series",
+        seasons: new Map<number, number>(),
+      };
       const s = m.seasonNumber || 1;
       entry.seasons.set(s, (entry.seasons.get(s) || 0) + 1);
       map.set(m.playlistId, entry);
@@ -298,8 +388,8 @@ function App() {
   const isLiked = useCallback((movieId: number) => likedMovies.has(movieId), [likedMovies]);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase();
+    if (!debouncedQuery.trim()) return [];
+    const q = debouncedQuery.toLowerCase();
     return displayItems.filter(
       (m) =>
         m.title.toLowerCase().includes(q) ||
@@ -308,31 +398,47 @@ function App() {
         (m.cast && m.cast.some((c) => c.toLowerCase().includes(q))) ||
         (m.creator && m.creator.toLowerCase().includes(q)),
     );
-  }, [searchQuery, displayItems]);
+  }, [debouncedQuery, displayItems]);
 
   const getCategoryMovies = useCallback(() => {
     if (activeCategory === "mylist") return myList;
     const matcher = CATEGORY_MATCH[activeCategory];
     if (!matcher) return [];
-    // Movies already placed in a custom row for THIS section must not also
-    // appear in the auto grid below — otherwise the same title shows twice
-    // (once in the custom row, once in the auto-generated grid).
-    const scoped = new Set<number>();
-    cfg.customRows?.forEach((row) => {
-      if (!row.visible) return;
-      const sec = row.section || "home";
-      if (sec !== activeCategory && sec !== "all") return;
-      resolveCustomRowItems(row).forEach((m) => {
-        scoped.add(m.id);
-        m.episodes?.forEach((e) => scoped.add(e.id));
-      });
-    });
+    // A title placed in ANY visible custom row (any section, manual or
+    // planned) shows only in its row — never again in the auto grid below.
+    const scoped = collectPlacedIds(cfg.customRows, resolveRowSlots);
     return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
-  }, [activeCategory, myList, displayItems, cfg.customRows, resolveCustomRowItems]);
+  }, [activeCategory, myList, displayItems, cfg.customRows, resolveRowSlots]);
 
-  const handlePlay = useCallback((movie: Movie) => {
+  // Computed once per data change instead of on every render pass.
+  const categoryMovies = useMemo(() => getCategoryMovies(), [getCategoryMovies]);
+  const { visible: gridVisible, showMore: showMoreGrid } = useVisibleCount(activeCategory);
+
+  const handlePlay = useCallback((movie: Movie, opts?: { fromStart?: boolean }) => {
     setSelectedMovie(null);
+    // Auto-resume: any saved progress for this exact video is picked up, no
+    // matter which row / modal / screen the Play press came from.
+    setResumeAt(opts?.fromStart ? 0 : getSavedProgress(movie));
     setPlayingMovie(movie);
+  }, []);
+
+  // Stable "play first episode" for row cards (avoids inline arrows that
+  // would defeat memo() on every render).
+  const playFirstEpisode = useCallback(
+    (m: Movie) => handlePlay(m.episodes?.[0] || m),
+    [handlePlay],
+  );
+
+  // Continue Watching: throttled clock from the players (attributed to the
+  // episode actually on screen by PlayerOverlay).
+  const handleWatchProgress = useCallback(
+    (movie: Movie, currentSec: number, durationSec: number) => {
+      saveWatchProgress(movie, currentSec, durationSec);
+    },
+    [],
+  );
+  const handleWatchEnded = useCallback((movie: Movie) => {
+    markWatchFinished(movie);
   }, []);
 
   // Stable so AnimeSection's effect doesn't re-fire on every render.
@@ -345,31 +451,34 @@ function App() {
   const closePlayer = useCallback(() => setPlayingMovie(null), []);
   const closeNotifications = useCallback(() => setShowNotifications(false), []);
 
-  const handleUpload = useCallback(async (movies: Movie | Movie[]) => {
-    const arr = Array.isArray(movies) ? movies : [movies];
-    setShowUploadModal(false);
-    const { insertMovies } = await import("./lib/moviesRepo");
-    const saved = await insertMovies(arr, "uploaded");
-    const toAdd = saved.length > 0 ? saved : arr;
-    setUploadedMovies((prev) => [...toAdd, ...prev]);
-    // Series uploads (episodes sharing a playlistId) belong in My List as ONE
-    // collection card, not as a separate "Episode 1/2/3" card per episode.
-    const grouped = buildCollections(toAdd, {});
-    setMyList((prev) => {
-      const next = [...prev];
-      for (const item of grouped) {
-        const idx = next.findIndex(
-          (m) => m.isCollection && m.playlistId && m.playlistId === item.playlistId,
-        );
-        // Adding episodes to an existing series merges into its card instead
-        // of creating a duplicate.
-        if (idx >= 0) next[idx] = mergeCollection(next[idx], item);
-        else next.unshift(item);
-      }
-      return next;
-    });
-    setTimeout(() => setPlayingMovie(toAdd[0]), 500);
-  }, []);
+  const handleUpload = useCallback(
+    async (movies: Movie | Movie[], opts?: { autoplay?: boolean }) => {
+      const arr = Array.isArray(movies) ? movies : [movies];
+      setShowUploadModal(false);
+      const { insertMovies } = await import("./lib/moviesRepo");
+      const saved = await insertMovies(arr, "uploaded");
+      const toAdd = saved.length > 0 ? saved : arr;
+      setUploadedMovies((prev) => [...toAdd, ...prev]);
+      // Series uploads (episodes sharing a playlistId) belong in My List as ONE
+      // collection card, not as a separate "Episode 1/2/3" card per episode.
+      const grouped = buildCollections(toAdd, {});
+      setMyList((prev) => {
+        const next = [...prev];
+        for (const item of grouped) {
+          const idx = next.findIndex(
+            (m) => m.isCollection && m.playlistId && m.playlistId === item.playlistId,
+          );
+          // Adding episodes to an existing series merges into its card instead
+          // of creating a duplicate.
+          if (idx >= 0) next[idx] = mergeCollection(next[idx], item);
+          else next.unshift(item);
+        }
+        return next;
+      });
+      if (opts?.autoplay !== false) setTimeout(() => setPlayingMovie(toAdd[0]), 500);
+    },
+    [],
+  );
 
   // Admin-only: delete an uploaded video, a single synced video, or a whole
   // synced playlist (collection). Removes it from every list it lives in.
@@ -377,6 +486,7 @@ function App() {
     async (movie: Movie) => {
       // Whole playlist collection: drop every synced episode sharing the playlistId.
       if (movie.isCollection && movie.episodes && movie.episodes.length > 0) {
+        removeContinueWatchingForMovie(movie);
         const pid = movie.episodes[0].playlistId;
         const epIds = new Set(movie.episodes.map((e) => e.id));
         const { deleteMovieById, deleteMoviesByPlaylist } = await import("./lib/moviesRepo");
@@ -401,6 +511,7 @@ function App() {
         return;
       }
       // Single item (uploaded or standalone synced).
+      removeContinueWatchingForMovie(movie);
       const { deleteMovieById } = await import("./lib/moviesRepo");
       await deleteMovieById(movie.id);
       setUploadedMovies((prev) => prev.filter((m) => m.id !== movie.id));
@@ -452,7 +563,8 @@ function App() {
       }
       const paint = (episode: Movie): Movie => {
         if (episode.youtubeId) return episode;
-        if (!isGenericPoster(episode.image) && !isGenericPoster(episode.thumbnailUrl)) return episode;
+        if (!isGenericPoster(episode.image) && !isGenericPoster(episode.thumbnailUrl))
+          return episode;
         return { ...episode, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl };
       };
       setSelectedMovie((prev) =>
@@ -512,7 +624,7 @@ function App() {
     } catch {}
   }, []);
 
-  const showingSearch = searchQuery.trim().length > 0;
+  const showingSearch = debouncedQuery.trim().length > 0;
   const showingDiscover = activeCategory === "discover" && !showingSearch;
   const showingCategory =
     activeCategory !== "home" && activeCategory !== "discover" && !showingSearch;
@@ -572,9 +684,9 @@ function App() {
         {showingSearch && (
           <SearchResults
             results={searchResults}
-            query={searchQuery}
+            query={debouncedQuery}
             onSelectMovie={setSelectedMovie}
-            onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
+            onPlay={playFirstEpisode}
             isInMyList={isInMyList}
             isLiked={isLiked}
             toggleMyList={toggleMyList}
@@ -606,13 +718,9 @@ function App() {
                   ? "Anime"
                   : activeCategory === "cartoon"
                     ? "Cartoon"
-                    : activeCategory === "tvshows"
-                      ? "TV Shows"
-                      : activeCategory === "mylist"
-                        ? "My List"
-                        : activeCategory === "new"
-                          ? "New & Popular"
-                          : activeCategory}
+                    : activeCategory === "mylist"
+                      ? "My List"
+                      : activeCategory}
             </h1>
 
             {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
@@ -633,17 +741,17 @@ function App() {
               if (!row.visible) return null;
               const sec = row.section || "home";
               if (sec !== "all" && sec !== activeCategory) return null;
-              const items = resolveCustomRowItems(row);
-              if (items.length === 0) return null;
+              const slots = rowSlotsById.get(row.id) || [];
+              if (slots.length === 0) return null;
               return (
                 <MovieRow
                   key={row.id}
                   title={row.title}
                   titleSize={row.titleSize}
-                  movies={items}
+                  slots={slots}
                   isLargeRow={row.isLarge}
                   onSelectMovie={setSelectedMovie}
-                  onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
+                  onPlay={playFirstEpisode}
                   isInMyList={isInMyList}
                   isLiked={isLiked}
                   toggleMyList={toggleMyList}
@@ -657,7 +765,7 @@ function App() {
             })}
 
             <div className="px-4 md:px-12">
-              {getCategoryMovies().length === 0 ? (
+              {categoryMovies.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <p className="text-gray-400 text-lg">No titles found</p>
                   <p className="text-gray-600 text-sm mt-2">
@@ -670,10 +778,10 @@ function App() {
                 </div>
               ) : (
                 <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {getCategoryMovies().map((movie) => (
+                  {categoryMovies.slice(0, gridVisible).map((movie) => (
                     <div
                       key={movie.id}
-                      className="tv-category-card group cursor-pointer"
+                      className="tv-category-card cv-card group cursor-pointer"
                       onClick={() => setSelectedMovie(movie)}
                       tabIndex={0}
                       role="button"
@@ -717,6 +825,19 @@ function App() {
                   ))}
                 </div>
               )}
+              {categoryMovies.length > gridVisible && (
+                <div className="flex flex-col items-center gap-2 py-8">
+                  <p className="text-gray-500 text-xs">
+                    Showing {gridVisible} of {categoryMovies.length}
+                  </p>
+                  <button
+                    onClick={showMoreGrid}
+                    className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+                  >
+                    Load more
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -739,32 +860,57 @@ function App() {
               {/* Synced playlists no longer auto-appear on home.
                 Admin adds them via Custom Rows when desired. */}
 
-              {cfg.customRows?.map((row) => {
-                if (!row.visible) return null;
-                const sec = row.section || "home";
-                if (sec !== "home" && sec !== "all") return null;
-                const items = resolveCustomRowItems(row);
-                if (items.length === 0) return null;
-                return (
-                  <MovieRow
-                    key={row.id}
-                    title={row.title}
-                    titleSize={row.titleSize}
-                    movies={items}
-                    isLargeRow={row.isLarge}
-                    onSelectMovie={setSelectedMovie}
-                    onPlay={(m) => handlePlay(m.episodes?.[0] || m)}
-                    isInMyList={isInMyList}
-                    isLiked={isLiked}
-                    toggleMyList={toggleMyList}
-                    toggleLike={toggleLike}
-                    canDelete={isAdmin}
-                    onDelete={handleDelete}
-                    canEditThumbnail={isAdmin}
-                    onEditThumbnail={setThumbnailEditMovie}
-                  />
-                );
-              })}
+              {(() => {
+                const elements: ReactNode[] = [];
+                const pushContinueWatching = () => {
+                  if (continueWatchingItems.length === 0) return;
+                  elements.push(
+                    <ContinueWatchingRow
+                      key="continue-watching"
+                      items={continueWatchingItems}
+                      onPlay={handlePlay}
+                      onSelectMovie={openResumeDetails}
+                      onRemove={removeContinueWatching}
+                    />,
+                  );
+                };
+                let rowsRendered = false;
+                cfg.customRows?.forEach((row) => {
+                  if (!row.visible) return;
+                  const sec = row.section || "home";
+                  if (sec !== "home" && sec !== "all") return;
+                  const slots = rowSlotsById.get(row.id) || [];
+                  if (slots.length === 0) return;
+                  elements.push(
+                    <MovieRow
+                      key={row.id}
+                      title={row.title}
+                      titleSize={row.titleSize}
+                      slots={slots}
+                      isLargeRow={row.isLarge}
+                      onSelectMovie={setSelectedMovie}
+                      onPlay={playFirstEpisode}
+                      isInMyList={isInMyList}
+                      isLiked={isLiked}
+                      toggleMyList={toggleMyList}
+                      toggleLike={toggleLike}
+                      canDelete={isAdmin}
+                      onDelete={handleDelete}
+                      canEditThumbnail={isAdmin}
+                      onEditThumbnail={setThumbnailEditMovie}
+                    />,
+                  );
+                  // Continue Watching sits right BELOW the first row
+                  // (Trending & Popular Shows), never above it.
+                  if (!rowsRendered) {
+                    rowsRendered = true;
+                    pushContinueWatching();
+                  }
+                });
+                // No custom rows at all — Continue Watching still shows alone.
+                if (!rowsRendered) pushContinueWatching();
+                return elements;
+              })()}
             </div>
           </>
         )}
@@ -813,6 +959,7 @@ function App() {
           <AdminRowsEditor
             onClose={() => setShowAdminEditor(false)}
             availableMovies={displayItems}
+            onAddMovies={(movies) => handleUpload(movies, { autoplay: false })}
           />
         )}
 
@@ -828,6 +975,9 @@ function App() {
           <PlayerOverlay
             movie={playingMovie}
             onClose={closePlayer}
+            startAt={resumeAt}
+            onProgress={handleWatchProgress}
+            onEnded={handleWatchEnded}
             episodes={(() => {
               const pid = playingMovie.playlistId;
               if (!pid) return undefined;

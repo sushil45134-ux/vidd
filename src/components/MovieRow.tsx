@@ -1,13 +1,16 @@
-import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import type { Movie } from "../data";
 import MovieCard from "./MovieCard";
 import { isTvBrowser } from "../lib/browser";
+import type { RowSlot } from "../lib/plannedRows";
 
 interface MovieRowProps {
   title: string;
   titleSize?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
-  movies: Movie[];
+  movies?: Movie[];
+  /** Ordered movie/placeholder slots (planned wishlist rows). Wins over `movies`. */
+  slots?: RowSlot[];
   isLargeRow?: boolean;
   onSelectMovie: (movie: Movie) => void;
   onPlay: (movie: Movie) => void;
@@ -30,10 +33,11 @@ const TITLE_SIZE_CLASS: Record<string, string> = {
   "2xl": "text-2xl md:text-3xl",
 };
 
-export default function MovieRow({
+function MovieRow({
   title,
   titleSize = "lg",
-  movies,
+  movies = [],
+  slots,
   isLargeRow = false,
   onSelectMovie,
   onPlay,
@@ -53,12 +57,17 @@ export default function MovieRow({
   // scrolling makes row paging feel laggy and lands on half-cut cards.
   const isTv = isTvBrowser();
 
+  const scrollRaf = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
   const handleScroll = () => {
-    if (rowRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      setShowLeftArrow(scrollLeft > 20);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
-    }
+    cancelAnimationFrame(scrollRaf.current);
+    scrollRaf.current = requestAnimationFrame(() => {
+      if (rowRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+        setShowLeftArrow(scrollLeft > 20);
+        setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
+      }
+    });
   };
 
   const scroll = (direction: "left" | "right") => {
@@ -92,7 +101,7 @@ export default function MovieRow({
   };
 
   return (
-    <div className="relative px-4 md:px-12 mb-8 group/row">
+    <div className="relative px-4 md:px-12 mb-8 group/row cv-row">
       {title && (
         <h2
           className={`text-white ${TITLE_SIZE_CLASS[titleSize] || TITLE_SIZE_CLASS.lg} font-bold mb-2 hover:text-gray-300 cursor-pointer transition-colors`}
@@ -121,23 +130,28 @@ export default function MovieRow({
           } py-4 px-1`}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
-          {movies.map((movie) => (
-            <MovieCard
-              key={movie.id}
-              movie={movie}
-              isLarge={isLargeRow}
-              onClick={() => onSelectMovie(movie)}
-              onPlay={onPlay}
-              isInMyList={isInMyList(movie.id)}
-              isLiked={isLiked(movie.id)}
-              onToggleMyList={() => toggleMyList(movie)}
-              onToggleLike={() => toggleLike(movie.id)}
-              canDelete={canDelete}
-              onDelete={onDelete}
-              canEditThumbnail={canEditThumbnail}
-              onEditThumbnail={onEditThumbnail}
-            />
-          ))}
+          {(slots ?? movies.map((movie) => ({ kind: "movie" as const, movie }))).map(
+            (slot, index) =>
+              slot.kind === "movie" ? (
+                <MovieCard
+                  key={slot.movie.id}
+                  movie={slot.movie}
+                  isLarge={isLargeRow}
+                  onClick={() => onSelectMovie(slot.movie)}
+                  onPlay={onPlay}
+                  isInMyList={isInMyList(slot.movie.id)}
+                  isLiked={isLiked(slot.movie.id)}
+                  onToggleMyList={() => toggleMyList(slot.movie)}
+                  onToggleLike={() => toggleLike(slot.movie.id)}
+                  canDelete={canDelete}
+                  onDelete={onDelete}
+                  canEditThumbnail={canEditThumbnail}
+                  onEditThumbnail={onEditThumbnail}
+                />
+              ) : (
+                <PlaceholderCard key={`planned-${index}`} title={slot.title} isLarge={isLargeRow} />
+              ),
+          )}
         </div>
 
         {showRightArrow && (
@@ -152,3 +166,33 @@ export default function MovieRow({
     </div>
   );
 }
+
+/**
+ * "Coming Soon" slot for planned titles missing from the library. Same
+ * footprint as MovieCard so the row keeps its shape; turns into the real
+ * card automatically once the title is added.
+ */
+function PlaceholderCard({ title, isLarge = false }: { title: string; isLarge?: boolean }) {
+  return (
+    <div
+      className={`relative flex-shrink-0 ${isLarge ? "w-[280px] md:w-[360px]" : "w-[220px] md:w-[300px]"}`}
+      title={`${title} — coming soon`}
+    >
+      <div className="relative overflow-hidden rounded-md border-2 border-dashed border-white/15 bg-white/[0.03]">
+        <div className="legacy-media">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
+            <span className="w-11 h-11 rounded-full bg-white/5 ring-1 ring-white/10 flex items-center justify-center">
+              <Clock size={18} className="text-white/40" />
+            </span>
+            <p className="text-white/70 text-sm font-semibold leading-snug line-clamp-2">{title}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#ff6a00]/80">
+              Coming Soon
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default memo(MovieRow);

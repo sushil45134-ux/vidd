@@ -1,5 +1,17 @@
-import { useEffect, useState, useMemo } from "react";
-import { X, Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Check } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import {
+  X,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Check,
+  Download,
+  Loader2,
+  Square,
+} from "lucide-react";
 import type { Movie } from "../data";
 import {
   loadConfig,
@@ -9,10 +21,14 @@ import {
   type TitleSize,
   type RowSection,
 } from "../lib/customization";
+import { matchPlannedTitle, parsePlannedTitles } from "../lib/plannedRows";
+import { autoAddPlannedTitles, type TitleAddStatus } from "../lib/wishlistAutoAdd";
+import { ANIME_PROVIDERS } from "../lib/animeAutoFetch";
 
 interface Props {
   onClose: () => void;
   availableMovies: Movie[];
+  onAddMovies: (movies: Movie[]) => Promise<void> | void;
 }
 
 const SIZE_OPTIONS: { value: TitleSize; label: string }[] = [
@@ -29,8 +45,6 @@ const SECTION_OPTIONS: { value: RowSection; label: string }[] = [
   { value: "movies", label: "Movies" },
   { value: "anime", label: "Anime" },
   { value: "cartoon", label: "Cartoon" },
-  { value: "tvshows", label: "TV Shows" },
-  { value: "new", label: "New" },
   { value: "mylist", label: "My List" },
   { value: "all", label: "All Sections" },
 ];
@@ -39,10 +53,42 @@ function getMovieIds(movie: Movie): number[] {
   return [movie.id, ...(movie.episodes?.map((episode) => episode.id) || [])];
 }
 
-export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
+export default function AdminRowsEditor({ onClose, availableMovies, onAddMovies }: Props) {
   const [rows, setRows] = useState<CustomRow[]>(() => loadConfig().customRows || []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [autoAddProvider, setAutoAddProvider] = useState(ANIME_PROVIDERS[0].id);
+  const [autoAdding, setAutoAdding] = useState(false);
+  const [addStatuses, setAddStatuses] = useState<Record<string, TitleAddStatus>>({});
+  const [lastSummary, setLastSummary] = useState<{
+    added: number;
+    failed: number;
+    skipped: number;
+  } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const startAutoAdd = async (targets: string[]) => {
+    if (autoAdding || targets.length === 0) return;
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setAutoAdding(true);
+    setAddStatuses({});
+    setLastSummary(null);
+    try {
+      const { movies, added, failed, skipped } = await autoAddPlannedTitles(targets, {
+        providerId: autoAddProvider,
+        signal: ctrl.signal,
+        onStatus: (s) => setAddStatuses((prev) => ({ ...prev, [s.title]: s })),
+      });
+      if (movies.length > 0) await onAddMovies(movies);
+      setLastSummary({ added, failed, skipped });
+    } finally {
+      setAutoAdding(false);
+      abortRef.current = null;
+    }
+  };
+
+  const stopAutoAdd = () => abortRef.current?.abort();
 
   function persist(next: CustomRow[]) {
     setRows(next);
@@ -133,10 +179,14 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div>
             <h2 className="text-lg font-black text-white">
-              <span className="bg-gradient-to-r from-[#ff6a00] to-[#ff8533] bg-clip-text text-transparent">Custom</span>{" "}
+              <span className="bg-gradient-to-r from-[#ff6a00] to-[#ff8533] bg-clip-text text-transparent">
+                Custom
+              </span>{" "}
               Rows
             </h2>
-            <p className="text-xs text-white/40 mt-0.5">Add rows visible to everyone on the site.</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              Add rows visible to everyone on the site.
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -176,15 +226,28 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                       {r.title || <span className="text-white/40 italic">Untitled</span>}
                     </div>
                     <div className="text-[10px] text-white/40 mt-0.5">
-                      {r.movieRefs?.length || r.movieIds.length} item{(r.movieRefs?.length || r.movieIds.length) !== 1 ? "s" : ""} · size {r.titleSize.toUpperCase()} · {r.visible ? "visible" : "hidden"}
-                      {(r.movieRefs?.length || r.movieIds.length) === 0 && (
-                        <span className="ml-1.5 text-[#ff6a00]">· no movies — won&apos;t show on site</span>
+                      {r.movieRefs?.length || r.movieIds.length} item
+                      {(r.movieRefs?.length || r.movieIds.length) !== 1 ? "s" : ""} · size{" "}
+                      {r.titleSize.toUpperCase()} · {r.visible ? "visible" : "hidden"}
+                      {(r.plannedTitles?.length || 0) > 0 && (
+                        <span className="ml-1.5 text-emerald-400">
+                          · {(r.plannedTitles || []).length} planned
+                        </span>
                       )}
+                      {(r.movieRefs?.length || r.movieIds.length) === 0 &&
+                        (r.plannedTitles?.length || 0) === 0 && (
+                          <span className="ml-1.5 text-[#ff6a00]">
+                            · no movies — won&apos;t show on site
+                          </span>
+                        )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={(e) => { e.stopPropagation(); move(r.id, -1); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(r.id, -1);
+                      }}
                       disabled={i === 0}
                       className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white/70 flex items-center justify-center"
                       title="Move up"
@@ -192,7 +255,10 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                       <ChevronUp size={14} />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); move(r.id, 1); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        move(r.id, 1);
+                      }}
                       disabled={i === rows.length - 1}
                       className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white/70 flex items-center justify-center"
                       title="Move down"
@@ -200,14 +266,20 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                       <ChevronDown size={14} />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); updateRow(r.id, { visible: !r.visible }); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateRow(r.id, { visible: !r.visible });
+                      }}
                       className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 flex items-center justify-center"
                       title={r.visible ? "Hide" : "Show"}
                     >
                       {r.visible ? <Eye size={13} /> : <EyeOff size={13} />}
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); deleteRow(r.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteRow(r.id);
+                      }}
                       className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center"
                       title="Delete"
                     >
@@ -227,13 +299,17 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
               </p>
             ) : (
               <div className="space-y-4">
-                {(editing.movieRefs?.length || editing.movieIds.length) === 0 && (
-                  <div className="rounded-xl bg-[#ff6a00]/10 border border-[#ff6a00]/30 px-3 py-2 text-xs text-[#ff6a00]">
-                    This row won&apos;t appear on the site until you add at least one movie below.
-                  </div>
-                )}
+                {(editing.movieRefs?.length || editing.movieIds.length) === 0 &&
+                  (editing.plannedTitles?.length || 0) === 0 && (
+                    <div className="rounded-xl bg-[#ff6a00]/10 border border-[#ff6a00]/30 px-3 py-2 text-xs text-[#ff6a00]">
+                      This row won&apos;t appear on the site until you add a movie or a planned
+                      title below.
+                    </div>
+                  )}
                 <div>
-                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Row Title</label>
+                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+                    Row Title
+                  </label>
                   <input
                     value={editing.title}
                     onChange={(e) => updateRow(editing.id, { title: e.target.value })}
@@ -243,7 +319,9 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Title Size</label>
+                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+                    Title Size
+                  </label>
                   <div className="mt-1 flex gap-1">
                     {SIZE_OPTIONS.map((s) => (
                       <button
@@ -262,7 +340,9 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Show On Section</label>
+                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+                    Show On Section
+                  </label>
                   <div className="mt-1 grid grid-cols-4 gap-1">
                     {SECTION_OPTIONS.map((s) => (
                       <button
@@ -279,7 +359,6 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                     ))}
                   </div>
                 </div>
-
 
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 text-xs text-white/70 cursor-pointer">
@@ -304,8 +383,184 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
 
                 <div>
                   <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+                    Planned Titles — wishlist ({(editing.plannedTitles || []).length})
+                  </label>
+                  <p className="text-[11px] text-white/40 mt-1">
+                    One anime per line. Matched titles play from your library; missing ones show as
+                    Coming Soon slots and fill in automatically when you add them. Small typos are
+                    OK — Narruto still finds Naruto. While this list is set, it defines the row
+                    (manual picks below are ignored).
+                  </p>
+                  <textarea
+                    value={(editing.plannedTitles || []).join("\n")}
+                    onChange={(e) =>
+                      updateRow(editing.id, { plannedTitles: parsePlannedTitles(e.target.value) })
+                    }
+                    placeholder={"One Piece\nNaruto: Shippuden\nDemon Slayer"}
+                    rows={6}
+                    className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#ff6a00]/50 font-mono"
+                  />
+                  {(editing.plannedTitles || []).length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {(editing.plannedTitles || []).map((t) => {
+                        const m = matchPlannedTitle(t, availableMovies);
+                        return (
+                          <div key={t} className="flex items-center gap-2 text-[11px]">
+                            {m ? (
+                              <>
+                                <Check size={12} className="text-emerald-400 shrink-0" />
+                                <span className="text-white/70 truncate">{t}</span>
+                                <span className="text-white/30 truncate">→ {m.title}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="w-3 h-3 rounded-full border border-white/25 shrink-0" />
+                                <span className="text-white/70 truncate">{t}</span>
+                                <span className="text-[#ff6a00]/80">· Coming Soon slot</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {(() => {
+                    const missing = (editing.plannedTitles || []).filter(
+                      (t) => !matchPlannedTitle(t, availableMovies),
+                    );
+                    if (missing.length === 0) return null;
+                    const finished = missing.filter((t) => {
+                      const s = addStatuses[t];
+                      return !!s && s.phase !== "fetching";
+                    }).length;
+                    return (
+                      <div className="mt-3 rounded-xl border border-[#ff6a00]/30 bg-[#ff6a00]/5 p-3">
+                        <p className="text-[11px] text-white/70 leading-relaxed">
+                          <span className="font-bold text-white">{missing.length} missing</span> —
+                          naam se ID aur episodes auto-fetch karke library me add karo. Row me list
+                          ke order me khud dikhenge. Koi API key nahi chahiye.
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <select
+                            value={autoAddProvider}
+                            onChange={(e) => setAutoAddProvider(e.target.value)}
+                            disabled={autoAdding}
+                            className="bg-[#222] border border-white/10 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none focus:border-[#ff6a00] cursor-pointer disabled:opacity-50"
+                          >
+                            {ANIME_PROVIDERS.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                          {!autoAdding ? (
+                            <button
+                              onClick={() => void startAutoAdd(missing)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#ff6a00] to-[#ee0979] hover:opacity-90 text-white text-[11px] font-bold transition"
+                            >
+                              <Download size={13} /> Auto-add {missing.length} to library
+                            </button>
+                          ) : (
+                            <button
+                              onClick={stopAutoAdd}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-bold transition"
+                            >
+                              <Square size={13} /> Roko ({finished}/{missing.length})
+                            </button>
+                          )}
+                        </div>
+                        {autoAdding && (
+                          <div className="mt-2 h-1 rounded bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full bg-[#ff6a00] transition-all"
+                              style={{ width: `${Math.round((finished / missing.length) * 100)}%` }}
+                            />
+                          </div>
+                        )}
+                        {(autoAdding || Object.keys(addStatuses).length > 0) && (
+                          <div className="mt-2 space-y-1">
+                            {missing.map((t) => {
+                              const s = addStatuses[t];
+                              if (!s || s.phase === "fetching") {
+                                return (
+                                  <div
+                                    key={t}
+                                    className="flex items-center gap-2 text-[11px] text-white/50"
+                                  >
+                                    {!s ? (
+                                      <span className="w-3 h-3 rounded-full border border-white/25 shrink-0" />
+                                    ) : (
+                                      <Loader2 size={12} className="animate-spin shrink-0" />
+                                    )}
+                                    <span className="truncate">{t}</span>
+                                    <span className="shrink-0">
+                                      · {!s ? "intezaar..." : "ID + episodes..."}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (s.phase === "done") {
+                                return (
+                                  <div
+                                    key={t}
+                                    className="flex items-center gap-2 text-[11px] text-white/70"
+                                  >
+                                    <Check size={12} className="text-emerald-400 shrink-0" />
+                                    <span className="truncate">{t}</span>
+                                    <span className="text-white/30 truncate">
+                                      → {s.detail} · {s.episodes} eps · {s.imdbId}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (s.phase === "failed") {
+                                return (
+                                  <div
+                                    key={t}
+                                    className="flex items-center gap-2 text-[11px] text-white/70"
+                                  >
+                                    <X size={12} className="text-red-400 shrink-0" />
+                                    <span className="truncate">{t}</span>
+                                    <span className="text-red-400/80 truncate">· {s.detail}</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div
+                                  key={t}
+                                  className="flex items-center gap-2 text-[11px] text-white/40"
+                                >
+                                  <span className="w-3 h-3 rounded-full border border-white/25 shrink-0" />
+                                  <span className="truncate">{t}</span>
+                                  <span className="truncate">· {s.detail || "skip"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {!autoAdding && lastSummary && (
+                          <p className="mt-2 text-[11px] text-white/70">
+                            ✅ {lastSummary.added} added
+                            {lastSummary.failed > 0 && ` · ❌ ${lastSummary.failed} failed`}
+                            {lastSummary.skipped > 0 && ` · ⏭ ${lastSummary.skipped} skipped`} —
+                            added anime row me list ke order me khud dikhenge.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
                     Pick Movies ({editing.movieRefs?.length || editing.movieIds.length} selected)
                   </label>
+                  {(editing.plannedTitles?.length || 0) > 0 && (
+                    <p className="text-[11px] text-[#ff6a00]/90 mt-1">
+                      Planned list is active — manual picks are ignored. Clear the wishlist above to
+                      use manual picks.
+                    </p>
+                  )}
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -314,19 +569,29 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                   />
                   <div className="mt-2 max-h-72 overflow-y-auto space-y-1 pr-1">
                     {filteredMovies.length === 0 && (
-                      <p className="text-white/30 text-xs py-4 text-center">No movies available. Upload or sync content first.</p>
+                      <p className="text-white/30 text-xs py-4 text-center">
+                        No movies available. Upload or sync content first.
+                      </p>
                     )}
                     {filteredMovies.map((m) => {
-                      const selected = getMovieIds(m).some((id) => editing.movieIds.includes(id)) || (editing.movieRefs || []).includes(getMovieRef(m));
+                      const selected =
+                        getMovieIds(m).some((id) => editing.movieIds.includes(id)) ||
+                        (editing.movieRefs || []).includes(getMovieRef(m));
                       return (
                         <button
                           key={m.id}
                           onClick={() => toggleMovie(editing.id, m)}
                           className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition ${
-                            selected ? "bg-[#ff6a00]/15 ring-1 ring-[#ff6a00]/40" : "bg-white/5 hover:bg-white/10"
+                            selected
+                              ? "bg-[#ff6a00]/15 ring-1 ring-[#ff6a00]/40"
+                              : "bg-white/5 hover:bg-white/10"
                           }`}
                         >
-                          <img src={m.image} alt="" className="w-12 h-8 rounded object-cover shrink-0" />
+                          <img
+                            src={m.image}
+                            alt=""
+                            className="w-12 h-8 rounded object-cover shrink-0"
+                          />
                           <span className="flex-1 text-xs text-white truncate">{m.title}</span>
                           {selected && <Check size={14} className="text-[#ff6a00]" />}
                         </button>

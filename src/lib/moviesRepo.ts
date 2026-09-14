@@ -67,33 +67,33 @@ export function movieToRow(m: Movie, sourceType: "uploaded" | "synced" | "demo")
 // — and every row referencing those videos vanished from the site with them.
 const MOVIES_PAGE_SIZE = 1000;
 
-export async function fetchAllMovies(): Promise<{
+const MOVIES_COLUMNS =
+  "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at";
+
+interface MoviesPageResult {
+  data: Array<Record<string, unknown>> | null;
+  error: unknown;
+  count: number | null;
+}
+
+async function fetchMoviesPage(
+  client: typeof supabase,
+  from: number,
+  exactCount: boolean,
+): Promise<MoviesPageResult> {
+  const { data, error, count } = await client
+    .from("movies")
+    .select(MOVIES_COLUMNS, exactCount ? { count: "exact" } : undefined)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, from + MOVIES_PAGE_SIZE - 1);
+  return { data, error, count: count ?? null };
+}
+
+function splitRows(rows: Array<Record<string, unknown>>): {
   uploaded: Movie[];
   synced: Movie[];
-}> {
-  // Page through the whole table (newest first) until a short/empty page ends it.
-  // created_at ties (bulk inserts share one timestamp) need the id tiebreak,
-  // otherwise a page boundary inside a tied group could skip/duplicate rows.
-  const rows: Array<Record<string, unknown>> = [];
-  let from = 0;
-  for (;;) {
-    const { data, error } = await supabase
-      .from("movies")
-      .select(
-        "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at"
-      )
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(from, from + MOVIES_PAGE_SIZE - 1);
-    if (error) {
-      console.error("[moviesRepo] fetch error", error);
-      break;
-    }
-    if (!data || data.length === 0) break;
-    rows.push(...data);
-    if (data.length < MOVIES_PAGE_SIZE) break;
-    from += MOVIES_PAGE_SIZE;
-  }
+} {
   const uploaded: Movie[] = [];
   const synced: Movie[] = [];
   rows.forEach((r: any) => {
@@ -104,22 +104,74 @@ export async function fetchAllMovies(): Promise<{
   return { uploaded, synced };
 }
 
+export async function fetchAllMovies(
+  client: typeof supabase = supabase,
+): Promise<{ uploaded: Movie[]; synced: Movie[] }> {
+  // Newest first; created_at ties (bulk inserts share one timestamp) need the
+  // id tiebreak, otherwise a page boundary in a tied group could skip rows.
+  // The first page also fetches the exact total so remaining pages load
+  // concurrently instead of one round trip at a time.
+  const rows: Array<Record<string, unknown>> = [];
+  const first = await fetchMoviesPage(client, 0, true);
+  if (first.error || !first.data || first.data.length === 0) {
+    if (first.error) console.error("[moviesRepo] fetch error", first.error);
+    return splitRows(rows);
+  }
+  rows.push(...first.data);
+  if (first.data.length < MOVIES_PAGE_SIZE) return splitRows(rows);
+  const total = first.count;
+  if (total == null || total <= rows.length) {
+    // No count available — fall back to sequential paging.
+    let from = rows.length;
+    for (;;) {
+      const { data, error } = await fetchMoviesPage(client, from, false);
+      if (error) {
+        console.error("[moviesRepo] fetch error", error);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      rows.push(...data);
+      if (data.length < MOVIES_PAGE_SIZE) break;
+      from += MOVIES_PAGE_SIZE;
+    }
+    return splitRows(rows);
+  }
+  const starts: number[] = [];
+  for (let from = rows.length; from < total; from += MOVIES_PAGE_SIZE) starts.push(from);
+  const settled = await Promise.all(
+    starts.map((from) =>
+      fetchMoviesPage(client, from, false).then(
+        (r) => r,
+        (e): MoviesPageResult => ({ data: null, error: e, count: null }),
+      ),
+    ),
+  );
+  // Keep only leading-contiguous successes — same no-gap guarantee as before.
+  for (const page of settled) {
+    if (page.error || !page.data) {
+      if (page.error) console.error("[moviesRepo] fetch error", page.error);
+      break;
+    }
+    rows.push(...page.data);
+    if (page.data.length < MOVIES_PAGE_SIZE) break;
+  }
+  return splitRows(rows);
+}
+
 export async function fetchMovieImages(): Promise<Map<number, string>> {
-  const { data, error } = await supabase
-    .from("movies")
-    .select("id,image,thumbnail_url,backdrop");
+  const { data, error } = await supabase.from("movies").select("id,image,thumbnail_url,backdrop");
   if (error) return new Map();
   return new Map(
     (data ?? []).map((row: any) => [
       Number(row.id),
       row.thumbnail_url || row.image || row.backdrop || "",
-    ])
+    ]),
   );
 }
 
 export async function insertMovies(
   movies: Movie[],
-  sourceType: "uploaded" | "synced"
+  sourceType: "uploaded" | "synced",
 ): Promise<Movie[]> {
   if (movies.length === 0) return [];
   const rows = movies.map((m) => movieToRow(m, sourceType));
@@ -131,10 +183,7 @@ export async function insertMovies(
   return (data ?? []).map(rowToMovie);
 }
 
-export async function updateMovieThumbnail(
-  id: number,
-  imageUrl: string
-): Promise<boolean> {
+export async function updateMovieThumbnail(id: number, imageUrl: string): Promise<boolean> {
   // Skip persistence for blob: URLs (browser-local only)
   if (imageUrl.startsWith("blob:")) return true;
   const { error } = await supabase
@@ -157,12 +206,8 @@ export async function deleteMovieById(id: number): Promise<boolean> {
   return true;
 }
 
-
 export async function deleteMoviesByPlaylist(playlistId: string): Promise<boolean> {
-  const { error } = await supabase
-    .from("movies")
-    .delete()
-    .eq("playlist_id", playlistId);
+  const { error } = await supabase.from("movies").delete().eq("playlist_id", playlistId);
   if (error) {
     console.error("[moviesRepo] delete playlist error", error);
     return false;

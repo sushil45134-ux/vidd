@@ -15,13 +15,11 @@ import {
   Clapperboard,
   Drama,
   Palette,
-  Tv,
 } from "lucide-react";
 import type { Category } from "../data";
 import { useSiteConfig } from "../lib/customization";
 import { usePwaInstall } from "../hooks/usePwaInstall";
 import Logo from "./Logo";
-
 
 interface NavbarProps {
   onSearch: (query: string) => void;
@@ -38,7 +36,6 @@ interface NavbarProps {
   onLogout: () => void;
 }
 
-
 const tabs = [
   { label: "Home", category: "home" as Category, icon: Home },
   { label: "Discover", category: "discover" as Category, icon: Compass },
@@ -49,8 +46,6 @@ const categories = [
   { label: "Movies", icon: Clapperboard, category: "movies" as Category },
   { label: "Anime", icon: Drama, category: "anime" as Category },
   { label: "Cartoon", icon: Palette, category: "cartoon" as Category },
-  { label: "TV Shows", icon: Tv, category: "tvshows" as Category },
-  { label: "New", icon: Sparkles, category: "new" as Category },
 ];
 
 export default function Navbar({
@@ -67,7 +62,6 @@ export default function Navbar({
   isAdmin,
   onLogout,
 }: NavbarProps) {
-
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +91,8 @@ export default function Navbar({
                 window.location.href = "/admin";
                 return;
               }
-              onCategoryChange("home"); onSearch("");
+              onCategoryChange("home");
+              onSearch("");
             }}
             className="relative shrink-0 inline-flex items-end gap-1 leading-none select-none"
             aria-label={`${cfg.brandPrefix}${cfg.brandSuffix} home`}
@@ -113,11 +108,14 @@ export default function Navbar({
                   type="text"
                   placeholder="Search..."
                   value={searchQuery}
-                  onChange={e => onSearch(e.target.value)}
+                  onChange={(e) => onSearch(e.target.value)}
                   className="bg-transparent px-3 h-8 text-sm w-36 md:w-56 text-white placeholder-white/40 focus:outline-none"
                 />
                 <button
-                  onClick={() => { setSearchOpen(false); onSearch(""); }}
+                  onClick={() => {
+                    setSearchOpen(false);
+                    onSearch("");
+                  }}
                   className="px-2 text-white/60 hover:text-white"
                 >
                   <X size={14} />
@@ -210,13 +208,20 @@ export default function Navbar({
         </div>
 
         {/* Row 2: Tabs + Categories */}
-        <div className="h-7 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+        <div
+          className="h-7 flex items-center gap-1 overflow-x-auto scrollbar-hide"
+          style={{ scrollbarWidth: "none" }}
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.category}
-                onClick={() => { onCategoryChange(tab.category); onSearch(""); setMobileOpen(false); }}
+                onClick={() => {
+                  onCategoryChange(tab.category);
+                  onSearch("");
+                  setMobileOpen(false);
+                }}
                 className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
                   isActive(tab.category)
                     ? "bg-white/10 text-white"
@@ -234,7 +239,11 @@ export default function Navbar({
             return (
               <button
                 key={category.category}
-                onClick={() => { onCategoryChange(category.category); onSearch(""); setMobileOpen(false); }}
+                onClick={() => {
+                  onCategoryChange(category.category);
+                  onSearch("");
+                  setMobileOpen(false);
+                }}
                 className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
                   isActive(category.category)
                     ? "bg-gradient-to-r from-[#ff6a00]/20 to-[#ee0979]/20 text-[#ff6a00] ring-1 ring-[#ff6a00]/30"

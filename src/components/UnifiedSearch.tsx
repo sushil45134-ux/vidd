@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, X, Play } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
@@ -6,6 +6,7 @@ import { isTvBrowser } from "../lib/browser";
 
 const IS_TV = isTvBrowser();
 import SmartImage from "./SmartImage";
+import { useVisibleCount } from "../lib/useVisibleCount";
 
 interface Props {
   onPlay: (movie: Movie) => void;
@@ -16,9 +17,15 @@ interface Props {
 
 export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props) {
   const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 120);
+    return () => clearTimeout(t);
+  }, [query]);
+  const { visible, showMore } = useVisibleCount(debounced, 60, 60);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debounced.trim().toLowerCase();
     if (!q) return library;
     return library.filter(
       (m) =>
@@ -27,7 +34,7 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
         (m.description || "").toLowerCase().includes(q) ||
         (m.creator || "").toLowerCase().includes(q),
     );
-  }, [query, library]);
+  }, [debounced, library]);
 
   return (
     <div className="pt-6 px-4 md:px-12 min-h-screen bg-[#141414]">
@@ -55,7 +62,7 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-gray-400 text-lg mb-2">
-            {library.length === 0 ? "No content yet" : `No matches for "${query}"`}
+            {library.length === 0 ? "No content yet" : `No matches for "${debounced}"`}
           </p>
           <p className="text-gray-600 text-sm">
             {library.length === 0
@@ -65,10 +72,10 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
         </div>
       ) : (
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filtered.map((m) => (
+          {filtered.slice(0, visible).map((m) => (
             <div
               key={m.id}
-              className="group bg-[#1a1a1a] rounded-lg overflow-hidden hover:bg-[#222] transition-colors border border-gray-800 hover:border-gray-700 cursor-pointer"
+              className="group cv-card bg-[#1a1a1a] rounded-lg overflow-hidden hover:bg-[#222] transition-colors border border-gray-800 hover:border-gray-700 cursor-pointer"
               onClick={() => onSelectMovie(m)}
               tabIndex={0}
               role="button"
@@ -109,6 +116,19 @@ export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props)
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {filtered.length > visible && (
+        <div className="flex flex-col items-center gap-2 py-8">
+          <p className="text-gray-500 text-xs">
+            Showing {Math.min(visible, filtered.length)} of {filtered.length}
+          </p>
+          <button
+            onClick={showMore}
+            className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+          >
+            Load more
+          </button>
         </div>
       )}
     </div>
