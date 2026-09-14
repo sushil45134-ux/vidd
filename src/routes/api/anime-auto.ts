@@ -370,14 +370,32 @@ function buildSeasonsChain(main: AniListMedia): AniListMedia[] {
   return deduped.slice(0, 10); // max 10 seasons
 }
 
+function scoreTitleMatch(query: string, candidate: string): number {
+  const q = query.toLowerCase().trim();
+  const c = candidate.toLowerCase().trim();
+  if (c === q) return 100;
+  if (c.startsWith(q)) return 90;
+  if (c.includes(q)) return 80;
+  if (q.includes(c)) return 70;
+  const qWords = q.split(/\s+/).filter(w => w.length > 2);
+  const cWords = c.split(/\s+/).filter(w => w.length > 2);
+  const common = qWords.filter(w => cWords.includes(w)).length;
+  if (qWords.length > 0) {
+    return Math.round((common / qWords.length) * 60);
+  }
+  return 0;
+}
+
 async function findImdbIdForTitle(title: string): Promise<string | null> {
   try {
     const q = title.trim();
     if (!q) return null;
     const encoded = encodeURIComponent(q);
+    const lowerQ = q.toLowerCase();
     const firstChar = q[0]?.toLowerCase() || 'a';
     const safeFirst = /[a-z0-9]/.test(firstChar) ? firstChar : 'a';
 
+    // Try IMDb suggestion API with exact matching
     const urls = [
       `https://v2.sg.media-imdb.com/suggestion/t/${safeFirst}/${encoded}.json`,
       `https://v2.sg.media-imdb.com/suggestion/titles/x/${encoded}.json`,
@@ -394,33 +412,52 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
         const json: any = await res.json();
         const d = json.d || [];
         if (Array.isArray(d) && d.length > 0) {
-          const sorted = [...d].sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
-          for (const item of sorted) {
-            if (item.id && typeof item.id === 'string' && item.id.startsWith('tt')) {
-              // Prefer qid that looks like movie/tvSeries/tvMovie etc, skip videoGame etc if possible
+          // Score each candidate by title match
+          const scored = d
+            .filter((x: any) => x.id && typeof x.id === 'string' && x.id.startsWith('tt'))
+            .map((item: any) => {
+              const label = (item.l || '').toLowerCase();
+              const score = scoreTitleMatch(lowerQ, label);
               const qid = (item.qid || '').toLowerCase();
-              if (qid.includes('video') && !qid.includes('movie')) continue;
-              return item.id;
-            }
+              // Penalize video games, etc
+              let penalty = 0;
+              if (qid.includes('video') && !qid.includes('movie')) penalty -= 50;
+              if (qid.includes('game')) penalty -= 50;
+              return { item, score: score + penalty, label };
+            })
+            .sort((a: any, b: any) => b.score - a.score);
+
+          // Return best match with score > 30, else first with decent score
+          if (scored.length > 0 && scored[0].score >= 30) {
+            return scored[0].item.id;
           }
-          // Fallback first tt
-          const first = d.find((x: any) => x.id && x.id.startsWith('tt'));
-          if (first) return first.id;
+          // Fallback: if no good match, return first tt that is movie/tv
+          const firstValid = scored.find((s: any) => s.score >= 0);
+          if (firstValid) return firstValid.item.id;
         }
       } catch {}
     }
 
-    // TVMaze fallback - good for series
+    // TVMaze fallback with exact matching
     try {
       const tvRes = await fetch(`https://api.tvmaze.com/search/shows?q=${encoded}`, {
         headers: { 'User-Agent': 'vid/1.0' },
       });
       if (tvRes.ok) {
         const tvData: any = await tvRes.json();
-        if (Array.isArray(tvData)) {
-          for (const entry of tvData) {
-            const imdb = entry.show?.externals?.imdb;
-            if (imdb && typeof imdb === 'string' && imdb.startsWith('tt')) return imdb;
+        if (Array.isArray(tvData) && tvData.length > 0) {
+          const scored = tvData
+            .map((entry: any) => {
+              const name = (entry.show?.name || '').toLowerCase();
+              const score = scoreTitleMatch(lowerQ, name);
+              return { entry, score };
+            })
+            .sort((a: any, b: any) => b.score - a.score);
+          for (const s of scored) {
+            if (s.score >= 30) {
+              const imdb = s.entry.show?.externals?.imdb;
+              if (imdb && typeof imdb === 'string' && imdb.startsWith('tt')) return imdb;
+            }
           }
         }
       }
@@ -430,6 +467,27 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function pickBestAniListMatch(query: string, results: AniListMedia[]): AniListMedia | null {
+  if (results.length === 0) return null;
+  const lowerQ = query.toLowerCase().trim();
+  const scored = results.map(media => {
+    const variants = allTitleVariants(media.title);
+    let bestScore = 0;
+    for (const v of variants) {
+      const s = scoreTitleMatch(lowerQ, v);
+      if (s > bestScore) bestScore = s;
+    }
+    // Bonus for having MAL id and being TV format
+    if (media.idMal) bestScore += 5;
+    if (media.format === 'TV' || media.format === 'MOVIE') bestScore += 2;
+    return { media, score: bestScore };
+  }).sort((a,b) => b.score - a.score);
+
+  // If best score is too low (<20), maybe query is movie not anime, but still return best
+  // For Violet Evergarden, it should score 100 for exact match
+  return scored[0]?.media || results[0];
 }
 
 export const Route = createFileRoute("/api/anime-auto")({
@@ -564,8 +622,8 @@ export const Route = createFileRoute("/api/anime-auto")({
             }
           }
 
-          // Pick best: first with idMal, else first
-          let mainSearch = searchResults.find((m) => !!m.idMal) || searchResults[0];
+          // Pick best by title similarity, not just first — fixes Violet Evergarden -> Spy x Family bug
+          let mainSearch = pickBestAniListMatch(title, searchResults) || searchResults.find((m) => !!m.idMal) || searchResults[0];
 
           // If mainSearch is from Jikan fake id, we don't have relations, handle separately
           let mainDetailed: AniListMedia | null = null;
