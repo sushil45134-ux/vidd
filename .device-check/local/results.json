@@ -1,0 +1,124 @@
+{
+  "url": "http://127.0.0.1:4173/",
+  "startedAt": "2026-09-14T12:34:06.568Z",
+  "profiles": {
+    "tv_tizen_5_5": {
+      "label": "Samsung Tizen 5.5 TV (Chromium 69-era)",
+      "userAgent": "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.5) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.5 TV Safari/537.36",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "Error",
+        "htmlClass": "",
+        "bodyChildCount": 1,
+        "textLength": 946,
+        "imgCount": 0,
+        "imgLoadedCount": 0,
+        "buttons": 0,
+        "headingCount": 0,
+        "firstHeadings": [],
+        "bodyStart": "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/runner/work/vidd/vidd/dist/server/server.js' imported from /home/runner/work/vidd/vidd/node_modules/@tanstack/start-plugin-core/dist/esm/vite/preview-server-plugin/plugin.js |     at finalizeResolution (node:internal/modules/esm/resolve:275:11)",
+        "hasTvErrorOverlay": false,
+        "viewport": "1280x720"
+      },
+      "timings": {
+        "domContentLoadedMs": 21,
+        "settledMs": 12526
+      },
+      "verdict": "PROBLEM"
+    },
+    "tv_tizen_old": {
+      "label": "Older SMART-TV browser (pre-Tizen UA)",
+      "userAgent": "Mozilla/5.0 (SMART-TV; X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "Error",
+        "htmlClass": "",
+        "bodyChildCount": 1,
+        "textLength": 946,
+        "imgCount": 0,
+        "imgLoadedCount": 0,
+        "buttons": 0,
+        "headingCount": 0,
+        "firstHeadings": [],
+        "bodyStart": "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/runner/work/vidd/vidd/dist/server/server.js' imported from /home/runner/work/vidd/vidd/node_modules/@tanstack/start-plugin-core/dist/esm/vite/preview-server-plugin/plugin.js |     at finalizeResolution (node:internal/modules/esm/resolve:275:11)",
+        "hasTvErrorOverlay": false,
+        "viewport": "1280x720"
+      },
+      "timings": {
+        "domContentLoadedMs": 13,
+        "settledMs": 12520
+      },
+      "verdict": "PROBLEM"
+    },
+    "phone_android": {
+      "label": "Android phone (Chrome 120)",
+      "userAgent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "Error",
+        "htmlClass": "",
+        "bodyChildCount": 1,
+        "textLength": 946,
+        "imgCount": 0,
+        "imgLoadedCount": 0,
+        "buttons": 0,
+        "headingCount": 0,
+        "firstHeadings": [],
+        "bodyStart": "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/runner/work/vidd/vidd/dist/server/server.js' imported from /home/runner/work/vidd/vidd/node_modules/@tanstack/start-plugin-core/dist/esm/vite/preview-server-plugin/plugin.js |     at finalizeResolution (node:internal/modules/esm/resolve:275:11)",
+        "hasTvErrorOverlay": false,
+        "viewport": "1648x3660"
+      },
+      "timings": {
+        "domContentLoadedMs": 12,
+        "settledMs": 12520
+      },
+      "verdict": "PROBLEM"
+    },
+    "phone_ios_old": {
+      "label": "Old iPhone (iOS 12 Safari)",
+      "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 12_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Mobile/15E148 Safari/604.1",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "Error",
+        "htmlClass": "",
+        "bodyChildCount": 1,
+        "textLength": 946,
+        "imgCount": 0,
+        "imgLoadedCount": 0,
+        "buttons": 0,
+        "headingCount": 0,
+        "firstHeadings": [],
+        "bodyStart": "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/runner/work/vidd/vidd/dist/server/server.js' imported from /home/runner/work/vidd/vidd/node_modules/@tanstack/start-plugin-core/dist/esm/vite/preview-server-plugin/plugin.js |     at finalizeResolution (node:internal/modules/esm/resolve:275:11)",
+        "hasTvErrorOverlay": false,
+        "viewport": "1500x3248"
+      },
+      "timings": {
+        "domContentLoadedMs": 14,
+        "settledMs": 12522
+      },
+      "verdict": "PROBLEM"
+    }
+  },
+  "finishedAt": "2026-09-14T12:34:57.148Z",
+  "verdict": "4 PROBLEM PROFILE(S)"
+}

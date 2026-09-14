@@ -1,0 +1,144 @@
+{
+  "url": "https://vidd-zeta.vercel.app",
+  "startedAt": "2026-09-14T12:34:57.495Z",
+  "profiles": {
+    "tv_tizen_5_5": {
+      "label": "Samsung Tizen 5.5 TV (Chromium 69-era)",
+      "userAgent": "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.5) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.5 TV Safari/537.36",
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "vid — Streaming Library",
+        "htmlClass": "tv-layout",
+        "bodyChildCount": 3,
+        "textLength": 1268,
+        "imgCount": 52,
+        "imgLoadedCount": 9,
+        "buttons": 20,
+        "headingCount": 8,
+        "firstHeadings": [
+          "SPY x FAMILY CODE: White",
+          "💥 Trending & Popular Shows",
+          "RECENTLY ADDED",
+          "Action & Adventure",
+          "Fantasy & Magic",
+          "Isekai"
+        ],
+        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | TV-14 | 2026 | 80% Match | SPY x FAMILY CODE: White | SPY x FAMILY CODE: White — An anime drama series. | Play | More Info | 💥 Trending & Popular Shows | Demon Slayer: Kimetsu no Yaiba | Jujutsu Kaisen | Solo Leveling | C",
+        "hasTvErrorOverlay": false,
+        "viewport": "1280x720"
+      },
+      "timings": {
+        "domContentLoadedMs": 193,
+        "settledMs": 16365
+      },
+      "verdict": "OK"
+    },
+    "tv_tizen_old": {
+      "label": "Older SMART-TV browser (pre-Tizen UA)",
+      "userAgent": "Mozilla/5.0 (SMART-TV; X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36",
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "vid — Streaming Library",
+        "htmlClass": "tv-layout",
+        "bodyChildCount": 3,
+        "textLength": 1268,
+        "imgCount": 52,
+        "imgLoadedCount": 9,
+        "buttons": 20,
+        "headingCount": 8,
+        "firstHeadings": [
+          "SPY x FAMILY CODE: White",
+          "💥 Trending & Popular Shows",
+          "RECENTLY ADDED",
+          "Action & Adventure",
+          "Fantasy & Magic",
+          "Isekai"
+        ],
+        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | TV-14 | 2026 | 80% Match | SPY x FAMILY CODE: White | SPY x FAMILY CODE: White — An anime drama series. | Play | More Info | 💥 Trending & Popular Shows | Demon Slayer: Kimetsu no Yaiba | Jujutsu Kaisen | Solo Leveling | C",
+        "hasTvErrorOverlay": false,
+        "viewport": "1280x720"
+      },
+      "timings": {
+        "domContentLoadedMs": 100,
+        "settledMs": 15342
+      },
+      "verdict": "OK"
+    },
+    "phone_android": {
+      "label": "Android phone (Chrome 120)",
+      "userAgent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "vid — Streaming Library",
+        "htmlClass": "",
+        "bodyChildCount": 3,
+        "textLength": 1556,
+        "imgCount": 52,
+        "imgLoadedCount": 14,
+        "buttons": 20,
+        "headingCount": 8,
+        "firstHeadings": [
+          "Weathering with You",
+          "💥 Trending & Popular Shows",
+          "RECENTLY ADDED",
+          "Action & Adventure",
+          "Fantasy & Magic",
+          "Isekai"
+        ],
+        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2019 | 99% Match | Weathering with You | Set during a period of exceptionally rainy weather, high-school boy Hodaka Morishima runs away from his troubled rural home to Tokyo and befriends an orphan girl who can man",
+        "hasTvErrorOverlay": false,
+        "viewport": "412x915"
+      },
+      "timings": {
+        "domContentLoadedMs": 104,
+        "settledMs": 14477
+      },
+      "verdict": "OK"
+    },
+    "phone_ios_old": {
+      "label": "Old iPhone (iOS 12 Safari)",
+      "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 12_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Mobile/15E148 Safari/604.1",
+      "consoleErrors": [],
+      "consoleWarnings": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "renderSignals": {
+        "title": "vid — Streaming Library",
+        "htmlClass": "",
+        "bodyChildCount": 3,
+        "textLength": 1407,
+        "imgCount": 52,
+        "imgLoadedCount": 14,
+        "buttons": 20,
+        "headingCount": 8,
+        "firstHeadings": [
+          "Weathering with You",
+          "💥 Trending & Popular Shows",
+          "RECENTLY ADDED",
+          "Action & Adventure",
+          "Fantasy & Magic",
+          "Isekai"
+        ],
+        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2019 | 99% Match | Weathering with You | Set during a period of exceptionally rainy weather, high-school boy Hodaka Morishima runs away from his troubled rural home to Tokyo and befriends an orphan girl who can man",
+        "hasTvErrorOverlay": false,
+        "viewport": "375x812"
+      },
+      "timings": {
+        "domContentLoadedMs": 109,
+        "settledMs": 14779
+      },
+      "verdict": "OK"
+    }
+  },
+  "finishedAt": "2026-09-14T12:35:58.897Z",
+  "verdict": "ALL OK"
+}
