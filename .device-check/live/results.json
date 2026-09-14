@@ -1,14 +1,26 @@
 {
   "url": "https://vidd-zeta.vercel.app",
-  "startedAt": "2026-09-14T12:34:57.495Z",
+  "startedAt": "2026-09-14T12:54:28.752Z",
   "profiles": {
     "tv_tizen_5_5": {
       "label": "Samsung Tizen 5.5 TV (Chromium 69-era)",
       "userAgent": "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.5) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.5 TV Safari/537.36",
       "consoleErrors": [],
-      "consoleWarnings": [],
+      "consoleWarnings": [
+        "Unrecognized feature: 'web-share'.",
+        "Allow attribute will take precedence over 'allowfullscreen'.",
+        "No available adapters."
+      ],
       "pageErrors": [],
-      "failedRequests": [],
+      "failedRequests": [
+        "POST https://www.youtube.com/api/stats/qoe?cpn=R5ALnrwS1kbeduZa&el=embedded&ns=yt&fexp=v1%2C100673025%2C-76668381%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C35401%2C65301%2C2877%2C12228%2C25059%2C4174%2C30447%2C18705%2C26008%2C5238%2C7777%2C11422%2C4666%2C9404%2C23826%2C9500%2C1840%2C53631%2C41206%2C20589%2C4200%2C30113%2C9181%2C15416%2C17456%2C20111%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C26844%2C1944%2C277%2C12856%2C4367%2C9717%2C3613%2C7196%2C2673%2C1746%2C2%2C1528%2C11101%2C2293%2C1902%2C1941%2C1166%2C3%2C3%2C15988%2C1339%2C10905%2C3245%2C17339%2C9037%2C1538%2C2805%2C4638%2C16453%2C2419%2C1895%2C1466%2C355%2C3793%2C8280%2C2167%2C2072%2C6085%2C971%2C1237%2C21562%2C2333%2C8440%2C4209%2C7121&cl=977222275&seq=1&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=samsung&cbr=Safari&cbrver=5.5&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=Tizen&cosver=5.5&cplatform=TV&vps=0.000:N,0.000:ER&cmt=0.000:0.000,0.000:0.000&error=0.000:auth::0.000:0;a6s.0;r.Video_unavailable&vis=0.000:0&bh=0.000:0.000&qclc=ChBSNUFMbnJ3UzFrYmVkdVphEAE — net::ERR_ABORTED",
+        "GET https://www.youtube.com/s/_/ytembeds/_/js/k=ytembeds.base.en_US.jYc1zgjz2ZU.es5.O/ck=ytembeds.base.HY7wD9GGp-g.L.W.O/am=AAAAQA/d=1/exm=base,cwx9N,r78Drb,root/excm=base,root/ed=1/br=1/rs=AGKMywF-IIBuqBHTmalGnKsQorNdR14F8A/m=n7eo2 — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=R5ALnrwS1kbeduZa&el=embedded&ns=yt&fexp=v1%2C100673025%2C-76668381%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C35401%2C65301%2C2877%2C12228%2C25059%2C4174%2C30447%2C18705%2C26008%2C5238%2C7777%2C11422%2C4666%2C9404%2C23826%2C9500%2C1840%2C53631%2C41206%2C20589%2C4200%2C30113%2C9181%2C15416%2C17456%2C20111%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C26844%2C1944%2C277%2C12856%2C4367%2C9717%2C3613%2C7196%2C2673%2C1746%2C2%2C1528%2C11101%2C2293%2C1902%2C1941%2C1166%2C3%2C3%2C15988%2C1339%2C10905%2C3245%2C17339%2C9037%2C1538%2C2805%2C4638%2C16453%2C2419%2C1895%2C1466%2C355%2C3793%2C8280%2C2167%2C2072%2C6085%2C971%2C1237%2C21562%2C2333%2C8440%2C4209%2C7121&cl=977222275&seq=2&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=samsung&cbr=Safari&cbrver=5.5&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=Tizen&cosver=5.5&cplatform=TV&ctmp=dttg:t.14;dtt.1;gl.0;tm.0&vps=0.150:ER&bat=0.150:1:1&cmt=0.150:0.000&bh=0.150:0.000&qclc=ChBSNUFMbnJ3UzFrYmVkdVphEAI — net::ERR_ABORTED",
+        "POST https://www.youtube.com/youtubei/v1/log_event?alt=json — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=vDyCDmyupTF2kZ7r&el=embedded&ns=yt&fexp=v1%2C100673025%2C-76668381%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C35401%2C65301%2C2877%2C12228%2C25059%2C4174%2C30447%2C18705%2C26008%2C5238%2C7777%2C11422%2C4666%2C9404%2C23826%2C9500%2C1840%2C53631%2C41206%2C20589%2C4200%2C30113%2C9181%2C15416%2C17456%2C20111%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C26844%2C1944%2C277%2C12856%2C4367%2C9717%2C3613%2C7196%2C2673%2C1746%2C2%2C1528%2C11101%2C2293%2C1902%2C1941%2C1166%2C3%2C3%2C15988%2C1339%2C10905%2C3245%2C17339%2C9037%2C1538%2C2805%2C4638%2C16453%2C2419%2C1895%2C1466%2C355%2C3793%2C8280%2C2167%2C2072%2C6085%2C971%2C1237%2C21562%2C2333%2C8440%2C4209%2C7121&cl=977222275&seq=1&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=samsung&cbr=Safari&cbrver=5.5&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=Tizen&cosver=5.5&cplatform=TV&vps=0.000:N,0.000:ER&cmt=0.000:0.000,0.000:0.000&error=0.000:auth::0.000:0;a6s.0;r.Video_unavailable&vis=0.000:0&bh=0.000:0.000&qclc=ChB2RHlDRG15dXBURjJrWjdyEAE — net::ERR_ABORTED",
+        "POST https://www.youtube.com/youtubei/v1/log_event?alt=json — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=vDyCDmyupTF2kZ7r&el=embedded&ns=yt&fexp=v1%2C100673025%2C-76668381%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C35401%2C65301%2C2877%2C12228%2C25059%2C4174%2C30447%2C18705%2C26008%2C5238%2C7777%2C11422%2C4666%2C9404%2C23826%2C9500%2C1840%2C53631%2C41206%2C20589%2C4200%2C30113%2C9181%2C15416%2C17456%2C20111%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C26844%2C1944%2C277%2C12856%2C4367%2C9717%2C3613%2C7196%2C2673%2C1746%2C2%2C1528%2C11101%2C2293%2C1902%2C1941%2C1166%2C3%2C3%2C15988%2C1339%2C10905%2C3245%2C17339%2C9037%2C1538%2C2805%2C4638%2C16453%2C2419%2C1895%2C1466%2C355%2C3793%2C8280%2C2167%2C2072%2C6085%2C971%2C1237%2C21562%2C2333%2C8440%2C4209%2C7121&cl=977222275&seq=2&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=samsung&cbr=Safari&cbrver=5.5&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=Tizen&cosver=5.5&cplatform=TV&ctmp=dttg:t.14;dtt.1;gl.0;tm.0&vps=2.509:ER&bat=2.509:1:1&cmt=2.509:0.000&bh=2.509:0.000&qclc=ChB2RHlDRG15dXBURjJrWjdyEAI — net::ERR_ABORTED"
+      ],
       "renderSignals": {
         "title": "vid — Streaming Library",
         "htmlClass": "tv-layout",
@@ -31,8 +43,22 @@
         "viewport": "1280x720"
       },
       "timings": {
-        "domContentLoadedMs": 193,
-        "settledMs": 16365
+        "domContentLoadedMs": 727,
+        "settledMs": 15320
+      },
+      "cssSignals": {
+        "found": true,
+        "size": 167411,
+        "legacyBlock": false,
+        "borderStyleFallback": true,
+        "spaceYUnwrapped": true,
+        "layerFree": true
+      },
+      "playerSignals": {
+        "overlayPresent": true,
+        "iframePresent": true,
+        "videoPresent": false,
+        "overlayText": "via YouTube10100:00 / 0:00"
       },
       "verdict": "OK"
     },
@@ -40,9 +66,21 @@
       "label": "Older SMART-TV browser (pre-Tizen UA)",
       "userAgent": "Mozilla/5.0 (SMART-TV; X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36",
       "consoleErrors": [],
-      "consoleWarnings": [],
+      "consoleWarnings": [
+        "Unrecognized feature: 'web-share'.",
+        "Allow attribute will take precedence over 'allowfullscreen'.",
+        "No available adapters."
+      ],
       "pageErrors": [],
-      "failedRequests": [],
+      "failedRequests": [
+        "POST https://www.youtube.com/api/stats/qoe?cpn=aOJ2-0DLv3o8eblC&el=embedded&ns=yt&fexp=v1%2C100673025%2C626%2C-76669007%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C100702%2C2877%2C12228%2C25059%2C4174%2C30446%2C18706%2C26008%2C5239%2C7776%2C16088%2C9404%2C23826%2C9500%2C1840%2C24119%2C29512%2C41207%2C20588%2C4200%2C30113%2C9181%2C15416%2C17459%2C20108%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C26846%2C1941%2C278%2C4359%2C8498%2C4366%2C9717%2C587%2C3026%2C7196%2C2674%2C580%2C1165%2C2%2C12634%2C2288%2C3843%2C1166%2C3%2C3%2C12800%2C3188%2C1339%2C10905%2C3243%2C1%2C17340%2C9038%2C1537%2C2806%2C4637%2C16455%2C2418%2C652%2C1242%2C1821%2C11817%2C256%2C2166%2C2072%2C6085%2C972%2C1237%2C20588%2C974%2C2334%2C8439%2C2495%2C1713&cl=977222275&seq=1&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=generic&cbr=Chrome&cbrver=49.0.2623.112&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=X11&cplatform=TV&vps=0.000:N,0.000:ER&cmt=0.000:0.000,0.000:0.000&error=0.000:auth::0.000:0;a6s.0;r.Video_unavailable&vis=0.000:0&bh=0.000:0.000&qclc=ChBhT0oyLTBETHYzbzhlYmxDEAE — net::ERR_ABORTED",
+        "GET https://www.youtube.com/s/_/ytembeds/_/js/k=ytembeds.base.en_US.jYc1zgjz2ZU.es5.O/ck=ytembeds.base.HY7wD9GGp-g.L.W.O/am=AAAAQA/d=1/exm=base,cwx9N,r78Drb,root/excm=base,root/ed=1/br=1/rs=AGKMywF-IIBuqBHTmalGnKsQorNdR14F8A/m=n7eo2 — net::ERR_ABORTED",
+        "POST https://www.youtube.com/youtubei/v1/log_event?alt=json — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=aOJ2-0DLv3o8eblC&el=embedded&ns=yt&fexp=v1%2C100673025%2C626%2C-76669007%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C100702%2C2877%2C12228%2C25059%2C4174%2C30446%2C18706%2C26008%2C5239%2C7776%2C16088%2C9404%2C23826%2C9500%2C1840%2C24119%2C29512%2C41207%2C20588%2C4200%2C30113%2C9181%2C15416%2C17459%2C20108%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C26846%2C1941%2C278%2C4359%2C8498%2C4366%2C9717%2C587%2C3026%2C7196%2C2674%2C580%2C1165%2C2%2C12634%2C2288%2C3843%2C1166%2C3%2C3%2C12800%2C3188%2C1339%2C10905%2C3243%2C1%2C17340%2C9038%2C1537%2C2806%2C4637%2C16455%2C2418%2C652%2C1242%2C1821%2C11817%2C256%2C2166%2C2072%2C6085%2C972%2C1237%2C20588%2C974%2C2334%2C8439%2C2495%2C1713&cl=977222275&seq=2&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=generic&cbr=Chrome&cbrver=49.0.2623.112&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=X11&cplatform=TV&ctmp=dttg:t.13;dtt.1;gl.0;tm.0&vps=0.146:ER&bat=0.146:1:1&cmt=0.146:0.000&bh=0.146:0.000&qclc=ChBhT0oyLTBETHYzbzhlYmxDEAI — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=aEjT-AUJMjXOk29r&el=embedded&ns=yt&fexp=v1%2C100673025%2C627%2C-76669008%2C494888%2C26564111%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C68548%2C32154%2C2877%2C12228%2C25059%2C4174%2C30446%2C18706%2C26008%2C13015%2C1191%2C14236%2C661%2C9404%2C23826%2C9500%2C1840%2C29674%2C65164%2C20588%2C4200%2C30113%2C9181%2C15416%2C5449%2C12009%2C20109%2C6032%2C1168%2C372%2C7758%2C34321%2C11462%2C26844%2C1943%2C278%2C4359%2C8498%2C4366%2C9716%2C1410%2C2204%2C7197%2C4418%2C2%2C14922%2C3844%2C1165%2C3%2C3%2C12802%2C3186%2C1339%2C6470%2C3148%2C1287%2C3241%2C3%2C17340%2C9037%2C1538%2C1809%2C998%2C4636%2C16455%2C2418%2C1894%2C1465%2C356%2C8565%2C3508%2C2166%2C2072%2C6086%2C971%2C1237%2C35%2C16107%2C3348%2C224%2C1848%2C2334%2C8439%2C2495%2C1714%2C3184&cl=977222275&seq=1&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=generic&cbr=Chrome&cbrver=49.0.2623.112&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=X11&cplatform=TV&vps=0.000:N,0.000:ER&cmt=0.000:0.000,0.000:0.000&error=0.000:auth::0.000:0;a6s.0;r.Video_unavailable&vis=0.000:0&bh=0.000:0.000&qclc=ChBhRWpULUFVSk1qWE9rMjlyEAE — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=aEjT-AUJMjXOk29r&el=embedded&ns=yt&fexp=v1%2C100673025%2C627%2C-76669008%2C494888%2C26564111%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C68548%2C32154%2C2877%2C12228%2C25059%2C4174%2C30446%2C18706%2C26008%2C13015%2C1191%2C14236%2C661%2C9404%2C23826%2C9500%2C1840%2C29674%2C65164%2C20588%2C4200%2C30113%2C9181%2C15416%2C5449%2C12009%2C20109%2C6032%2C1168%2C372%2C7758%2C34321%2C11462%2C26844%2C1943%2C278%2C4359%2C8498%2C4366%2C9716%2C1410%2C2204%2C7197%2C4418%2C2%2C14922%2C3844%2C1165%2C3%2C3%2C12802%2C3186%2C1339%2C6470%2C3148%2C1287%2C3241%2C3%2C17340%2C9037%2C1538%2C1809%2C998%2C4636%2C16455%2C2418%2C1894%2C1465%2C356%2C8565%2C3508%2C2166%2C2072%2C6086%2C971%2C1237%2C35%2C16107%2C3348%2C224%2C1848%2C2334%2C8439%2C2495%2C1714%2C3184&cl=977222275&seq=2&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=generic&cbr=Chrome&cbrver=49.0.2623.112&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=smarttv&cos=X11&cplatform=TV&ctmp=dttg:t.11;dtt.1;gl.0;tm.0&vps=2.486:ER&bat=2.486:1:1&cmt=2.486:0.000&bh=2.486:0.000&qclc=ChBhRWpULUFVSk1qWE9rMjlyEAI — net::ERR_ABORTED",
+        "POST https://www.youtube.com/youtubei/v1/log_event?alt=json — net::ERR_ABORTED"
+      ],
       "renderSignals": {
         "title": "vid — Streaming Library",
         "htmlClass": "tv-layout",
@@ -65,8 +103,22 @@
         "viewport": "1280x720"
       },
       "timings": {
-        "domContentLoadedMs": 100,
-        "settledMs": 15342
+        "domContentLoadedMs": 151,
+        "settledMs": 15834
+      },
+      "cssSignals": {
+        "found": true,
+        "size": 167411,
+        "legacyBlock": false,
+        "borderStyleFallback": true,
+        "spaceYUnwrapped": true,
+        "layerFree": true
+      },
+      "playerSignals": {
+        "overlayPresent": true,
+        "iframePresent": true,
+        "videoPresent": false,
+        "overlayText": "via YouTube10100:00 / 0:00"
       },
       "verdict": "OK"
     },
@@ -74,33 +126,54 @@
       "label": "Android phone (Chrome 120)",
       "userAgent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
       "consoleErrors": [],
-      "consoleWarnings": [],
+      "consoleWarnings": [
+        "Unrecognized feature: 'web-share'.",
+        "No available adapters."
+      ],
       "pageErrors": [],
-      "failedRequests": [],
+      "failedRequests": [
+        "POST https://www.youtube.com/api/stats/qoe?cpn=x5KFbPMlMCZ8t7uL&el=embedded&ns=yt&fexp=v1%2C100673025%2C627%2C-76669008%2C494888%2C26564111%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C100702%2C15105%2C25059%2C4174%2C30447%2C18705%2C26008%2C28442%2C661%2C9404%2C23826%2C9500%2C1840%2C24119%2C91307%2C4200%2C30113%2C9181%2C15416%2C37567%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C29065%2C17223%2C13330%2C11615%2C2%2C14922%2C5009%2C3%2C3%2C15988%2C7810%2C4434%2C1261%2C19323%2C9038%2C1537%2C7443%2C20767%2C1821%2C12073%2C2166%2C2072%2C6085%2C972%2C1237%2C21562%2C10773%2C4208&cl=977222275&seq=1&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=google&cbr=Chrome%20Mobile&cbrver=120.0.0.0&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=pixel%207&cos=Android&cosver=13&cplatform=MOBILE&vps=0.000:N,0.000:ER&cmt=0.000:0.000,0.000:0.000&error=0.000:auth::0.000:0;a6s.0;r.Video_unavailable&vis=0.000:0&bh=0.000:0.000&qclc=ChB4NUtGYlBNbE1DWjh0N3VMEAE — net::ERR_ABORTED",
+        "POST https://www.youtube.com/youtubei/v1/log_event?alt=json — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=x5KFbPMlMCZ8t7uL&el=embedded&ns=yt&fexp=v1%2C100673025%2C627%2C-76669008%2C494888%2C26564111%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C100702%2C15105%2C25059%2C4174%2C30447%2C18705%2C26008%2C28442%2C661%2C9404%2C23826%2C9500%2C1840%2C24119%2C91307%2C4200%2C30113%2C9181%2C15416%2C37567%2C6032%2C1168%2C372%2C7759%2C34320%2C11462%2C29065%2C17223%2C13330%2C11615%2C2%2C14922%2C5009%2C3%2C3%2C15988%2C7810%2C4434%2C1261%2C19323%2C9038%2C1537%2C7443%2C20767%2C1821%2C12073%2C2166%2C2072%2C6085%2C972%2C1237%2C21562%2C10773%2C4208&cl=977222275&seq=2&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=google&cbr=Chrome%20Mobile&cbrver=120.0.0.0&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=pixel%207&cos=Android&cosver=13&cplatform=MOBILE&ctmp=dttg:t.15;dtt.1;gl.0;tm.0&vps=2.910:ER&bat=2.910:1:1&cmt=2.910:0.000&bh=2.910:0.000&qclc=ChB4NUtGYlBNbE1DWjh0N3VMEAI — net::ERR_ABORTED"
+      ],
       "renderSignals": {
         "title": "vid — Streaming Library",
         "htmlClass": "",
         "bodyChildCount": 3,
-        "textLength": 1556,
+        "textLength": 1417,
         "imgCount": 52,
-        "imgLoadedCount": 14,
+        "imgLoadedCount": 15,
         "buttons": 20,
         "headingCount": 8,
         "firstHeadings": [
-          "Weathering with You",
+          "SPY x FAMILY CODE: White",
           "💥 Trending & Popular Shows",
           "RECENTLY ADDED",
           "Action & Adventure",
           "Fantasy & Magic",
           "Isekai"
         ],
-        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2019 | 99% Match | Weathering with You | Set during a period of exceptionally rainy weather, high-school boy Hodaka Morishima runs away from his troubled rural home to Tokyo and befriends an orphan girl who can man",
+        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | TV-14 | 2026 | 80% Match | SPY x FAMILY CODE: White | SPY x FAMILY CODE: White — An anime drama series. | Play | More Info | 💥 Trending & Popular Shows | Demon Slayer: Kimetsu no Yaiba | Jujutsu Kaisen | Solo Leveling | C",
         "hasTvErrorOverlay": false,
         "viewport": "412x915"
       },
       "timings": {
-        "domContentLoadedMs": 104,
-        "settledMs": 14477
+        "domContentLoadedMs": 122,
+        "settledMs": 15387
+      },
+      "cssSignals": {
+        "found": true,
+        "size": 167411,
+        "legacyBlock": false,
+        "borderStyleFallback": true,
+        "spaceYUnwrapped": true,
+        "layerFree": true
+      },
+      "playerSignals": {
+        "overlayPresent": true,
+        "iframePresent": true,
+        "videoPresent": false,
+        "overlayText": "via YouTube10100:00 / 0:00"
       },
       "verdict": "OK"
     },
@@ -108,37 +181,58 @@
       "label": "Old iPhone (iOS 12 Safari)",
       "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 12_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.2 Mobile/15E148 Safari/604.1",
       "consoleErrors": [],
-      "consoleWarnings": [],
+      "consoleWarnings": [
+        "Unrecognized feature: 'web-share'.",
+        "No available adapters."
+      ],
       "pageErrors": [],
-      "failedRequests": [],
+      "failedRequests": [
+        "POST https://www.youtube.com/api/stats/qoe?cpn=Q7ifpun4zSlM9GPN&el=embedded&ns=yt&fexp=v1%2C100673025%2C-76668381%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C35401%2C34394%2C30907%2C2877%2C9730%2C2498%2C25059%2C4174%2C30447%2C18705%2C26008%2C13016%2C16087%2C7516%2C1888%2C23826%2C9500%2C1840%2C18114%2C76724%2C20588%2C4200%2C30113%2C9181%2C15416%2C17459%2C20108%2C6032%2C1168%2C372%2C7758%2C34321%2C11462%2C26848%2C1352%2C587%2C278%2C12857%2C4366%2C9717%2C3613%2C7197%2C2672%2C1746%2C2%2C14922%2C3844%2C1165%2C3%2C3%2C12801%2C3187%2C731%2C609%2C6469%2C4435%2C3241%2C3%2C17340%2C9038%2C1537%2C7443%2C11881%2C4574%2C2416%2C1896%2C1466%2C355%2C12073%2C2166%2C942%2C1131%2C1393%2C4691%2C972%2C1237%2C12279%2C8309%2C974%2C2334%2C8439%2C4208%2C4875&cl=977222275&seq=1&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=apple&cbr=Safari%20Mobile&cbrver=12.1.2.15E148&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=iphone&cos=iPhone&cosver=12_5&cplatform=MOBILE&vps=0.000:N,0.000:ER&cmt=0.000:0.000,0.000:0.000&error=0.000:auth::0.000:0;a6s.0;r.Video_unavailable&vis=0.000:0&bh=0.000:0.000&qclc=ChBRN2lmcHVuNHpTbE05R1BOEAE — net::ERR_ABORTED",
+        "POST https://www.youtube.com/youtubei/v1/log_event?alt=json — net::ERR_ABORTED",
+        "POST https://www.youtube.com/api/stats/qoe?cpn=Q7ifpun4zSlM9GPN&el=embedded&ns=yt&fexp=v1%2C100673025%2C-76668381%2C27058999%2C34656%2C124674%2C117689%2C9252%2C16509%2C23206%2C35401%2C34394%2C30907%2C2877%2C9730%2C2498%2C25059%2C4174%2C30447%2C18705%2C26008%2C13016%2C16087%2C7516%2C1888%2C23826%2C9500%2C1840%2C18114%2C76724%2C20588%2C4200%2C30113%2C9181%2C15416%2C17459%2C20108%2C6032%2C1168%2C372%2C7758%2C34321%2C11462%2C26848%2C1352%2C587%2C278%2C12857%2C4366%2C9717%2C3613%2C7197%2C2672%2C1746%2C2%2C14922%2C3844%2C1165%2C3%2C3%2C12801%2C3187%2C731%2C609%2C6469%2C4435%2C3241%2C3%2C17340%2C9038%2C1537%2C7443%2C11881%2C4574%2C2416%2C1896%2C1466%2C355%2C12073%2C2166%2C942%2C1131%2C1393%2C4691%2C972%2C1237%2C12279%2C8309%2C974%2C2334%2C8439%2C4208%2C4875&cl=977222275&seq=2&event=streamingstats&docid=lq1PDZ1wuYA&cbrand=apple&cbr=Safari%20Mobile&cbrver=12.1.2.15E148&c=WEB_EMBEDDED_PLAYER&cver=2.20260911.01.00&cplayer=UNIPLAYER&cmodel=iphone&cos=iPhone&cosver=12_5&cplatform=MOBILE&ctmp=dttg:t.12;dtt.1;gl.0;tm.0&vps=2.936:ER&bat=2.936:1:1&cmt=2.936:0.000&bh=2.936:0.000&qclc=ChBRN2lmcHVuNHpTbE05R1BOEAI — net::ERR_ABORTED"
+      ],
       "renderSignals": {
         "title": "vid — Streaming Library",
         "htmlClass": "",
         "bodyChildCount": 3,
-        "textLength": 1407,
+        "textLength": 1268,
         "imgCount": 52,
-        "imgLoadedCount": 14,
+        "imgLoadedCount": 15,
         "buttons": 20,
         "headingCount": 8,
         "firstHeadings": [
-          "Weathering with You",
+          "SPY x FAMILY CODE: White",
           "💥 Trending & Popular Shows",
           "RECENTLY ADDED",
           "Action & Adventure",
           "Fantasy & Magic",
           "Isekai"
         ],
-        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2019 | 99% Match | Weathering with You | Set during a period of exceptionally rainy weather, high-school boy Hodaka Morishima runs away from his troubled rural home to Tokyo and befriends an orphan girl who can man",
+        "bodyStart": "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | TV-14 | 2026 | 80% Match | SPY x FAMILY CODE: White | SPY x FAMILY CODE: White — An anime drama series. | Play | More Info | 💥 Trending & Popular Shows | Demon Slayer: Kimetsu no Yaiba | Jujutsu Kaisen | Solo Leveling | C",
         "hasTvErrorOverlay": false,
         "viewport": "375x812"
       },
       "timings": {
-        "domContentLoadedMs": 109,
-        "settledMs": 14779
+        "domContentLoadedMs": 212,
+        "settledMs": 15658
+      },
+      "cssSignals": {
+        "found": true,
+        "size": 167411,
+        "legacyBlock": false,
+        "borderStyleFallback": true,
+        "spaceYUnwrapped": true,
+        "layerFree": true
+      },
+      "playerSignals": {
+        "overlayPresent": true,
+        "iframePresent": true,
+        "videoPresent": false,
+        "overlayText": "via YouTube10100:00 / 0:00"
       },
       "verdict": "OK"
     }
   },
-  "finishedAt": "2026-09-14T12:35:58.897Z",
+  "finishedAt": "2026-09-14T12:55:48.878Z",
   "verdict": "ALL OK"
 }
