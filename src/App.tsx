@@ -145,6 +145,27 @@ function mergeCollection(existing: Movie, incoming: Movie): Movie {
   return rebuilt.find((m) => m.isCollection && m.playlistId === existing.playlistId) || incoming;
 }
 
+/**
+ * Placeholder for a content row while the library is loading. Mirrors the
+ * MovieRow footprint so nothing jumps when real cards arrive.
+ */
+function RowSkeleton({ large = false }: { large?: boolean }) {
+  const w = large ? "w-[280px] md:w-[360px]" : "w-[220px] md:w-[300px]";
+  return (
+    <div className="relative px-4 md:px-12 mb-8">
+      <div className="h-5 md:h-6 w-40 md:w-56 mb-3 rounded bg-white/10 animate-pulse" />
+      <div className="flex gap-1.5 overflow-hidden py-1">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className={`${w} shrink-0`}>
+            <div className="aspect-video rounded-md bg-white/10 animate-pulse" />
+            <div className="h-3 w-2/3 rounded bg-white/5 mt-2 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
@@ -201,16 +222,12 @@ function App() {
     setIsAdmin(false);
   }, []);
 
-  // Load movies from Supabase on mount — hydrate from cache first for instant paint
-  useEffect(() => {
-    // Drop multi-megabyte caches from older builds (they caused the boot lag).
-    purgeLegacyMovieCaches();
-    const cached = readMoviesCache();
-    if (cached) {
-      setUploadedMovies(cached.uploaded);
-      setSyncedMovies(cached.synced);
-    }
-
+  // Library fetch with retry. A stalled/blocked network used to look exactly
+  // like an empty library (planned rows went full "Coming Soon", the hero
+  // said "No videos yet") with no way to recover short of a page reload —
+  // now a failed fetch raises an honest Retry banner instead.
+  const [libraryError, setLibraryError] = useState(false);
+  const loadLibrary = useCallback(() => {
     moviesRepoPromise
       .then(({ fetchAllMovies }) =>
         fetchAllMovies(undefined, (partial) => {
@@ -220,10 +237,11 @@ function App() {
           setSyncedMovies(partial.synced);
         }),
       )
-      .then(({ uploaded, synced }) => {
+      .then(({ uploaded, synced, failed }) => {
         setUploadedMovies(uploaded);
         setSyncedMovies(synced);
         setLibraryFetchSettled(true);
+        setLibraryError(failed && uploaded.length === 0 && synced.length === 0);
         // The cache is trimmed to the newest rows (see moviesCache.ts), so
         // writing it stays cheap even for a 4,000+ row library.
         const writeCache = () => {
@@ -239,7 +257,21 @@ function App() {
         // Offline or Supabase error — the cache (if any) is already showing;
         // swap the loading skeleton for the real empty state.
         setLibraryFetchSettled(true);
+        setLibraryError(true);
       });
+  }, []);
+
+  // Load movies from Supabase on mount — hydrate from cache first for instant paint
+  useEffect(() => {
+    // Drop multi-megabyte caches from older builds (they caused the boot lag).
+    purgeLegacyMovieCaches();
+    const cached = readMoviesCache();
+    if (cached) {
+      setUploadedMovies(cached.uploaded);
+      setSyncedMovies(cached.synced);
+    }
+
+    loadLibrary();
 
     // Warm on-demand modal/player chunks when idle so first open is instant.
     if (typeof requestIdleCallback !== "undefined") {
@@ -258,7 +290,13 @@ function App() {
     }
 
     return undefined;
-  }, []);
+  }, [loadLibrary]);
+
+  const retryLibrary = useCallback(() => {
+    setLibraryError(false);
+    setLibraryFetchSettled(false);
+    loadLibrary();
+  }, [loadLibrary]);
 
   const allMovies = useMemo(
     () => [...uploadedMovies, ...syncedMovies],
@@ -649,6 +687,14 @@ function App() {
   const showingDiscover = activeCategory === "discover" && !showingSearch;
   const showingCategory =
     activeCategory !== "home" && activeCategory !== "discover" && !showingSearch;
+  // While the library is in flight, admin rows must show skeletons — NOT a
+  // wall of "Coming Soon" placeholders (planned rows can't know yet which
+  // titles are genuinely missing, and on a stalled network that wall used to
+  // sit there forever looking broken). While the fetch has FAILED with an
+  // empty library, rows stay hidden entirely — the Retry banner explains why
+  // nothing is showing.
+  const libraryMissing = !libraryLoaded;
+  const showRowSkeletons = showLibrarySkeleton || (libraryError && libraryMissing);
 
   // Hero rotates through user's most recent content
   const heroMovies = useMemo<Movie[]>(() => {
@@ -692,6 +738,20 @@ function App() {
       />
 
       <main className="pt-16">
+        {libraryError && (
+          <div className="mx-4 md:mx-12 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <span className="text-sm text-red-200">
+              Library network se load nahi ho payi — content isliye nahi dikh raha.
+            </span>
+            <button
+              onClick={retryLibrary}
+              className="ml-auto h-9 px-4 rounded-full bg-red-500/80 hover:bg-red-500 text-white text-sm font-bold transition"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {showNotifications && (
           <Suspense fallback={null}>
             <NotificationPanel
@@ -788,6 +848,7 @@ function App() {
               if (!row.visible) return null;
               const sec = row.section || "home";
               if (sec !== "all" && sec !== activeCategory) return null;
+              if (showRowSkeletons) return <RowSkeleton key={row.id} large={row.isLarge} />;
               const slots = rowSlotsById.get(row.id) || [];
               if (slots.length === 0) return null;
               return (
@@ -902,7 +963,7 @@ function App() {
           <>
             <HeroBanner
               movies={heroMovies}
-              loading={showLibrarySkeleton}
+              loading={showLibrarySkeleton || (libraryError && heroMovies.length === 0)}
               onMoreInfo={(m) => setSelectedMovie(m)}
               onPlay={handlePlay}
               onUploadClick={() => setShowUploadModal(true)}
@@ -936,6 +997,10 @@ function App() {
                   if (!row.visible) return;
                   const sec = row.section || "home";
                   if (sec !== "home" && sec !== "all") return;
+                  if (showRowSkeletons) {
+                    elements.push(<RowSkeleton key={row.id} large={row.isLarge} />);
+                    return;
+                  }
                   const slots = rowSlotsById.get(row.id) || [];
                   if (slots.length === 0) return;
                   elements.push(

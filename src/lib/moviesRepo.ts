@@ -108,10 +108,10 @@ async function fetchMoviesPage(
   };
 }
 
-function splitRows(rows: Array<Record<string, unknown>>): {
-  uploaded: Movie[];
-  synced: Movie[];
-} {
+function splitRows(
+  rows: Array<Record<string, unknown>>,
+  failed = false,
+): { uploaded: Movie[]; synced: Movie[]; failed: boolean } {
   const uploaded: Movie[] = [];
   const synced: Movie[] = [];
   rows.forEach((r: any) => {
@@ -119,7 +119,7 @@ function splitRows(rows: Array<Record<string, unknown>>): {
     if (r.source_type === "synced") synced.push(m);
     else uploaded.push(m); // 'uploaded' + 'demo' both shown as library items
   });
-  return { uploaded, synced };
+  return { uploaded, synced, failed };
 }
 
 export async function fetchAllMovies(
@@ -131,7 +131,7 @@ export async function fetchAllMovies(
    * until every page of a 4,000+ row library has arrived.
    */
   onFirstPage?: (partial: { uploaded: Movie[]; synced: Movie[] }) => void,
-): Promise<{ uploaded: Movie[]; synced: Movie[] }> {
+): Promise<{ uploaded: Movie[]; synced: Movie[]; failed: boolean }> {
   // Newest first; created_at ties (bulk inserts share one timestamp) need the
   // id tiebreak, otherwise a page boundary in a tied group could skip rows.
   // The first page also fetches the exact total so remaining pages load
@@ -140,7 +140,9 @@ export async function fetchAllMovies(
   const first = await fetchMoviesPage(client, 0, true);
   if (first.error || !first.data || first.data.length === 0) {
     if (first.error) console.error("[moviesRepo] fetch error", first.error);
-    return splitRows(rows);
+    // `failed` lets the UI offer a Retry instead of pretending the library
+    // is simply empty (a stalled network looked exactly like "no videos").
+    return splitRows(rows, !!first.error);
   }
   rows.push(...first.data);
   if (onFirstPage) {
@@ -154,11 +156,13 @@ export async function fetchAllMovies(
   const total = first.count;
   if (total == null || total <= rows.length) {
     // No count available — fall back to sequential paging.
+    let hadError = false;
     let from = rows.length;
     for (;;) {
       const { data, error } = await fetchMoviesPage(client, from, false, MOVIES_COLUMNS_LIGHT);
       if (error) {
         console.error("[moviesRepo] fetch error", error);
+        hadError = true;
         break;
       }
       if (!data || data.length === 0) break;
@@ -166,7 +170,7 @@ export async function fetchAllMovies(
       if (data.length < MOVIES_PAGE_SIZE) break;
       from += MOVIES_PAGE_SIZE;
     }
-    return splitRows(rows);
+    return splitRows(rows, hadError && rows.length === 0);
   }
   const starts: number[] = [];
   for (let from = rows.length; from < total; from += MOVIES_PAGE_SIZE) starts.push(from);
