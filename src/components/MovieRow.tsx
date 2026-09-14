@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import type { Movie } from "../data";
 import MovieCard from "./MovieCard";
@@ -33,6 +33,16 @@ const TITLE_SIZE_CLASS: Record<string, string> = {
   "2xl": "text-2xl md:text-3xl",
 };
 
+/**
+ * Rows mount only this many cards at first paint and mount the rest once the
+ * browser is idle (or the moment the row is scrolled). A big library used to
+ * mount every card of every row up front — thousands of DOM nodes of React
+ * work before the first frame on phones and TV hardware, which is exactly the
+ * "site lags" report. Off-screen cards are invisible either way; images stay
+ * loading="lazy" throughout.
+ */
+const INITIAL_CARDS_PER_ROW = 12;
+
 function MovieRow({
   title,
   titleSize = "lg",
@@ -53,6 +63,17 @@ function MovieRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
+  // Deferred card mounting (see INITIAL_CARDS_PER_ROW).
+  const [cardCap, setCardCap] = useState<number>(INITIAL_CARDS_PER_ROW);
+  const expandCards = useCallback(() => setCardCap(Number.POSITIVE_INFINITY), []);
+  useEffect(() => {
+    if (typeof requestIdleCallback !== "undefined") {
+      const id = requestIdleCallback(() => setCardCap(Number.POSITIVE_INFINITY), { timeout: 2500 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(() => setCardCap(Number.POSITIVE_INFINITY), 2000);
+    return () => clearTimeout(t);
+  }, []);
   // Tizen 5.5 animates every scroll on its slow compositor, so smooth
   // scrolling makes row paging feel laggy and lands on half-cut cards.
   const isTv = isTvBrowser();
@@ -60,6 +81,7 @@ function MovieRow({
   const scrollRaf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
   const handleScroll = () => {
+    expandCards();
     cancelAnimationFrame(scrollRaf.current);
     scrollRaf.current = requestAnimationFrame(() => {
       if (rowRef.current) {
@@ -130,8 +152,9 @@ function MovieRow({
           } py-4 px-1`}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
-          {(slots ?? movies.map((movie) => ({ kind: "movie" as const, movie }))).map(
-            (slot, index) =>
+          {(slots ?? movies.map((movie) => ({ kind: "movie" as const, movie })))
+            .slice(0, cardCap)
+            .map((slot, index) =>
               slot.kind === "movie" ? (
                 <MovieCard
                   key={slot.movie.id}
@@ -151,7 +174,7 @@ function MovieRow({
               ) : (
                 <PlaceholderCard key={`planned-${index}`} title={slot.title} isLarge={isLargeRow} />
               ),
-          )}
+            )}
         </div>
 
         {showRightArrow && (

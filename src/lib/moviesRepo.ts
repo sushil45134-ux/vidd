@@ -67,8 +67,20 @@ export function movieToRow(m: Movie, sourceType: "uploaded" | "synced" | "demo")
 // — and every row referencing those videos vanished from the site with them.
 const MOVIES_PAGE_SIZE = 1000;
 
+// Full-fidelity columns — page 1 (the newest rows) only.
 const MOVIES_COLUMNS =
   "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at";
+
+// Trimmed columns for page 2+: `description` and `cast_members` are the two
+// fat free-text columns. On a multi-thousand-row library they turn the boot
+// fetch into multiple megabytes, which is exactly the "site takes forever to
+// load" report on phone/TV networks. Cards, rows, grids and search by
+// title/genre need none of that text — and MovieModal re-fetches the full row
+// for any item whose description is missing the moment it is opened.
+const MOVIES_COLUMNS_LIGHT = MOVIES_COLUMNS.replace("description,", "").replace(
+  "cast_members,",
+  "",
+);
 
 interface MoviesPageResult {
   data: Array<Record<string, unknown>> | null;
@@ -80,14 +92,20 @@ async function fetchMoviesPage(
   client: typeof supabase,
   from: number,
   exactCount: boolean,
+  columns: string = MOVIES_COLUMNS,
 ): Promise<MoviesPageResult> {
   const { data, error, count } = await client
     .from("movies")
-    .select(MOVIES_COLUMNS, exactCount ? { count: "exact" } : undefined)
+    .select(columns, exactCount ? { count: "exact" } : undefined)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .range(from, from + MOVIES_PAGE_SIZE - 1);
-  return { data, error, count: count ?? null };
+  // Dynamic column strings widen the generated row type; the shape is known.
+  return {
+    data: (data as Array<Record<string, unknown>> | null) ?? null,
+    error,
+    count: count ?? null,
+  };
 }
 
 function splitRows(rows: Array<Record<string, unknown>>): {
@@ -138,7 +156,7 @@ export async function fetchAllMovies(
     // No count available — fall back to sequential paging.
     let from = rows.length;
     for (;;) {
-      const { data, error } = await fetchMoviesPage(client, from, false);
+      const { data, error } = await fetchMoviesPage(client, from, false, MOVIES_COLUMNS_LIGHT);
       if (error) {
         console.error("[moviesRepo] fetch error", error);
         break;
@@ -154,7 +172,7 @@ export async function fetchAllMovies(
   for (let from = rows.length; from < total; from += MOVIES_PAGE_SIZE) starts.push(from);
   const settled = await Promise.all(
     starts.map((from) =>
-      fetchMoviesPage(client, from, false).then(
+      fetchMoviesPage(client, from, false, MOVIES_COLUMNS_LIGHT).then(
         (r) => r,
         (e): MoviesPageResult => ({ data: null, error: e, count: null }),
       ),
@@ -181,6 +199,22 @@ export async function fetchMovieImages(): Promise<Map<number, string>> {
       row.thumbnail_url || row.image || row.backdrop || "",
     ]),
   );
+}
+
+/**
+ * Full single row (including description / cast). MovieModal calls this when
+ * an item came from a light library page (see fetchAllMovies) so the modal
+ * hero still shows the complete synopsis — one tiny query, exactly when the
+ * user asks to see that title.
+ */
+export async function fetchMovieById(id: number): Promise<Movie | null> {
+  const { data, error } = await supabase
+    .from("movies")
+    .select(MOVIES_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return rowToMovie(data);
 }
 
 export async function insertMovies(

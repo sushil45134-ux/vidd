@@ -2,13 +2,16 @@ import { useState, useCallback, useEffect, useMemo, lazy, Suspense, type ReactNo
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
 import MovieRow from "./components/MovieRow";
-import NotificationPanel from "./components/NotificationPanel";
 import SearchResults from "./components/SearchResults";
-import UnifiedSearch from "./components/UnifiedSearch";
 import SmartImage from "./components/SmartImage";
 import { useVisibleCount } from "./lib/useVisibleCount";
-import AnimeSection from "./components/AnimeSection";
 import ContinueWatchingRow from "./components/ContinueWatchingRow";
+
+// View-specific panels load with their view — the home feed never pays for
+// them (keeps the eager routes chunk, and therefore first paint, small).
+const NotificationPanel = lazy(() => import("./components/NotificationPanel"));
+const UnifiedSearch = lazy(() => import("./components/UnifiedSearch"));
+const AnimeSection = lazy(() => import("./components/AnimeSection"));
 
 // Heavy modals / overlays — loaded on demand to keep the initial bundle small.
 const MovieModal = lazy(() => import("./components/MovieModal"));
@@ -35,6 +38,14 @@ import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
 import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
+
+// Start downloading the data layer (moviesRepo + the Supabase SDK chunk it
+// depends on) at module-eval time — i.e. the moment the entry script runs,
+// long before React hydrates and the mount effect would otherwise trigger the
+// dynamic import. On slow phone/TV networks this overlaps one serialized
+// chunk roundtrip with the framework boot, so the first Supabase query starts
+// noticeably earlier.
+const moviesRepoPromise: Promise<typeof import("./lib/moviesRepo")> = import("./lib/moviesRepo");
 
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
@@ -200,7 +211,7 @@ function App() {
       setSyncedMovies(cached.synced);
     }
 
-    import("./lib/moviesRepo")
+    moviesRepoPromise
       .then(({ fetchAllMovies }) =>
         fetchAllMovies(undefined, (partial) => {
           // First page is in — paint the hero/rows now; remaining pages land
@@ -682,13 +693,15 @@ function App() {
 
       <main className="pt-16">
         {showNotifications && (
-          <NotificationPanel
-            onClose={closeNotifications}
-            onMovieClick={(movie: Movie) => {
-              setShowNotifications(false);
-              setSelectedMovie(movie);
-            }}
-          />
+          <Suspense fallback={null}>
+            <NotificationPanel
+              onClose={closeNotifications}
+              onMovieClick={(movie: Movie) => {
+                setShowNotifications(false);
+                setSelectedMovie(movie);
+              }}
+            />
+          </Suspense>
         )}
 
         {showingSearch && (
@@ -705,18 +718,26 @@ function App() {
         )}
 
         {showingDiscover && (
-          <UnifiedSearch
-            library={displayItems}
-            onSelectMovie={setSelectedMovie}
-            onPlay={handlePlay}
-            onAdd={async (movie: Movie) => {
-              const { insertMovies } = await import("./lib/moviesRepo");
-              const saved = await insertMovies([movie], "uploaded");
-              const toAdd = saved[0] ?? movie;
-              setUploadedMovies((prev) => [toAdd, ...prev]);
-              setMyList((prev) => [toAdd, ...prev]);
-            }}
-          />
+          <Suspense
+            fallback={
+              <div className="px-4 md:px-12 pt-6">
+                <div className="h-10 w-64 rounded bg-white/10 animate-pulse" />
+              </div>
+            }
+          >
+            <UnifiedSearch
+              library={displayItems}
+              onSelectMovie={setSelectedMovie}
+              onPlay={handlePlay}
+              onAdd={async (movie: Movie) => {
+                const { insertMovies } = await import("./lib/moviesRepo");
+                const saved = await insertMovies([movie], "uploaded");
+                const toAdd = saved[0] ?? movie;
+                setUploadedMovies((prev) => [toAdd, ...prev]);
+                setMyList((prev) => [toAdd, ...prev]);
+              }}
+            />
+          </Suspense>
         )}
 
         {showingCategory && (
@@ -735,15 +756,31 @@ function App() {
 
             {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
             {activeCategory === "anime" && (
-              <AnimeSection
-                onSelectMovie={setSelectedMovie}
-                onPlay={handlePlay}
-                isInMyList={isInMyList}
-                isLiked={isLiked}
-                toggleMyList={toggleMyList}
-                toggleLike={toggleLike}
-                onEpisodesLoaded={handleAnimeEpisodesLoaded}
-              />
+              <Suspense
+                fallback={
+                  <div className="px-4 md:px-12 mb-8">
+                    <div className="h-6 w-56 mb-3 rounded bg-white/10 animate-pulse" />
+                    <div className="flex gap-2 overflow-hidden">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-[220px] md:w-[300px] shrink-0 aspect-video rounded-md bg-white/10 animate-pulse"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                }
+              >
+                <AnimeSection
+                  onSelectMovie={setSelectedMovie}
+                  onPlay={handlePlay}
+                  isInMyList={isInMyList}
+                  isLiked={isLiked}
+                  toggleMyList={toggleMyList}
+                  toggleLike={toggleLike}
+                  onEpisodesLoaded={handleAnimeEpisodesLoaded}
+                />
+              </Suspense>
             )}
 
             {/* Admin custom rows scoped to this section */}
