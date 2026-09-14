@@ -386,7 +386,47 @@ function scoreTitleMatch(query: string, candidate: string): number {
   return 0;
 }
 
+const KNOWN_IMDB_IDS: Record<string, string> = {
+  "violet evergarden": "tt7078180",
+  "your name": "tt5726616",
+  "kimi no na wa": "tt5726616",
+  "suzume": "tt16428256",
+  "suzume no tojimari": "tt16428256",
+  "a silent voice": "tt5323662",
+  "koe no katachi": "tt5323662",
+  "weathering with you": "tt9426210",
+  "tenki no ko": "tt9426210",
+  "i want to eat your pancreas": "tt7512932",
+  "kimi no suizou wo tabetai": "tt7512932",
+  "demon slayer": "tt9335498",
+  "kimetsu no yaiba": "tt9335498",
+  "spy x family": "tt13693136",
+  "spy family": "tt13693136",
+  "my dress-up darling": "tt14185374",
+  "sono bisque doll wa koi wo suru": "tt14185374",
+  "attack on titan": "tt2560140",
+  "naruto": "tt0988824",
+  "one piece": "tt0388629",
+  "jujutsu kaisen": "tt12343534",
+  "chainsaw man": "tt13616990",
+  "death note": "tt0877057",
+  "fullmetal alchemist": "tt0421357",
+  "my hero academia": "tt5626028",
+  "boku no hero academia": "tt5626028",
+};
+
 async function findImdbIdForTitle(title: string): Promise<string | null> {
+  // Check known IDs first - most accurate
+  const lowerTitle = title.toLowerCase().trim();
+  for (const [key, imdbId] of Object.entries(KNOWN_IMDB_IDS)) {
+    if (lowerTitle === key || lowerTitle.includes(key) || key.includes(lowerTitle)) {
+      // For exact or strong contains match, return known ID immediately
+      if (lowerTitle === key || lowerTitle.includes(key)) {
+        console.log(`[anime-auto] Known IMDb ID for "${title}" -> ${imdbId} (matched "${key}")`);
+        return imdbId;
+      }
+    }
+  }
   try {
     const q = title.trim();
     if (!q) return null;
@@ -623,7 +663,33 @@ export const Route = createFileRoute("/api/anime-auto")({
           }
 
           // Pick best by title similarity, not just first — fixes Violet Evergarden -> Spy x Family bug
-          let mainSearch = pickBestAniListMatch(title, searchResults) || searchResults.find((m) => !!m.idMal) || searchResults[0];
+          let mainSearch = pickBestAniListMatch(title, searchResults);
+          let bestScore = mainSearch ? Math.max(...allTitleVariants(mainSearch.title).map(v => scoreTitleMatch(title.toLowerCase(), v))) : 0;
+          
+          // If AniList best match is weak (<70), try Jikan search as it often has better exact matching
+          if (!mainSearch || bestScore < 70) {
+            try {
+              const jikanResults = await jikanSearch(title);
+              if (jikanResults.length > 0) {
+                const jikanBest = pickBestAniListMatch(title, jikanResults);
+                if (jikanBest) {
+                  const jikanScore = Math.max(...allTitleVariants(jikanBest.title).map(v => scoreTitleMatch(title.toLowerCase(), v)));
+                  if (jikanScore > bestScore) {
+                    console.log(`[anime-auto] Jikan better match for "${title}": ${bestTitle(jikanBest.title)} (score ${jikanScore}) vs AniList ${mainSearch ? bestTitle(mainSearch.title) : 'none'} (score ${bestScore})`);
+                    mainSearch = jikanBest;
+                    bestScore = jikanScore;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("[anime-auto] Jikan fallback search failed", e);
+            }
+          }
+          
+          // Final fallback
+          if (!mainSearch) {
+            mainSearch = searchResults.find((m) => !!m.idMal) || searchResults[0];
+          }
 
           // If mainSearch is from Jikan fake id, we don't have relations, handle separately
           let mainDetailed: AniListMedia | null = null;
@@ -688,8 +754,52 @@ export const Route = createFileRoute("/api/anime-auto")({
               console.warn("[anime-auto] jikan franchise search failed", e);
             }
 
-            // 3) Known hardcode for popular anime where AniList search might miss S2
+            // 3) Known hardcode for popular anime where AniList search might miss S2 or return wrong title
             const lowerQuery = title.toLowerCase();
+            
+            // Special handling for Violet Evergarden - exact ID to avoid Spy x Family bug
+            const KNOWN_ANIME_IDS: Record<string, number> = {
+              "violet evergarden": 21827,
+              "your name": 21519,
+              "kimi no na wa": 21519,
+              "suzume": 15564,
+              "suzume no tojimari": 15564,
+              "a silent voice": 20954,
+              "koe no katachi": 20954,
+              "weathering with you": 106101,
+              "tenki no ko": 106101,
+              "i want to eat your pancreas": 105398,
+              "kimi no suizou wo tabetai": 105398,
+              "demon slayer": 101922,
+              "kimetsu no yaiba": 101922,
+              "spy x family": 140960,
+              "spy family": 140960,
+            };
+            
+            // Check if query exactly matches known anime
+            for (const [key, id] of Object.entries(KNOWN_ANIME_IDS)) {
+              if (lowerQuery === key || lowerQuery.includes(key)) {
+                // If this is the main query, ensure we have the correct anime in chain
+                if (lowerQuery.includes(key) && seasonsChain.length > 0) {
+                  const currentBest = bestTitle(seasonsChain[0].title).toLowerCase();
+                  // If current best doesn't match query well, try to fetch correct one
+                  if (scoreTitleMatch(lowerQuery, currentBest) < 80) {
+                    try {
+                      const correctData = await anilistFetch(MEDIA_DETAILS_QUERY, { id });
+                      const correctMedia = correctData?.Media as AniListMedia | null;
+                      if (correctMedia) {
+                        console.log(`[anime-auto] Known ID override for "${title}" -> ${key} (${id}), replacing ${currentBest}`);
+                        seasonsChain = [correctMedia];
+                        break;
+                      }
+                    } catch (e) {
+                      console.warn(`[anime-auto] Failed to fetch known ID ${id} for ${key}`, e);
+                    }
+                  }
+                }
+              }
+            }
+            
             if (lowerQuery.includes("dress-up") || lowerQuery.includes("dress up") || lowerQuery.includes("bisque doll") || lowerQuery.includes("my dress") || lowerQuery.includes("dressup")) {
               // My Dress-Up Darling S1 = 131516 (MAL 48496), S2 = 180259 (MAL 54898)
               const knownIds = [131516, 180259];
