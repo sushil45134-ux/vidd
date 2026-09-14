@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense, type ReactNode } from "react";
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
+import SectionHero from "./components/SectionHero";
 import MovieRow from "./components/MovieRow";
 import SearchResults from "./components/SearchResults";
 import SmartImage from "./components/SmartImage";
@@ -35,7 +36,7 @@ import {
 import { resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
 import { purgeLegacyMovieCaches, readMoviesCache, writeMoviesCache } from "./lib/moviesCache";
 import { isTvBrowser } from "./lib/browser";
-import { useHeroBanners } from "./lib/heroBanners";
+import { bannerSection, useHeroBanners, type HeroSection } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
 import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
 
@@ -797,26 +798,67 @@ function App() {
     return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
   }, [playingMovie, syncedMovies, uploadedMovies, animeEpisodes]);
 
+  // Admin banners split by page — the home hero only ever shows "home"
+  // banners; Movies/Anime/Cartoon banners live on their own pages.
+  const homeBanners = useMemo(
+    () => heroBannerOverrides.filter((b) => bannerSection(b) === "home"),
+    [heroBannerOverrides],
+  );
+  const sectionBanners = useMemo(
+    () =>
+      (["movies", "anime", "cartoon"] as const).map((section) => ({
+        section,
+        banners: heroBannerOverrides.filter((b) => bannerSection(b) === section),
+      })),
+    [heroBannerOverrides],
+  );
+
+  // Resolve admin banner picks against the live library (artwork/title
+  // overrides applied). Shared by the home hero and the section banners.
+  const resolveBannerMovies = useCallback(
+    (section: HeroSection, fallbackPool: Movie[]): Movie[] => {
+      const picks =
+        section === "home"
+          ? homeBanners
+          : (sectionBanners.find((s) => s.section === section)?.banners ?? []);
+      if (picks.length > 0) {
+        const resolved = picks
+          .map((h) => {
+            const base = displayItems.find((m) => m.id === h.movieId);
+            if (!base) return null;
+            return {
+              ...base,
+              title: h.title || base.title,
+              description: h.description || base.description,
+              backdrop: h.bannerImage,
+              image: h.bannerImage,
+            } as Movie;
+          })
+          .filter((m): m is Movie => !!m);
+        if (resolved.length > 0) return resolved;
+      }
+      return fallbackPool.slice(0, 5);
+    },
+    [homeBanners, sectionBanners, displayItems],
+  );
+
   // Hero rotates through user's most recent content
-  const heroMovies = useMemo<Movie[]>(() => {
-    if (heroBannerOverrides.length > 0) {
-      const resolved = heroBannerOverrides
-        .map((h) => {
-          const base = displayItems.find((m) => m.id === h.movieId);
-          if (!base) return null;
-          return {
-            ...base,
-            title: h.title || base.title,
-            description: h.description || base.description,
-            backdrop: h.bannerImage,
-            image: h.bannerImage,
-          } as Movie;
-        })
-        .filter((m): m is Movie => !!m);
-      if (resolved.length > 0) return resolved;
-    }
-    return displayItems.slice(0, 5);
-  }, [heroBannerOverrides, displayItems]);
+  const heroMovies = useMemo<Movie[]>(
+    () => resolveBannerMovies("home", displayItems),
+    [resolveBannerMovies, displayItems],
+  );
+
+  // Movies / Anime / Cartoon pages get the same banner system in a
+  // contained box. Falls back to the section's own top titles.
+  const sectionHeroMovies = useMemo<Movie[]>(() => {
+    if (activeCategory !== "movies" && activeCategory !== "anime" && activeCategory !== "cartoon")
+      return [];
+    const matcher = CATEGORY_MATCH[activeCategory];
+    return resolveBannerMovies(
+      activeCategory,
+      displayItems.filter((m) => matcher(m)),
+    );
+  }, [activeCategory, displayItems, resolveBannerMovies]);
 
   return (
     <div className="bg-black min-h-screen text-white">
@@ -900,17 +942,22 @@ function App() {
 
         {showingCategory && (
           <div className="pt-6 min-h-screen">
-            <h1 className="text-white text-2xl md:text-4xl font-bold mb-6 px-4 md:px-12">
-              {activeCategory === "movies"
-                ? "Movies"
-                : activeCategory === "anime"
-                  ? "Anime"
-                  : activeCategory === "cartoon"
-                    ? "Cartoon"
-                    : activeCategory === "mylist"
-                      ? "My List"
-                      : activeCategory}
-            </h1>
+            {(activeCategory === "movies" ||
+              activeCategory === "anime" ||
+              activeCategory === "cartoon") && (
+              <SectionHero
+                key={activeCategory}
+                movies={sectionHeroMovies}
+                loading={showLibrarySkeleton || (libraryError && sectionHeroMovies.length === 0)}
+                onMoreInfo={setSelectedMovie}
+                onPlay={handlePlay}
+              />
+            )}
+            {activeCategory === "mylist" && (
+              <h1 className="text-white text-2xl md:text-4xl font-bold mb-6 px-4 md:px-12">
+                My List
+              </h1>
+            )}
 
             {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
             {activeCategory === "anime" && (

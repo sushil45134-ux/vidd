@@ -1,7 +1,15 @@
 import { useRef, useState } from "react";
 import { X, Upload, Sparkles, Image as ImageIcon, Trash2 } from "lucide-react";
 import type { Movie } from "../data";
-import { loadHeroBanners, upsertHeroBanner, removeHeroBanner } from "../lib/heroBanners";
+import {
+  HERO_SECTIONS,
+  HERO_SECTION_LABELS,
+  bannerSection,
+  loadHeroBanners,
+  upsertHeroBanner,
+  removeHeroBanner,
+  type HeroSection,
+} from "../lib/heroBanners";
 import { optimizeImageFile } from "../lib/imageOptimization";
 import SmartImage from "./SmartImage";
 import { useEffect } from "react";
@@ -22,6 +30,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
   const [title, setTitle] = useState(existing?.title || movie.title);
   const [description, setDescription] = useState(existing?.description || movie.description || "");
   const [badge, setBadge] = useState(existing?.badge || "⭐ FEATURED");
+  const [section, setSection] = useState<HeroSection>(existing ? bannerSection(existing) : "home");
   const [urlInput, setUrlInput] = useState("");
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -51,6 +60,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
         title: title.trim() || undefined,
         description: description.trim() || undefined,
         badge: badge.trim() || undefined,
+        section,
       });
       if (saved) onClose();
     } catch {
@@ -62,7 +72,9 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
 
   const remove = async () => {
     if (!existing) return onClose();
-    if (window.confirm("Remove this from the hero banner?")) {
+    if (
+      window.confirm(`Remove this from the ${HERO_SECTION_LABELS[bannerSection(existing)]} banner?`)
+    ) {
       const removed = await removeHeroBanner(movie.id);
       if (removed) onClose();
     }
@@ -80,7 +92,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <Sparkles size={18} className="text-[#ff6a00]" />
-            <h3 className="text-white font-bold text-lg">Set as Hero Banner</h3>
+            <h3 className="text-white font-bold text-lg">Set Banner</h3>
           </div>
           <button
             onClick={onClose}
@@ -91,6 +103,33 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
         </div>
 
         <div className="p-6 space-y-5">
+          {/* Which page shows this banner */}
+          <div>
+            <label className="block text-white/60 text-xs font-semibold mb-2">
+              Show this banner on
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {HERO_SECTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSection(s)}
+                  className={`h-10 rounded-lg text-xs font-bold transition ${
+                    section === s
+                      ? "bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-white shadow-lg shadow-[#ee0979]/20"
+                      : "bg-white/5 hover:bg-white/10 text-white/70"
+                  }`}
+                >
+                  {HERO_SECTION_LABELS[s]}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-white/40 mt-1.5">
+              {section === "home"
+                ? "Full-screen rotating hero on the home page."
+                : `Wide banner box at the top of the ${HERO_SECTION_LABELS[section]} page.`}
+            </p>
+          </div>
+
           {/* Live preview */}
           <div className="relative aspect-[21/9] rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
             {bannerImage ? (
@@ -199,7 +238,7 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
               className="flex items-center gap-1.5 h-10 px-4 rounded-full border border-red-500/60 bg-red-600/20 hover:bg-red-600 text-white text-sm font-semibold"
             >
               <Trash2 size={14} />
-              Remove from hero
+              Remove banner
             </button>
           ) : (
             <span />
@@ -216,7 +255,9 @@ export default function HeroBannerPicker({ movie, onClose }: Props) {
               disabled={saving}
               className="h-10 px-5 rounded-full bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-white text-sm font-bold shadow-lg shadow-[#ee0979]/20"
             >
-              {saving ? "Saving..." : existing ? "Update banner" : "Set as hero"}
+              {saving
+                ? "Saving..."
+                : `${existing ? "Update" : "Set"} ${HERO_SECTION_LABELS[section]} banner`}
             </button>
           </div>
         </div>

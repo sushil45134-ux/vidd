@@ -16,7 +16,12 @@ import { FALLBACK_THUMBNAIL, isGenericPoster, movieImageSources } from "../lib/m
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
 import { useVisibleCount } from "../lib/useVisibleCount";
-import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
+import {
+  HERO_SECTION_LABELS,
+  bannerSection,
+  useHeroBanners,
+  removeHeroBanner,
+} from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { isTvBrowser } from "../lib/browser";
 import {
@@ -59,7 +64,8 @@ export default function MovieModal({
 }: MovieModalProps) {
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const heroBanners = useHeroBanners();
-  const isHeroBanner = heroBanners.some((b) => b.movieId === movie.id);
+  const heroBannerForMovie = heroBanners.find((b) => b.movieId === movie.id);
+  const isHeroBanner = !!heroBannerForMovie;
   // Continue Watching: exact match for singles, newest episode for series.
   const resume = useResumeForMovie(movie);
   const resumeFromSec =
@@ -325,7 +331,7 @@ export default function MovieModal({
                 <span className="text-white/60 text-xs">{votes} votes</span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
                   ref={playButtonRef}
                   onClick={() => {
@@ -385,25 +391,32 @@ export default function MovieModal({
                 {canDelete && (
                   <button
                     onClick={() => setShowBannerPicker(true)}
-                    className="flex items-center gap-2 border border-[#ff6a00]/60 bg-[#ff6a00]/15 hover:bg-[#ff6a00] hover:text-black text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
-                    title={isHeroBanner ? "Update hero banner" : "Set as hero banner"}
+                    className="flex items-center gap-2 border border-[#ff6a00]/60 bg-[#ff6a00]/15 hover:bg-[#ff6a00] hover:text-black text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors whitespace-nowrap"
+                    title={
+                      heroBannerForMovie
+                        ? `Banner on ${HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)]} — click to change`
+                        : "Set as page banner"
+                    }
                   >
                     <Sparkles size={14} />
-                    {isHeroBanner ? "Update Hero" : "Set as Hero"}
+                    {heroBannerForMovie
+                      ? `${HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)]} Banner ✓`
+                      : "Set Banner"}
                   </button>
                 )}
-                {canDelete && isHeroBanner && (
+                {canDelete && heroBannerForMovie && (
                   <button
                     onClick={() => {
-                      if (window.confirm(`Remove "${movie.title}" from the hero banner?`)) {
+                      const label = HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)];
+                      if (window.confirm(`Remove "${movie.title}" from the ${label} banner?`)) {
                         removeHeroBanner(movie.id);
                       }
                     }}
-                    className="flex items-center gap-2 border border-red-500/60 bg-red-600/15 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
-                    title="Remove from hero banner"
+                    className="flex items-center gap-2 border border-red-500/60 bg-red-600/15 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors whitespace-nowrap"
+                    title={`Remove from ${HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)]} banner`}
                   >
                     <Trash2 size={14} />
-                    Remove from Hero
+                    Remove Banner
                   </button>
                 )}
                 {canEditThumbnail && onEditThumbnail && (
