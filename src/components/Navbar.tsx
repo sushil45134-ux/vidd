@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import {
   Search,
   Bell,
@@ -48,7 +48,7 @@ const categories = [
   { label: "Cartoon", icon: Palette, category: "cartoon" as Category },
 ];
 
-export default function Navbar({
+function Navbar({
   onSearch,
   searchQuery,
   activeCategory,
@@ -260,3 +260,5 @@ export default function Navbar({
     </nav>
   );
 }
+
+export default memo(Navbar);

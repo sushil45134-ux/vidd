@@ -26,6 +26,8 @@ import {
   useResumeForMovie,
 } from "../lib/continueWatching";
 
+const IS_TV = isTvBrowser();
+
 interface MovieModalProps {
   movie: Movie;
   onClose: () => void;
@@ -117,7 +119,7 @@ export default function MovieModal({
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
   // smooth scroll on desktop, one synchronous card-step on Tizen's slow
   // compositor. The arrow steps aside once the row cannot scroll further.
-  const isTv = isTvBrowser();
+  const isTv = IS_TV;
   const episodesRowRef = useRef<HTMLDivElement>(null);
   const episodesRaf = useRef(0);
   const [showEpisodesArrow, setShowEpisodesArrow] = useState(true);
@@ -189,7 +191,7 @@ export default function MovieModal({
   // On TV, land focus on the primary action so the remote works right away.
   const playButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!isTvBrowser()) return;
+    if (!IS_TV) return;
     const t = setTimeout(() => playButtonRef.current?.focus(), 60);
     return () => clearTimeout(t);
   }, [movie.id]);
@@ -201,10 +203,13 @@ export default function MovieModal({
     [activeSeason],
   );
   // 1000+ episode series (One Piece) must not mount 1000 cards at once.
+  // Only the on-screen handful mounts synchronously with the modal open —
+  // mounting 60 heavy cards in the same frame as the tap is exactly the
+  // "tap a movie, whole site freezes" report on phones and TVs.
   const { visible: visibleEps, showMore: showMoreEps } = useVisibleCount(
     `${movie.id}-${selectedSeason ?? "all"}`,
-    60,
-    120,
+    14,
+    40,
   );
   const currentEp: Movie = isCollection
     ? episodes[selectedEpIdx] || episodes[0] || movie.episodes![0]
@@ -255,7 +260,7 @@ export default function MovieModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/85 overflow-y-auto py-6"
       onClick={onClose}
     >
       <div
@@ -520,7 +525,7 @@ export default function MovieModal({
                   onClick={showMoreEps}
                   className="shrink-0 w-36 self-stretch rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold transition"
                 >
-                  Show {Math.min(120, episodes.length - visibleEps)} more
+                  Show {Math.min(40, episodes.length - visibleEps)} more
                   <span className="block text-[10px] text-white/50 font-normal mt-1">
                     {visibleEps} of {episodes.length}
                   </span>
@@ -622,7 +627,7 @@ function EpisodeCard({
 
   return (
     <div
-      className="group relative shrink-0 w-64 cursor-pointer"
+      className="group relative shrink-0 w-64 cursor-pointer cv-card"
       onClick={current ? onPlay : onSelect}
       tabIndex={0}
       role="button"
@@ -712,7 +717,7 @@ function SimilarCard({
 }) {
   return (
     <div
-      className="group relative shrink-0 w-56 cursor-pointer"
+      className="group relative shrink-0 w-56 cursor-pointer cv-card"
       onClick={onSelect}
       tabIndex={0}
       role="button"
@@ -738,7 +743,7 @@ function SimilarCard({
             onPlay();
           }}
           className={`absolute inset-0 m-auto w-11 h-11 rounded-full bg-[#f47521]/90 hover:bg-[#f47521] flex items-center justify-center transition-opacity ${
-            isTvBrowser() ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            IS_TV ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
           <Play size={16} fill="white" className="text-white ml-0.5" />

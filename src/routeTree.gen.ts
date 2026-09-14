@@ -69,12 +69,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
   id:
-    | '__root__'
-    | '/'
-    | '/admin'
-    | '/api/anime'
-    | '/api/anime-auto'
-    | '/api/auth'
+    '__root__' | '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {

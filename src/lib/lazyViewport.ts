@@ -48,7 +48,8 @@ type MinimalObserverConstructor = new (
 function nativeIntersectionObserver(): MinimalObserverConstructor | null {
   if (typeof window === "undefined") return null;
   const ctor = window.IntersectionObserver as
-    (MinimalObserverConstructor & { __tvBootShim?: boolean }) | undefined;
+    | (MinimalObserverConstructor & { __tvBootShim?: boolean })
+    | undefined;
   if (typeof ctor !== "function" || ctor.__tvBootShim === true) return null;
   return ctor;
 }
@@ -149,55 +150,96 @@ function detachViewportListeners() {
  * observation strategy fails, the image is treated as visible so it still
  * loads.
  */
+/**
+ * ONE shared IntersectionObserver for every gated image. The old code minted
+ * a dedicated observer per image — during a mount storm of hundreds of cards
+ * that was hundreds of observer setups on the TV's weakest CPU. Callbacks
+ * are fanned out by element; entries disconnect after their first hit.
+ */
+let sharedObserver: MinimalObserverWithUnobserve | null = null;
+let sharedObserverCtor: MinimalObserverConstructor | null = null;
+const sharedCallbacks = new Map<Element, () => void>();
+
+interface MinimalObserverWithUnobserve extends MinimalObserver {
+  unobserve?(el: Element): void;
+}
+
+function getSharedObserver(): MinimalObserverWithUnobserve | null {
+  const ctor = nativeIntersectionObserver();
+  if (!ctor) return null;
+  if (sharedObserver && sharedObserverCtor === ctor) return sharedObserver;
+  try {
+    const observer = new ctor(
+      (entries) => {
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i] as { isIntersecting?: boolean; target?: Element };
+          if (!entry.isIntersecting || !entry.target) continue;
+          const cb = sharedCallbacks.get(entry.target);
+          if (!cb) continue;
+          sharedCallbacks.delete(entry.target);
+          try {
+            (observer as MinimalObserverWithUnobserve).unobserve?.(entry.target);
+          } catch (_) {
+            /* already detached */
+          }
+          if (sharedCallbacks.size === 0) {
+            try {
+              observer.disconnect();
+            } catch (_) {
+              /* ignore */
+            }
+            sharedObserver = null;
+            sharedObserverCtor = null;
+          }
+          try {
+            cb();
+          } catch (_) {
+            /* a throwing callback must not strand the remaining checks */
+          }
+        }
+      },
+      { root: null, rootMargin: `${DEFAULT_MARGIN_PX}px`, threshold: 0 },
+    ) as MinimalObserverWithUnobserve;
+    sharedObserver = observer;
+    sharedObserverCtor = ctor;
+    return observer;
+  } catch (_) {
+    return null;
+  }
+}
+
 export function watchElementVisibility(
   element: Element,
   onVisible: () => void,
   marginPx: number = DEFAULT_MARGIN_PX,
 ): () => void {
-  const observerCtor = nativeIntersectionObserver();
-  if (observerCtor) {
+  void marginPx;
+  const shared = getSharedObserver();
+  if (shared) {
     try {
       let settled = false;
-      let observer: MinimalObserver | null = new observerCtor(
-        (entries) => {
-          for (let i = 0; i < entries.length; i++) {
-            if (entries[i].isIntersecting) {
-              settleAndNotify();
-              return;
-            }
-          }
-        },
-        { root: null, rootMargin: `${marginPx}px`, threshold: 0 },
-      );
-      function settleAndNotify() {
+      const fire = () => {
         if (settled) return;
         settled = true;
-        if (observer) {
-          try {
-            observer.disconnect();
-          } catch (_) {
-            /* already detached */
-          }
-          observer = null;
-        }
+        sharedCallbacks.delete(element);
         onVisible();
-      }
-      observer.observe(element);
+      };
+      sharedCallbacks.set(element, fire);
+      shared.observe(element);
       return () => {
         if (settled) return;
         settled = true;
-        if (observer) {
-          try {
-            observer.disconnect();
-          } catch (_) {
-            /* ignore */
-          }
-          observer = null;
+        sharedCallbacks.delete(element);
+        try {
+          shared.unobserve?.(element);
+        } catch (_) {
+          /* ignore */
         }
       };
     } catch (_) {
-      // Old/partial implementations (constructor or observe throwing) fall
-      // through to the manual rect checks below.
+      sharedCallbacks.delete(element);
+      // Old/partial implementations (observe throwing) fall through to the
+      // manual rect checks below.
     }
   }
 

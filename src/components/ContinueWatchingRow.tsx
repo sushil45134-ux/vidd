@@ -6,6 +6,8 @@ import { movieImageSources } from "../lib/media";
 import { isTvBrowser } from "../lib/browser";
 import { episodeTag, formatTimeLeft, type ResumeItem } from "../lib/continueWatching";
 
+const IS_TV = isTvBrowser();
+
 interface ContinueWatchingRowProps {
   title?: string;
   items: ResumeItem[];
@@ -26,7 +28,7 @@ function ContinueWatchingRow({
   const [showRightArrow, setShowRightArrow] = useState(true);
   // Same desktop/TV split as MovieRow: smooth scroll on desktop, one
   // synchronous card-step on Tizen's slow compositor.
-  const isTv = isTvBrowser();
+  const isTv = IS_TV;
 
   const scrollRaf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
@@ -135,7 +137,7 @@ function ResumeCard({
   onRemove: (key: string) => void;
 }) {
   const { movie, percent, progressSec, durationSec } = item;
-  const isTv = isTvBrowser();
+  const isTv = IS_TV;
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   // TVs have no hover — reveal the actions for the focused card instead.

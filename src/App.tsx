@@ -32,7 +32,7 @@ import {
   saveWatchProgress,
   useContinueWatching,
 } from "./lib/continueWatching";
-import { collectPlacedIds, resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
+import { resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
 import { purgeLegacyMovieCaches, readMoviesCache, writeMoviesCache } from "./lib/moviesCache";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
@@ -46,6 +46,10 @@ import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers"
 // chunk roundtrip with the framework boot, so the first Supabase query starts
 // noticeably earlier.
 const moviesRepoPromise: Promise<typeof import("./lib/moviesRepo")> = import("./lib/moviesRepo");
+
+// Evaluated once — the UA never changes at runtime, and the category grid
+// below used to re-run the regex for every card of every render.
+const IS_TV = isTvBrowser();
 
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
@@ -166,6 +170,22 @@ function RowSkeleton({ large = false }: { large?: boolean }) {
   );
 }
 
+/**
+ * Instant tap feedback while the details-modal / player chunk is still on
+ * the wire (slow networks). Without it the tap looks dead until the chunk
+ * lands — which reads as "site ruk gaya" rather than "loading".
+ */
+function OverlayFallback() {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-11 h-11 rounded-full border-[3px] border-white/15 border-t-[#f47521] animate-spin" />
+        <p className="text-white/50 text-xs font-semibold tracking-wide">Loading…</p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
@@ -274,22 +294,36 @@ function App() {
     loadLibrary();
 
     // Warm on-demand modal/player chunks when idle so first open is instant.
+    // Also warm on the very first interaction (pointer/key) — on slow
+    // networks idle may never fire before the first tap, and an unwarm
+    // chunk is exactly the "tap a movie, nothing happens" report.
+    let warmed = false;
+    const warmOverlays = () => {
+      if (warmed) return;
+      warmed = true;
+      import("./components/MovieModal").catch(() => {});
+      import("./components/PlayerOverlay").catch(() => {});
+    };
+    const warmOnInteract = () => warmOverlays();
+    window.addEventListener("pointerdown", warmOnInteract, { once: true, capture: true });
+    window.addEventListener("keydown", warmOnInteract, { once: true, capture: true });
+    window.addEventListener("touchstart", warmOnInteract, { once: true, capture: true });
     if (typeof requestIdleCallback !== "undefined") {
-      requestIdleCallback(
-        () => {
-          import("./components/MovieModal").catch(() => {});
-          import("./components/PlayerOverlay").catch(() => {});
-        },
-        { timeout: 3000 },
-      );
-    } else {
-      setTimeout(() => {
-        import("./components/MovieModal").catch(() => {});
-        import("./components/PlayerOverlay").catch(() => {});
-      }, 2000);
+      const idleId = requestIdleCallback(warmOverlays, { timeout: 3000 });
+      return () => {
+        cancelIdleCallback(idleId);
+        window.removeEventListener("pointerdown", warmOnInteract, { capture: true });
+        window.removeEventListener("keydown", warmOnInteract, { capture: true });
+        window.removeEventListener("touchstart", warmOnInteract, { capture: true });
+      };
     }
-
-    return undefined;
+    const t = setTimeout(warmOverlays, 2000);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("pointerdown", warmOnInteract, { capture: true });
+      window.removeEventListener("keydown", warmOnInteract, { capture: true });
+      window.removeEventListener("touchstart", warmOnInteract, { capture: true });
+    };
   }, [loadLibrary]);
 
   const retryLibrary = useCallback(() => {
@@ -451,18 +485,57 @@ function App() {
   );
   const isLiked = useCallback((movieId: number) => likedMovies.has(movieId), [likedMovies]);
 
+  // Lowercased search blob per title, built once per library change — every
+  // keystroke then costs one `includes` per title instead of re-lowercasing
+  // five fields per title (GC churn that stuttered typing on phones/TVs).
+  const searchIndex = useMemo(
+    () =>
+      displayItems.map((movie) => ({
+        movie,
+        blob: (
+          movie.title +
+          " " +
+          movie.genre.join(" ") +
+          " " +
+          movie.description +
+          " " +
+          (movie.cast ? movie.cast.join(" ") : "") +
+          " " +
+          (movie.creator || "")
+        ).toLowerCase(),
+      })),
+    [displayItems],
+  );
+
   const searchResults = useMemo(() => {
     if (!debouncedQuery.trim()) return [];
     const q = debouncedQuery.toLowerCase();
-    return displayItems.filter(
-      (m) =>
-        m.title.toLowerCase().includes(q) ||
-        m.genre.some((g) => g.toLowerCase().includes(q)) ||
-        m.description.toLowerCase().includes(q) ||
-        (m.cast && m.cast.some((c) => c.toLowerCase().includes(q))) ||
-        (m.creator && m.creator.toLowerCase().includes(q)),
-    );
-  }, [debouncedQuery, displayItems]);
+    const out: Movie[] = [];
+    for (const entry of searchIndex) {
+      if (entry.blob.includes(q)) out.push(entry.movie);
+    }
+    return out;
+  }, [debouncedQuery, searchIndex]);
+
+  // IDs claimed by visible custom rows (every section): titles placed in a
+  // row never repeat in the auto grid below. Read straight from the already
+  // memoized rowSlotsById — re-resolving every row here used to re-run the
+  // whole planned-title match a second time per render pass.
+  const placedIds = useMemo(() => {
+    const ids = new Set<number>();
+    if (!cfg.customRows) return ids;
+    for (const row of cfg.customRows) {
+      if (!row.visible) continue;
+      const slots = rowSlotsById.get(row.id);
+      if (!slots) continue;
+      for (const slot of slots) {
+        if (slot.kind !== "movie") continue;
+        ids.add(slot.movie.id);
+        slot.movie.episodes?.forEach((e) => ids.add(e.id));
+      }
+    }
+    return ids;
+  }, [cfg.customRows, rowSlotsById]);
 
   const getCategoryMovies = useCallback(() => {
     if (activeCategory === "mylist") return myList;
@@ -470,9 +543,8 @@ function App() {
     if (!matcher) return [];
     // A title placed in ANY visible custom row (any section, manual or
     // planned) shows only in its row — never again in the auto grid below.
-    const scoped = collectPlacedIds(cfg.customRows, resolveRowSlots);
-    return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
-  }, [activeCategory, myList, displayItems, cfg.customRows, resolveRowSlots]);
+    return displayItems.filter((m) => matcher(m) && !placedIds.has(m.id));
+  }, [activeCategory, myList, displayItems, placedIds]);
 
   // Computed once per data change instead of on every render pass.
   const categoryMovies = useMemo(() => getCategoryMovies(), [getCategoryMovies]);
@@ -514,6 +586,19 @@ function App() {
   const closeModal = useCallback(() => setSelectedMovie(null), []);
   const closePlayer = useCallback(() => setPlayingMovie(null), []);
   const closeNotifications = useCallback(() => setShowNotifications(false), []);
+
+  // Stable Navbar/HeroBanner callbacks — inline arrows here would defeat
+  // memo() on those components and re-render them on every App render
+  // (including every modal open and every playback-progress tick).
+  const handleCategoryChange = useCallback((cat: Category) => {
+    setActiveCategory(cat);
+    setSearchQuery("");
+  }, []);
+  const handleNotificationToggle = useCallback(() => setShowNotifications((v) => !v), []);
+  const handleUploadOpen = useCallback(() => setShowUploadModal(true), []);
+  const handleSyncOpen = useCallback(() => setShowPlaylistSync(true), []);
+  const handleAiOpen = useCallback(() => setShowAiAssistant(true), []);
+  const handleCustomizeOpen = useCallback(() => setShowAdminEditor(true), []);
 
   const handleUpload = useCallback(
     async (movies: Movie | Movie[], opts?: { autoplay?: boolean }) => {
@@ -696,6 +781,22 @@ function App() {
   const libraryMissing = !libraryLoaded;
   const showRowSkeletons = showLibrarySkeleton || (libraryError && libraryMissing);
 
+  // Series queue for the player, memoized: the inline filter+sort over the
+  // whole library used to re-run on EVERY App render while the player was
+  // open (including each Continue Watching progress tick).
+  const playerEpisodes = useMemo(() => {
+    const pid = playingMovie?.playlistId;
+    if (!playingMovie || !pid) return undefined;
+    const sortByEp = (a: Movie, b: Movie) =>
+      (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
+      (a.episodeNumber || 0) - (b.episodeNumber || 0);
+    const pick = (list: Movie[]) => {
+      const siblings = list.filter((m) => m.playlistId === pid).sort(sortByEp);
+      return siblings.length > 1 ? siblings : undefined;
+    };
+    return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
+  }, [playingMovie, syncedMovies, uploadedMovies, animeEpisodes]);
+
   // Hero rotates through user's most recent content
   const heroMovies = useMemo<Movie[]>(() => {
     if (heroBannerOverrides.length > 0) {
@@ -723,16 +824,13 @@ function App() {
         onSearch={setSearchQuery}
         searchQuery={searchQuery}
         activeCategory={activeCategory}
-        onCategoryChange={(cat: Category) => {
-          setActiveCategory(cat);
-          setSearchQuery("");
-        }}
-        onNotificationClick={() => setShowNotifications(!showNotifications)}
+        onCategoryChange={handleCategoryChange}
+        onNotificationClick={handleNotificationToggle}
         showNotifications={showNotifications}
-        onUploadClick={() => setShowUploadModal(true)}
-        onSyncClick={() => setShowPlaylistSync(true)}
-        onAiClick={() => setShowAiAssistant(true)}
-        onCustomizeClick={() => setShowAdminEditor(true)}
+        onUploadClick={handleUploadOpen}
+        onSyncClick={handleSyncOpen}
+        onAiClick={handleAiOpen}
+        onCustomizeClick={handleCustomizeOpen}
         isAdmin={isAdmin}
         onLogout={handleLogout}
       />
@@ -918,7 +1016,7 @@ function App() {
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
                         <div
-                          className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center ${isTvBrowser() ? "hidden" : ""}`}
+                          className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center ${IS_TV ? "hidden" : ""}`}
                         >
                           <button
                             onClick={(e) => {
@@ -964,10 +1062,10 @@ function App() {
             <HeroBanner
               movies={heroMovies}
               loading={showLibrarySkeleton || (libraryError && heroMovies.length === 0)}
-              onMoreInfo={(m) => setSelectedMovie(m)}
+              onMoreInfo={setSelectedMovie}
               onPlay={handlePlay}
-              onUploadClick={() => setShowUploadModal(true)}
-              onSyncClick={() => setShowPlaylistSync(true)}
+              onUploadClick={handleUploadOpen}
+              onSyncClick={handleSyncOpen}
               isAdmin={isAdmin}
             />
 
@@ -1038,7 +1136,7 @@ function App() {
         )}
       </main>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={selectedMovie || playingMovie ? <OverlayFallback /> : null}>
         {selectedMovie && (
           <MovieModal
             movie={selectedMovie}
@@ -1100,18 +1198,7 @@ function App() {
             startAt={resumeAt}
             onProgress={handleWatchProgress}
             onEnded={handleWatchEnded}
-            episodes={(() => {
-              const pid = playingMovie.playlistId;
-              if (!pid) return undefined;
-              const sortByEp = (a: Movie, b: Movie) =>
-                (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
-                (a.episodeNumber || 0) - (b.episodeNumber || 0);
-              const pick = (list: Movie[]) => {
-                const siblings = list.filter((m) => m.playlistId === pid).sort(sortByEp);
-                return siblings.length > 1 ? siblings : undefined;
-              };
-              return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
-            })()}
+            episodes={playerEpisodes}
           />
         )}
       </Suspense>

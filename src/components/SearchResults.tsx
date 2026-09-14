@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Play, Plus, Check, ThumbsUp } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
@@ -25,7 +26,7 @@ interface SearchResultsProps {
   toggleLike: (movieId: number) => void;
 }
 
-export default function SearchResults({
+function SearchResults({
   results,
   query,
   onSelectMovie,
@@ -162,3 +163,5 @@ export default function SearchResults({
     </div>
   );
 }
+
+export default memo(SearchResults);
