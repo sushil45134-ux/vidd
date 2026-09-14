@@ -73,15 +73,19 @@ jobs:
       - name: Commit results to branch (readable from clones)
         if: always()
         run: |
+          set +e
           git config user.name "arena-agent"
           git config user.email "arena-agent@users.noreply.github.com"
           mkdir -p .device-check
-          rm -rf .device-check/*
-          cp -r device-local .device-check/local 2>/dev/null || true
-          cp -r device-live .device-check/live 2>/dev/null || true
-          git add .device-check
-          git commit -m "Device check results [skip ci]" || echo "nothing to commit"
-          git push origin HEAD:arena/01a09fd9-vidd || echo "push skipped"
+          rm -rf .device-check/local .device-check/live
+          cp -r device-local .device-check/local 2>/dev/null
+          cp -r device-live .device-check/live 2>/dev/null
+          # .device-check is gitignored on purpose; -f forces the CI artifacts in.
+          git add -f .device-check
+          git diff --cached --quiet && echo "no results to commit" && exit 0
+          git commit -m "Device check results [skip ci]"
+          git push origin HEAD:arena/01a09fd9-vidd || echo "push skipped (branch moved on)"
+          exit 0
 
       - name: Write summary
         if: always()
