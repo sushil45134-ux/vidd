@@ -416,7 +416,6 @@ const KNOWN_IMDB_IDS: Record<string, string> = {
   "cyberpunk: edgerunners": "tt13197174",
   "cyberpunk edgerunners": "tt13197174",
   "edgerunners": "tt13197174",
-  "chainsaw man": "tt13616990",
   "one punch man": "tt4508902",
   "tokyo revengers": "tt13600802",
   "dandadan": "tt21344706",

@@ -1,0 +1,102 @@
+name: Device check
+
+# Real-browser compatibility check of BOTH the live production site and the
+# freshly built candidate, under TV + phone device profiles.
+# Results (console errors, failed requests, screenshots) are uploaded as
+# artifacts and printed into the run summary.
+on:
+  push:
+    branches: ["arena/01a09fd9-vidd"]
+  workflow_dispatch:
+    inputs:
+      live_url:
+        description: "Live site URL to test (defaults to vidd-zeta.vercel.app)"
+        required: false
+        default: "https://vidd-zeta.vercel.app"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-package-lock --no-audit --no-fund --legacy-peer-deps
+
+      - name: Install Playwright + Chromium (test-only)
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund --legacy-peer-deps playwright
+          npx playwright install --with-deps chromium
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Serve production build
+        run: |
+          npx vite preview --port 4173 --host 127.0.0.1 &
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:4173/ && break
+            sleep 1
+          done
+          curl -s -o /dev/null -w "local build: HTTP %{http_code}\n" http://127.0.0.1:4173/
+
+      - name: Device check — local build
+        run: node scripts/device-check.mjs http://127.0.0.1:4173/ --out device-local --wait 12000
+
+      - name: Device check — live site
+        run: |
+          LIVE_URL="${{ github.event.inputs.live_url || 'https://vidd-zeta.vercel.app' }}"
+          node scripts/device-check.mjs "$LIVE_URL" --out device-live --wait 12000
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-check-results
+          path: |
+            device-local/
+            device-live/
+          if-no-files-found: warn
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "# Device check results"
+            echo
+            for dir in device-local device-live; do
+              echo "## $dir"
+              echo
+              echo '```'
+              node -e "
+                const fs = require('fs');
+                try {
+                  const r = JSON.parse(fs.readFileSync('$dir/results.json', 'utf8'));
+                  for (const [name, p] of Object.entries(r.profiles)) {
+                    console.log('--- ' + name + ': ' + p.verdict);
+                    console.log('  title: ' + (p.renderSignals.title || '(none)'));
+                    console.log('  textLength: ' + (p.renderSignals.textLength ?? '?') + ', imgLoaded: ' + (p.renderSignals.imgLoadedCount ?? '?') + '/' + (p.renderSignals.imgCount ?? '?') + ', headings: ' + (p.renderSignals.headingCount ?? '?'));
+                    console.log('  firstHeadings: ' + JSON.stringify((p.renderSignals.firstHeadings || []).slice(0,4)));
+                    console.log('  bodyStart: ' + JSON.stringify((p.renderSignals.bodyStart || '').slice(0,160)));
+                    console.log('  timings: ' + JSON.stringify(p.timings));
+                    (p.pageErrors || []).slice(0,3).forEach(e => console.log('  PAGE ERROR: ' + e.split('\n')[0]));
+                    (p.consoleErrors || []).slice(0,5).forEach(e => console.log('  CONSOLE ERROR: ' + e.split('\n')[0].slice(0,300)));
+                    (p.failedRequests || []).slice(0,5).forEach(e => console.log('  FAILED REQ: ' + e.slice(0,200)));
+                  }
+                } catch (e) { console.log('no results: ' + e.message); }
+              "
+              echo '```'
+              echo
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
