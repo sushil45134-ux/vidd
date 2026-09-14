@@ -30,6 +30,7 @@ import {
   useContinueWatching,
 } from "./lib/continueWatching";
 import { collectPlacedIds, resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
+import { purgeLegacyMovieCaches, readMoviesCache, writeMoviesCache } from "./lib/moviesCache";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
@@ -191,29 +192,31 @@ function App() {
 
   // Load movies from Supabase on mount — hydrate from cache first for instant paint
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem("vid:moviesCache:v2");
-      if (cached) {
-        const { uploaded, synced } = JSON.parse(cached);
-        if (Array.isArray(uploaded) && Array.isArray(synced)) {
-          setUploadedMovies(uploaded);
-          setSyncedMovies(synced);
-        }
-      }
-    } catch {}
+    // Drop multi-megabyte caches from older builds (they caused the boot lag).
+    purgeLegacyMovieCaches();
+    const cached = readMoviesCache();
+    if (cached) {
+      setUploadedMovies(cached.uploaded);
+      setSyncedMovies(cached.synced);
+    }
 
     import("./lib/moviesRepo")
-      .then(({ fetchAllMovies }) => fetchAllMovies())
+      .then(({ fetchAllMovies }) =>
+        fetchAllMovies(undefined, (partial) => {
+          // First page is in — paint the hero/rows now; remaining pages land
+          // in the final .then below.
+          setUploadedMovies(partial.uploaded);
+          setSyncedMovies(partial.synced);
+        }),
+      )
       .then(({ uploaded, synced }) => {
         setUploadedMovies(uploaded);
         setSyncedMovies(synced);
         setLibraryFetchSettled(true);
-        // Stringifying 2000+ rows blocks the main thread — write the cache
-        // when idle so the fresh paint is never held up by it.
+        // The cache is trimmed to the newest rows (see moviesCache.ts), so
+        // writing it stays cheap even for a 4,000+ row library.
         const writeCache = () => {
-          try {
-            localStorage.setItem("vid:moviesCache:v2", JSON.stringify({ uploaded, synced }));
-          } catch {}
+          writeMoviesCache(uploaded, synced);
         };
         if (typeof requestIdleCallback !== "undefined") {
           requestIdleCallback(writeCache, { timeout: 2000 });
@@ -628,12 +631,7 @@ function App() {
         ? { ...prev, image: newUrl, thumbnailUrl: newUrl, backdrop: newUrl }
         : prev,
     );
-    try {
-      localStorage.setItem(
-        "vid:moviesCache:v2",
-        JSON.stringify({ uploaded: nextUploaded, synced: nextSynced }),
-      );
-    } catch {}
+    writeMoviesCache(nextUploaded, nextSynced);
   }, []);
 
   const showingSearch = debouncedQuery.trim().length > 0;
