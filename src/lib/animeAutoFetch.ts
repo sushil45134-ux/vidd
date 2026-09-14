@@ -79,7 +79,9 @@ export function autoFetchToMovies(
 
   if (!template || !imdbId) return [];
 
-  const playlistId = `anime-auto-${result.seasons[0]?.anilistId || Date.now()}-${imdbId}`;
+  // Deterministic playlistId based on mainTitle slug + imdbId, so S1 and S2 fetched separately still merge into same collection
+  const slug = result.mainTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "anime";
+  const playlistId = `anime-auto-${slug}-${imdbId}`;
   const playlistTitle = result.mainTitle;
 
   const movies: Movie[] = [];

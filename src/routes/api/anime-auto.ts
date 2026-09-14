@@ -133,6 +133,48 @@ query ($id: Int) {
 }
 `;
 
+const MEDIA_BY_MAL_QUERY = `
+query ($idMal: Int) {
+  Media(idMal: $idMal, type: ANIME) {
+    id
+    idMal
+    title { romaji english native }
+    description
+    coverImage { extraLarge large color }
+    bannerImage
+    format
+    episodes
+    duration
+    season
+    seasonYear
+    averageScore
+    genres
+    studios { nodes { name } }
+    startDate { year month day }
+    streamingEpisodes { title thumbnail url site }
+    relations {
+      edges { relationType version }
+      nodes {
+        id
+        idMal
+        title { romaji english native }
+        coverImage { extraLarge large }
+        bannerImage
+        format
+        episodes
+        season
+        seasonYear
+        averageScore
+        genres
+        studios { nodes { name } }
+        startDate { year month day }
+        type
+      }
+    }
+  }
+}
+`;
+
 function stripHtml(html?: string): string {
   if (!html) return "";
   return html
@@ -149,6 +191,41 @@ function stripHtml(html?: string): string {
 
 function bestTitle(t: AniListTitle): string {
   return t.english || t.romaji || t.native || "Unknown Anime";
+}
+
+function allTitleVariants(t: AniListTitle): string[] {
+  const out: string[] = [];
+  if (t.english) out.push(t.english.toLowerCase());
+  if (t.romaji) out.push(t.romaji.toLowerCase());
+  if (t.native) out.push(t.native.toLowerCase());
+  return out;
+}
+
+function titlesShareFranchise(a: AniListTitle, b: AniListTitle): boolean {
+  const av = allTitleVariants(a);
+  const bv = allTitleVariants(b);
+  if (av.length === 0 || bv.length === 0) return false;
+  // Check if any variant contains first 2 words of other, or shares bigram
+  for (const at of av) {
+    for (const bt of bv) {
+      if (at.includes(bt) || bt.includes(at)) return true;
+      const aWords = at.split(/[\s\-]+/).filter((w: string) => w.length > 2);
+      const bWords = bt.split(/[\s\-]+/).filter((w: string) => w.length > 2);
+      const common = aWords.filter((w: string) => bWords.includes(w));
+      if (common.length >= 2) return true;
+      // Special for My Dress-Up Darling: bisque doll / dress-up darling
+      if (at.includes("bisque") && bt.includes("bisque")) return true;
+      if (at.includes("dress-up") && bt.includes("dress-up")) return true;
+      if (at.includes("dress up") && bt.includes("dress up")) return true;
+      if (at.includes("sono bisque") && bt.includes("sono bisque")) return true;
+    }
+  }
+  return false;
+}
+
+function isSeason2Title(t: AniListTitle): boolean {
+  const all = allTitleVariants(t).join(" ");
+  return all.includes("season 2") || all.includes("season2") || all.includes("2nd season") || all.includes("s2") || /\b2\b/.test(all) && all.includes("season");
 }
 
 async function anilistFetch(query: string, variables: any): Promise<any> {
@@ -350,32 +427,65 @@ export const Route = createFileRoute("/api/anime-auto")({
 
           // If relations didn't give us multiple seasons (e.g. My Dress-Up Darling S1 & S2 are separate entries),
           // also collect all search results that look like same franchise (same base title) to ensure S2 is included
-          if (seasonsChain.length === 1 && searchResults.length > 1) {
-            const base = bestTitle(mainDetailed.title).toLowerCase();
-            const baseFirst = base.split(/[:\-\s]+/)[0];
-            const franchise = searchResults.filter((m) => {
+          if (seasonsChain.length === 1) {
+            // 1) Try from AniList searchResults
+            const franchiseFromSearch = searchResults.filter((m) => {
               if (m.id === mainDetailed!.id) return false;
-              const t = bestTitle(m.title).toLowerCase();
-              // Same franchise if titles share first word and contain "season 2" or year diff or sequel number
-              const first = t.split(/[:\-\s]+/)[0];
-              if (first === baseFirst && (t.includes(baseFirst) || base.includes(first))) {
-                // Check if it's TV format or has similar genres
-                return true;
-              }
-              // Also include if title contains base (e.g. "My Dress-Up Darling Season 2")
-              if (t.includes(base) || base.includes(t) || t.includes("season 2") || t.includes("season 3")) {
-                return true;
-              }
+              if (titlesShareFranchise(mainDetailed!.title, m.title)) return true;
+              // Also include if title explicitly says Season 2/3
+              if (isSeason2Title(m.title) && titlesShareFranchise(mainDetailed!.title, m.title)) return true;
               return false;
             });
-            // Sort franchise by year
-            franchise.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
-            // Add up to 5 more seasons from search
-            for (const f of franchise.slice(0, 5)) {
+            franchiseFromSearch.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
+            for (const f of franchiseFromSearch.slice(0, 5)) {
               if (!seasonsChain.find((s) => s.id === f.id)) {
                 seasonsChain.push(f);
               }
             }
+
+            // 2) Also try Jikan search for franchise (more reliable for sequels)
+            try {
+              const jikanFranchise = await jikanSearch(title);
+              for (const jf of jikanFranchise) {
+                if (seasonsChain.find((s) => s.idMal === jf.idMal)) continue;
+                if (!titlesShareFranchise(mainDetailed!.title, jf.title)) continue;
+                // Try to get AniList version via MAL ID for richer data
+                if (jf.idMal) {
+                  try {
+                    const malData = await anilistFetch(MEDIA_BY_MAL_QUERY, { idMal: jf.idMal });
+                    const malMedia = malData?.Media as AniListMedia | null;
+                    if (malMedia && !seasonsChain.find((s) => s.id === malMedia.id)) {
+                      seasonsChain.push(malMedia);
+                      continue;
+                    }
+                  } catch {}
+                }
+                // Fallback to Jikan converted media
+                if (!seasonsChain.find((s) => s.id === jf.id)) {
+                  seasonsChain.push(jf);
+                }
+              }
+            } catch (e) {
+              console.warn("[anime-auto] jikan franchise search failed", e);
+            }
+
+            // 3) Known hardcode for popular anime where AniList search might miss S2
+            const lowerQuery = title.toLowerCase();
+            if (lowerQuery.includes("dress-up") || lowerQuery.includes("dress up") || lowerQuery.includes("bisque doll") || lowerQuery.includes("my dress")) {
+              // My Dress-Up Darling S1 = 131516 (MAL 48496), S2 = 180259 (MAL 54898)
+              const knownIds = [131516, 180259];
+              for (const kid of knownIds) {
+                if (seasonsChain.find((s) => s.id === kid)) continue;
+                try {
+                  const kd = await anilistFetch(MEDIA_DETAILS_QUERY, { id: kid });
+                  const km = kd?.Media as AniListMedia | null;
+                  if (km && !seasonsChain.find((s) => s.id === km.id)) {
+                    seasonsChain.push(km);
+                  }
+                } catch {}
+              }
+            }
+
             // Re-sort chain by year
             seasonsChain.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
           }
