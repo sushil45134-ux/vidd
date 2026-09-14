@@ -13,6 +13,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
+import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
@@ -34,17 +35,24 @@ const ApiAnimeRoute = ApiAnimeRouteImport.update({
   path: '/api/anime',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAnimeAutoRoute = ApiAnimeAutoRouteImport.update({
+  id: '/api/anime-auto',
+  path: '/api/anime-auto',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/anime': typeof ApiAnimeRoute
+  '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/auth': typeof ApiAuthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/anime': typeof ApiAnimeRoute
+  '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/auth': typeof ApiAuthRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/anime': typeof ApiAnimeRoute
+  '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/auth': typeof ApiAuthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/api/anime' | '/api/auth'
+  fullPaths: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/api/anime' | '/api/auth'
-  id: '__root__' | '/' | '/admin' | '/api/anime' | '/api/auth'
+  to: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
+  id: '__root__' | '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   ApiAnimeRoute: typeof ApiAnimeRoute
+  ApiAnimeAutoRoute: typeof ApiAnimeAutoRoute
   ApiAuthRoute: typeof ApiAuthRoute
 }
 
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAnimeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/anime-auto': {
+      id: '/api/anime-auto'
+      path: '/api/anime-auto'
+      fullPath: '/api/anime-auto'
+      preLoaderRoute: typeof ApiAnimeAutoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   ApiAnimeRoute: ApiAnimeRoute,
+  ApiAnimeAutoRoute: ApiAnimeAutoRoute,
   ApiAuthRoute: ApiAuthRoute,
 }
 export const routeTree = rootRouteImport

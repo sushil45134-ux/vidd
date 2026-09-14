@@ -41,6 +41,7 @@ import {
   type CloudEpisode,
   type CloudProvider,
 } from "../lib/cloudLinks";
+import AnimeAutoFetchPanel from "./AnimeAutoFetchPanel";
 
 interface UploadModalProps {
   onClose: () => void;
@@ -374,7 +375,7 @@ const PLATFORMS = [
 ];
 
 type CloudTab = CloudProvider; // "drive" | "mega"
-type SourceTab = "file" | "embed" | "series" | CloudTab;
+type SourceTab = "file" | "embed" | "series" | "anime" | CloudTab;
 
 /** One episode row in the "Series" (bulk embed) tab. */
 interface EmbedEpisode {
@@ -690,7 +691,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         ? !!detected
         : sourceTab === "series"
           ? embedEpisodes.length > 0
-          : cloudEpisodes[sourceTab].length > 0;
+          : sourceTab === "anime"
+            ? true
+            : cloudEpisodes[sourceTab as CloudTab].length > 0;
 
   // ── Cloud (Drive / MEGA) episode handlers ──────────────────
   const addCloudLinks = (tab: CloudTab) => {
@@ -1055,7 +1058,11 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
             <h3 className="text-white text-xl font-bold mb-2">Added Successfully!</h3>
             <p className="text-gray-400 text-sm">
               <span className="text-white font-semibold">
-                {isSeriesSource ? seriesTitle.trim() || "My Series" : title}
+                {sourceTab === "anime"
+                  ? "Anime series"
+                  : isSeriesSource
+                    ? seriesTitle.trim() || "My Series"
+                    : title}
               </span>
               {(cloudTab
                 ? cloudEpisodes[cloudTab].length
@@ -1063,7 +1070,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   ? embedEpisodes.length
                   : 0) > 1
                 ? ` — ${cloudTab ? cloudEpisodes[cloudTab].length : embedEpisodes.length} episodes —`
-                : ""}{" "}
+                : sourceTab === "anime"
+                  ? " — all seasons & episodes —"
+                  : ""}{" "}
               has been added to your library.
             </p>
           </div>
@@ -1091,6 +1100,12 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "series" ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}
               >
                 <Layers size={14} /> Series
+              </button>
+              <button
+                onClick={() => setSourceTab("anime")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "anime" ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}
+              >
+                <Wand2 size={14} /> Anime
               </button>
               {(["drive", "mega"] as CloudTab[]).map((tab) => (
                 <button
@@ -1633,6 +1648,18 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
               </div>
             )}
 
+            {/* ── ANIME AUTO-FETCH TAB (Jikan + AniList) ── */}
+            {sourceTab === "anime" && (
+              <div>
+                <AnimeAutoFetchPanel
+                  onAddMovies={(movies) => {
+                    setStep("done");
+                    setTimeout(() => onUpload(movies), 1500);
+                  }}
+                />
+              </div>
+            )}
+
             {/* ── CLOUD SERIES TAB (Google Drive / MEGA) ── */}
             {cloudTab && cloudConfig && (
               <div>
@@ -1748,14 +1775,15 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
             )}
 
             {/* Actions */}
-            <div className="flex justify-end mt-6 gap-3">
-              <button
-                onClick={onClose}
-                className="px-5 py-2 rounded text-gray-300 text-sm hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              {cloudTab ? (
+            {sourceTab !== "anime" && (
+              <div className="flex justify-end mt-6 gap-3">
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2 rounded text-gray-300 text-sm hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                {cloudTab ? (
                 <button
                   onClick={() => setStep("details")}
                   disabled={cloudEps.length === 0 || !seriesTitle.trim()}
@@ -1792,8 +1820,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                 >
                   Next: Add Details
                 </button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
