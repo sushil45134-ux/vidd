@@ -1,5 +1,17 @@
-import { useEffect, useState, useMemo } from "react";
-import { X, Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Check } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import {
+  X,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Check,
+  Download,
+  Loader2,
+  Square,
+} from "lucide-react";
 import type { Movie } from "../data";
 import {
   loadConfig,
@@ -10,10 +22,13 @@ import {
   type RowSection,
 } from "../lib/customization";
 import { matchPlannedTitle, parsePlannedTitles } from "../lib/plannedRows";
+import { autoAddPlannedTitles, type TitleAddStatus } from "../lib/wishlistAutoAdd";
+import { ANIME_PROVIDERS } from "../lib/animeAutoFetch";
 
 interface Props {
   onClose: () => void;
   availableMovies: Movie[];
+  onAddMovies: (movies: Movie[]) => Promise<void> | void;
 }
 
 const SIZE_OPTIONS: { value: TitleSize; label: string }[] = [
@@ -40,10 +55,42 @@ function getMovieIds(movie: Movie): number[] {
   return [movie.id, ...(movie.episodes?.map((episode) => episode.id) || [])];
 }
 
-export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
+export default function AdminRowsEditor({ onClose, availableMovies, onAddMovies }: Props) {
   const [rows, setRows] = useState<CustomRow[]>(() => loadConfig().customRows || []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [autoAddProvider, setAutoAddProvider] = useState(ANIME_PROVIDERS[0].id);
+  const [autoAdding, setAutoAdding] = useState(false);
+  const [addStatuses, setAddStatuses] = useState<Record<string, TitleAddStatus>>({});
+  const [lastSummary, setLastSummary] = useState<{
+    added: number;
+    failed: number;
+    skipped: number;
+  } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const startAutoAdd = async (targets: string[]) => {
+    if (autoAdding || targets.length === 0) return;
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setAutoAdding(true);
+    setAddStatuses({});
+    setLastSummary(null);
+    try {
+      const { movies, added, failed, skipped } = await autoAddPlannedTitles(targets, {
+        providerId: autoAddProvider,
+        signal: ctrl.signal,
+        onStatus: (s) => setAddStatuses((prev) => ({ ...prev, [s.title]: s })),
+      });
+      if (movies.length > 0) await onAddMovies(movies);
+      setLastSummary({ added, failed, skipped });
+    } finally {
+      setAutoAdding(false);
+      abortRef.current = null;
+    }
+  };
+
+  const stopAutoAdd = () => abortRef.current?.abort();
 
   function persist(next: CustomRow[]) {
     setRows(next);
@@ -378,6 +425,131 @@ export default function AdminRowsEditor({ onClose, availableMovies }: Props) {
                       })}
                     </div>
                   )}
+                  {(() => {
+                    const missing = (editing.plannedTitles || []).filter(
+                      (t) => !matchPlannedTitle(t, availableMovies),
+                    );
+                    if (missing.length === 0) return null;
+                    const finished = missing.filter((t) => {
+                      const s = addStatuses[t];
+                      return !!s && s.phase !== "fetching";
+                    }).length;
+                    return (
+                      <div className="mt-3 rounded-xl border border-[#ff6a00]/30 bg-[#ff6a00]/5 p-3">
+                        <p className="text-[11px] text-white/70 leading-relaxed">
+                          <span className="font-bold text-white">{missing.length} missing</span> —
+                          naam se ID aur episodes auto-fetch karke library me add karo. Row me list
+                          ke order me khud dikhenge. Koi API key nahi chahiye.
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <select
+                            value={autoAddProvider}
+                            onChange={(e) => setAutoAddProvider(e.target.value)}
+                            disabled={autoAdding}
+                            className="bg-[#222] border border-white/10 rounded-lg px-2 py-1.5 text-white text-[11px] outline-none focus:border-[#ff6a00] cursor-pointer disabled:opacity-50"
+                          >
+                            {ANIME_PROVIDERS.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                          {!autoAdding ? (
+                            <button
+                              onClick={() => void startAutoAdd(missing)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#ff6a00] to-[#ee0979] hover:opacity-90 text-white text-[11px] font-bold transition"
+                            >
+                              <Download size={13} /> Auto-add {missing.length} to library
+                            </button>
+                          ) : (
+                            <button
+                              onClick={stopAutoAdd}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-bold transition"
+                            >
+                              <Square size={13} /> Roko ({finished}/{missing.length})
+                            </button>
+                          )}
+                        </div>
+                        {autoAdding && (
+                          <div className="mt-2 h-1 rounded bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full bg-[#ff6a00] transition-all"
+                              style={{ width: `${Math.round((finished / missing.length) * 100)}%` }}
+                            />
+                          </div>
+                        )}
+                        {(autoAdding || Object.keys(addStatuses).length > 0) && (
+                          <div className="mt-2 space-y-1">
+                            {missing.map((t) => {
+                              const s = addStatuses[t];
+                              if (!s || s.phase === "fetching") {
+                                return (
+                                  <div
+                                    key={t}
+                                    className="flex items-center gap-2 text-[11px] text-white/50"
+                                  >
+                                    {!s ? (
+                                      <span className="w-3 h-3 rounded-full border border-white/25 shrink-0" />
+                                    ) : (
+                                      <Loader2 size={12} className="animate-spin shrink-0" />
+                                    )}
+                                    <span className="truncate">{t}</span>
+                                    <span className="shrink-0">
+                                      · {!s ? "intezaar..." : "ID + episodes..."}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (s.phase === "done") {
+                                return (
+                                  <div
+                                    key={t}
+                                    className="flex items-center gap-2 text-[11px] text-white/70"
+                                  >
+                                    <Check size={12} className="text-emerald-400 shrink-0" />
+                                    <span className="truncate">{t}</span>
+                                    <span className="text-white/30 truncate">
+                                      → {s.detail} · {s.episodes} eps · {s.imdbId}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (s.phase === "failed") {
+                                return (
+                                  <div
+                                    key={t}
+                                    className="flex items-center gap-2 text-[11px] text-white/70"
+                                  >
+                                    <X size={12} className="text-red-400 shrink-0" />
+                                    <span className="truncate">{t}</span>
+                                    <span className="text-red-400/80 truncate">· {s.detail}</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div
+                                  key={t}
+                                  className="flex items-center gap-2 text-[11px] text-white/40"
+                                >
+                                  <span className="w-3 h-3 rounded-full border border-white/25 shrink-0" />
+                                  <span className="truncate">{t}</span>
+                                  <span className="truncate">· {s.detail || "skip"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {!autoAdding && lastSummary && (
+                          <p className="mt-2 text-[11px] text-white/70">
+                            ✅ {lastSummary.added} added
+                            {lastSummary.failed > 0 && ` · ❌ ${lastSummary.failed} failed`}
+                            {lastSummary.skipped > 0 && ` · ⏭ ${lastSummary.skipped} skipped`} —
+                            added anime row me list ke order me khud dikhenge.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>

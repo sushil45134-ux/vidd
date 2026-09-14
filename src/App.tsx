@@ -409,31 +409,34 @@ function App() {
   const closePlayer = useCallback(() => setPlayingMovie(null), []);
   const closeNotifications = useCallback(() => setShowNotifications(false), []);
 
-  const handleUpload = useCallback(async (movies: Movie | Movie[]) => {
-    const arr = Array.isArray(movies) ? movies : [movies];
-    setShowUploadModal(false);
-    const { insertMovies } = await import("./lib/moviesRepo");
-    const saved = await insertMovies(arr, "uploaded");
-    const toAdd = saved.length > 0 ? saved : arr;
-    setUploadedMovies((prev) => [...toAdd, ...prev]);
-    // Series uploads (episodes sharing a playlistId) belong in My List as ONE
-    // collection card, not as a separate "Episode 1/2/3" card per episode.
-    const grouped = buildCollections(toAdd, {});
-    setMyList((prev) => {
-      const next = [...prev];
-      for (const item of grouped) {
-        const idx = next.findIndex(
-          (m) => m.isCollection && m.playlistId && m.playlistId === item.playlistId,
-        );
-        // Adding episodes to an existing series merges into its card instead
-        // of creating a duplicate.
-        if (idx >= 0) next[idx] = mergeCollection(next[idx], item);
-        else next.unshift(item);
-      }
-      return next;
-    });
-    setTimeout(() => setPlayingMovie(toAdd[0]), 500);
-  }, []);
+  const handleUpload = useCallback(
+    async (movies: Movie | Movie[], opts?: { autoplay?: boolean }) => {
+      const arr = Array.isArray(movies) ? movies : [movies];
+      setShowUploadModal(false);
+      const { insertMovies } = await import("./lib/moviesRepo");
+      const saved = await insertMovies(arr, "uploaded");
+      const toAdd = saved.length > 0 ? saved : arr;
+      setUploadedMovies((prev) => [...toAdd, ...prev]);
+      // Series uploads (episodes sharing a playlistId) belong in My List as ONE
+      // collection card, not as a separate "Episode 1/2/3" card per episode.
+      const grouped = buildCollections(toAdd, {});
+      setMyList((prev) => {
+        const next = [...prev];
+        for (const item of grouped) {
+          const idx = next.findIndex(
+            (m) => m.isCollection && m.playlistId && m.playlistId === item.playlistId,
+          );
+          // Adding episodes to an existing series merges into its card instead
+          // of creating a duplicate.
+          if (idx >= 0) next[idx] = mergeCollection(next[idx], item);
+          else next.unshift(item);
+        }
+        return next;
+      });
+      if (opts?.autoplay !== false) setTimeout(() => setPlayingMovie(toAdd[0]), 500);
+    },
+    [],
+  );
 
   // Admin-only: delete an uploaded video, a single synced video, or a whole
   // synced playlist (collection). Removes it from every list it lives in.
@@ -905,6 +908,7 @@ function App() {
           <AdminRowsEditor
             onClose={() => setShowAdminEditor(false)}
             availableMovies={displayItems}
+            onAddMovies={(movies) => handleUpload(movies, { autoplay: false })}
           />
         )}
 
