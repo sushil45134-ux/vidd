@@ -568,9 +568,113 @@ export const Route = createFileRoute("/api/anime-auto")({
           }
         }
 
-        // EARLY STATIC FALLBACK for My Dress-Up Darling - guaranteed 2 seasons even if AniList/Jikan blocked
+        // EARLY STATIC FALLBACKS - guaranteed to work even if AniList/Jikan blocked
         const lowerTitleEarly = title.toLowerCase();
         const isDressUpDarling = lowerTitleEarly.includes("dress-up") || lowerTitleEarly.includes("dress up") || lowerTitleEarly.includes("dressup") || lowerTitleEarly.includes("bisque doll") || lowerTitleEarly.includes("my dress") || lowerTitleEarly.includes("sono bisque");
+        const isViolet = lowerTitleEarly.includes("violet evergarden");
+        const isCyberpunk = lowerTitleEarly.includes("cyberpunk") || lowerTitleEarly.includes("edgerunners");
+        const isYourName = lowerTitleEarly === "your name" || lowerTitleEarly.includes("kimi no na wa");
+        const isSuzume = lowerTitleEarly === "suzume" || lowerTitleEarly.includes("suzume no tojimari");
+        
+        // Static fallback for Violet Evergarden
+        if (isViolet) {
+          const cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21827-6x2sS1Q7YITo.jpg";
+          const banner = "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21827-3x2V2q1o3h9c.jpg";
+          const seasons = [{
+            seasonNumber: 1,
+            title: "Violet Evergarden",
+            titleEnglish: "Violet Evergarden",
+            titleNative: "ヴァイオレット・エヴァーガーデン",
+            description: "The Great War finally came to an end after four long years of conflict; fractured in two, the continent of Telesis slowly began to flourish once again. Caught up in the bloodshed was Violet Evergarden, a young girl raised for the sole purpose of decimating enemy lines. Hospitalized and maimed in a bloody skirmish during the War's final leg, she was left with only words from the person she held dearest, but with no understanding of their meaning. Recovering from her wounds, Violet starts a new life working at CH Postal Services after a falling out with her new intended guardian family. There, she witnesses by pure chance the work of an Auto Memory Doll - amanuenses that transcribe people's thoughts and feelings into words on paper. Moved by the notion, Violet begins work as an Auto Memory Doll, a trade that will take her on an adventure, one that will reshape the lives of her clients and hopefully lead to self-discovery.",
+            coverImage: cover,
+            bannerImage: banner,
+            year: 2018,
+            season: "WINTER",
+            episodesCount: 13,
+            averageScore: 84,
+            genres: ["Drama", "Fantasy", "Slice of Life"],
+            studios: ["Kyoto Animation"],
+            anilistId: 21827,
+            malId: 33352,
+            format: "TV",
+            episodes: Array.from({ length: 13 }, (_, i) => ({
+              episodeNumber: i + 1,
+              title: `Violet Evergarden Episode ${i + 1}`,
+              titleJapanese: "",
+              synopsis: "",
+              aired: "",
+              image: cover,
+              filler: false,
+              recap: false,
+            })),
+          }];
+          const result = {
+            query: title,
+            imdbId: imdbId || "tt7078180",
+            autoResolvedImdb: autoResolvedImdb || "tt7078180",
+            imdbAutoResolved: true,
+            mainTitle: "Violet Evergarden",
+            mainCover: cover,
+            mainBanner: banner,
+            description: seasons[0].description,
+            genres: ["Drama", "Fantasy"],
+            totalSeasons: 1,
+            totalEpisodes: 13,
+            seasons,
+            source: "static-fallback" as const,
+          };
+          return Response.json(result, { headers: { "cache-control": "public, max-age=3600" } });
+        }
+        
+        if (isCyberpunk) {
+          const cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx136430-2o1T0p6K4E4s.jpg";
+          const banner = "https://s4.anilist.co/file/anilistcdn/media/anime/banner/136430-8Q1s5o1a0R6x.jpg";
+          const seasons = [{
+            seasonNumber: 1,
+            title: "Cyberpunk: Edgerunners",
+            titleEnglish: "Cyberpunk: Edgerunners",
+            titleNative: "サイバーパンク エッジランナーズ",
+            description: "In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid strives to become a mercenary outlaw — an edgerunner.",
+            coverImage: cover,
+            bannerImage: banner,
+            year: 2022,
+            season: "SUMMER",
+            episodesCount: 10,
+            averageScore: 86,
+            genres: ["Action", "Sci-Fi", "Drama"],
+            studios: ["Trigger"],
+            anilistId: 136430,
+            malId: 42310,
+            format: "TV",
+            episodes: Array.from({ length: 10 }, (_, i) => ({
+              episodeNumber: i + 1,
+              title: `Cyberpunk: Edgerunners Episode ${i + 1}`,
+              titleJapanese: "",
+              synopsis: "",
+              aired: "",
+              image: cover,
+              filler: false,
+              recap: false,
+            })),
+          }];
+          const result = {
+            query: title,
+            imdbId: imdbId || "tt13197174",
+            autoResolvedImdb: autoResolvedImdb || "tt13197174",
+            imdbAutoResolved: true,
+            mainTitle: "Cyberpunk: Edgerunners",
+            mainCover: cover,
+            mainBanner: banner,
+            description: seasons[0].description,
+            genres: ["Action", "Sci-Fi"],
+            totalSeasons: 1,
+            totalEpisodes: 10,
+            seasons,
+            source: "static-fallback" as const,
+          };
+          return Response.json(result, { headers: { "cache-control": "public, max-age=3600" } });
+        }
+        
         if (isDressUpDarling) {
           const s1Cover = "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg";
           const s2Cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
