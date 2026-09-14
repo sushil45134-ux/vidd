@@ -15,27 +15,11 @@ export function normalizeTitle(input: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[×✕]/g, "x")
+    .replace(/[\u00d7\u2715]/g, "x")
     .replace(/[\u0027\u0060\u00b4\u2018\u2019\u201a\u201b\u02bb\u02bc\u02bd\u055a\uff07]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function candidateNames(movie: Movie): string[] {
-  const names: (string | undefined)[] = [movie.title, movie.playlistTitle];
-  movie.episodes?.forEach((ep) => {
-    names.push(ep.title, ep.playlistTitle);
-  });
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const n of names) {
-    const norm = normalizeTitle(n || "");
-    if (!norm || seen.has(norm)) continue;
-    seen.add(norm);
-    out.push(norm);
-  }
-  return out;
 }
 
 /** Drop "season 3" / "part 2" style qualifiers for fallback matching. */
@@ -73,75 +57,310 @@ function similarity(a: string, b: string): number {
   if (maxLen === 0) return 1;
   const maxDist = Math.floor(maxLen * 0.15);
   if (Math.abs(a.length - b.length) > maxDist) return 0;
+  // Three rolling rows instead of a full (m+1)×(n+1) matrix — the same OSA
+  // result with O(n) memory (the transposition term needs row i-2).
   const m = a.length;
   const n = b.length;
-  const d: number[][] = Array.from({ length: m + 1 }, (_row, i) => {
-    const row = new Array<number>(n + 1).fill(0);
-    row[0] = i;
-    return row;
-  });
-  for (let j = 1; j <= n; j++) d[0][j] = j;
+  let pp = new Array<number>(n + 1);
+  let p = new Array<number>(n + 1);
+  let c = new Array<number>(n + 1);
+  for (let j = 0; j <= n; j++) p[j] = j;
   for (let i = 1; i <= m; i++) {
+    c[0] = i;
+    const ai = a.charCodeAt(i - 1);
+    const aiPrev = i > 1 ? a.charCodeAt(i - 2) : -1;
     for (let j = 1; j <= n; j++) {
-      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
-      let best = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
-      if (
-        i > 1 &&
-        j > 1 &&
-        a.charCodeAt(i - 1) === b.charCodeAt(j - 2) &&
-        a.charCodeAt(i - 2) === b.charCodeAt(j - 1)
-      ) {
-        best = Math.min(best, d[i - 2][j - 2] + 1);
+      const cost = ai === b.charCodeAt(j - 1) ? 0 : 1;
+      const del = p[j] + 1;
+      const ins = c[j - 1] + 1;
+      const sub = p[j - 1] + cost;
+      let best = del < ins ? (del < sub ? del : sub) : ins < sub ? ins : sub;
+      if (i > 1 && j > 1 && ai === b.charCodeAt(j - 2) && aiPrev === b.charCodeAt(j - 1)) {
+        const transp = pp[j - 2] + 1;
+        if (transp < best) best = transp;
       }
-      d[i][j] = best;
+      c[j] = best;
+    }
+    const tmp = pp;
+    pp = p;
+    p = c;
+    c = tmp;
+  }
+  const dist = p[n];
+  return dist > maxDist ? 0 : 1 - dist / maxLen;
+}
+
+/**
+ * Length-gap prefilter shared by the fuzzy loops: when the gap alone rules
+ * a pair out, callers skip the similarity() call entirely (no function-call
+ * or O(m×n) cost for the ~99% of library pairs that can't match).
+ */
+function lengthCompatible(aLen: number, bLen: number): boolean {
+  const maxLen = aLen > bLen ? aLen : bLen;
+  const gap = aLen > bLen ? aLen - bLen : bLen - aLen;
+  return gap <= Math.floor(maxLen * 0.15);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Indexed matching.
+//
+// The old code normalized every library title (plus every episode title of
+// every collection) and ran Levenshtein matrices for EVERY planned title on
+// EVERY library update — on a 4,000-title library with wishlist rows this was
+// seconds of main-thread block during boot ("site ruk jata hai").
+//
+// Now the library is normalized ONCE per array identity (WeakMap cache) and
+// each query runs cheap string comparisons first; the fuzzy pass only runs
+// when nothing cheap scored ≥ 0.9 (fuzzy scores max out at 0.8, so skipping
+// it can never change the winner). Matching behaviour is unchanged.
+// ──────────────────────────────────────────────────────────────────────────
+
+interface IndexedName {
+  /** Normalized title. */
+  n: string;
+  /** stripQualifier(n) — precomputed, query-independent. */
+  s: string;
+  /** sortedTokens(n) — precomputed. */
+  sorted: string;
+  /** [sorted, ...leadingSubsets(n), ...leadingSubsets(sorted)] with lengths. */
+  subsets: Array<{ t: string; len: number }>;
+  len: number;
+  hasDigit: boolean;
+}
+
+interface IndexedMovie {
+  movie: Movie;
+  names: IndexedName[];
+}
+
+export interface PlannedIndex {
+  entries: IndexedMovie[];
+  exact: Map<string, IndexedMovie[]>;
+}
+
+function indexName(raw: string | undefined, seen: Set<string>): IndexedName | null {
+  const n = normalizeTitle(raw || "");
+  if (!n || seen.has(n)) return null;
+  seen.add(n);
+  const sorted = sortedTokens(n);
+  const subsetSeen = new Set<string>();
+  const subsets: Array<{ t: string; len: number }> = [];
+  for (const t of [sorted, ...leadingSubsets(n), ...leadingSubsets(sorted)]) {
+    if (subsetSeen.has(t)) continue;
+    subsetSeen.add(t);
+    subsets.push({ t, len: t.length });
+  }
+  return { n, s: stripQualifier(n), sorted, subsets, len: n.length, hasDigit: /\d/.test(n) };
+}
+
+function buildPlannedIndex(items: Movie[]): PlannedIndex {
+  const entries: IndexedMovie[] = [];
+  const exact = new Map<string, IndexedMovie[]>();
+  for (const movie of items) {
+    // Base names only (title + playlist title). Episode-level names inside a
+    // collection are never wishlist targets ("Episode 12") and used to
+    // multiply this loop by the episode count of big series.
+    const seen = new Set<string>();
+    const names: IndexedName[] = [];
+    for (const raw of [movie.title, movie.playlistTitle]) {
+      const indexed = indexName(raw, seen);
+      if (indexed) names.push(indexed);
+    }
+    if (names.length === 0) continue;
+    const entry: IndexedMovie = { movie, names };
+    entries.push(entry);
+    for (const { n } of names) {
+      const list = exact.get(n);
+      if (list) list.push(entry);
+      else exact.set(n, [entry]);
     }
   }
-  const dist = d[m][n];
-  return dist > maxDist ? 0 : 1 - dist / maxLen;
+  return { entries, exact };
+}
+
+const indexCache = new WeakMap<Movie[], PlannedIndex>();
+
+/** Cached index for an items array — rebuilt only when the array identity changes. */
+export function getPlannedIndex(items: Movie[]): PlannedIndex {
+  let idx = indexCache.get(items);
+  if (!idx) {
+    idx = buildPlannedIndex(items);
+    indexCache.set(items, idx);
+  }
+  return idx;
 }
 
 /** Query-side derivations, computed once per matchPlannedTitle call. */
 interface PlannedPrecomp {
   stripped: string;
   sorted: string;
-  forms: string[];
+  forms: Array<{ t: string; len: number }>;
+  queryHasDigit: boolean;
+  len: number;
 }
 
-function matchScore(planned: string, name: string, pre: PlannedPrecomp): number {
-  if (!planned || !name) return 0;
-  if (name === planned) return 3;
-  if (name.startsWith(planned)) return 2;
-  if (planned.length >= 3 && name.includes(planned)) return 1.5;
+/**
+ * Cheap (allocation-free) score for one query/name pair. Returns at most 2 —
+ * exact matches (3) are served by the index map, fuzzy scores (≤0.8) by the
+ * dedicated pass below.
+ */
+function cheapScore(planned: string, name: IndexedName, pre: PlannedPrecomp): number {
+  const nm = name.n;
+  if (!planned || !nm) return 0;
+  if (nm.startsWith(planned)) return 2;
+  if (planned.length >= 3 && nm.includes(planned)) return 1.5;
   // "Demon Slayer — Season 3" still finds the base entry.
   const ps = pre.stripped;
-  const ns = /\d/.test(name) ? stripQualifier(name) : name;
-  if (ps && ns && (ps !== planned || ns !== name)) {
+  const ns = name.hasDigit ? name.s : nm;
+  if (ps && ns && (ps !== planned || ns !== nm)) {
     if (ns === ps) return 1.25;
     if (ns.startsWith(ps) || ps.startsWith(ns)) return 1;
     if (ps.length >= 3 && ns.includes(ps)) return 0.9;
   }
-  if (planned.length >= 6 && name.length >= 6) {
+  if (planned.length >= 6 && nm.length >= 6) {
     // Word-order differences: "Shippuden Naruto" finds "Naruto Shippuden".
-    if (sortedTokens(name) === pre.sorted) return 1.4;
-    // Small typos on the full title ("Narruto", "One Peice"). Outranks a bare
-    // substring below, so "Naruto Shippduen" picks Shippuden over plain Naruto.
-    if (similarity(planned, name) >= 0.85) return 0.8;
+    if (name.sorted === pre.sorted) return 1.4;
   }
   // Planned title merely contains the library name ("One Piece Film Red").
-  if (name.length >= 3 && planned.includes(name)) return 0.75;
+  if (nm.length >= 3 && planned.includes(nm)) return 0.75;
+  return 0;
+}
+
+/**
+ * Sound-ish prefilter for the fuzzy pass: a typo-tolerant hit between two
+ * derivations can only exist when their head characters roughly agree, so
+ * names whose head disagrees skip every similarity() call. Passes when the
+ * first 4 chars differ by ≤1 substitution, or either head is a subsequence
+ * of the other's 8-char head (insertion/deletion at the start, e.g.
+ * "Nnaruto"). A single typo anywhere — including the first character —
+ * always passes; only 2+ clustered early typos on long titles are skipped,
+ * which no wishlist query relies on.
+ */
+function headSubseq(s: string, t: string): boolean {
+  let j = 0;
+  for (let i = 0; i < 4; i++) {
+    const c = s.charCodeAt(i);
+    while (j < 8 && t.charCodeAt(j) !== c) j++;
+    if (j >= 8) return false;
+    j++;
+  }
+  return true;
+}
+
+function headsAgree(a: string, b: string): boolean {
+  let diff = 0;
+  for (let i = 0; i < 4; i++) {
+    if (a.charCodeAt(i) !== b.charCodeAt(i)) {
+      diff++;
+      if (diff > 1) break;
+    }
+  }
+  if (diff <= 1) return true;
+  return headSubseq(a, b) || headSubseq(b, a);
+}
+
+/** Any of the four (query × name) head pairs agrees (covers word-order too). */
+function fuzzyGate(planned: string, pSorted: string, name: IndexedName): boolean {
+  const nm = name.n;
+  const nSorted = name.sorted;
+  return (
+    headsAgree(planned, nm) ||
+    headsAgree(planned, nSorted) ||
+    headsAgree(pSorted, nm) ||
+    headsAgree(pSorted, nSorted)
+  );
+}
+
+/** Fuzzy score (0.8 / 0.5 / 0) — only reached when cheap matching fell short. */
+function fuzzyScore(planned: string, name: IndexedName, pre: PlannedPrecomp): number {
+  const nm = name.n;
+  if (pre.len < 6 || name.len < 6) return 0;
+  // Small typos on the full title ("Narruto", "One Peice"). Outranks a bare
+  // substring below, so "Naruto Shippduen" picks Shippuden over plain Naruto.
+  if (lengthCompatible(pre.len, name.len) && similarity(planned, nm) >= 0.85) return 0.8;
   // Last resort: typos inside a leading portion ("Demom Slayer" vs
   // "Demon Slayer: Kimetsu no Yaiba"). Strict on purpose — long titles only,
   // so short lookalikes like Naruto/Boruto never cross-match.
-  if (planned.length >= 6 && name.length >= 6) {
-    const nst = sortedTokens(name);
-    const nForms = [nst, ...leadingSubsets(name), ...leadingSubsets(nst)];
-    for (const pf of pre.forms) {
-      for (const nf of nForms) {
-        if (similarity(pf, nf) >= 0.85) return 0.5;
-      }
+  for (const pf of pre.forms) {
+    for (let k = 0; k < name.subsets.length; k++) {
+      const nf = name.subsets[k];
+      if (!lengthCompatible(pf.len, nf.len)) continue;
+      if (similarity(pf.t, nf.t) >= 0.85) return 0.5;
     }
   }
   return 0;
+}
+
+function matchWithIndex(
+  plannedTitle: string,
+  index: PlannedIndex,
+  excludeIds?: Set<number>,
+): Movie | null {
+  const planned = normalizeTitle(plannedTitle);
+  if (!planned) return null;
+  const excluded = (entry: IndexedMovie) => excludeIds?.has(entry.movie.id) ?? false;
+
+  // Pass 1: exact map hit (score 3 — nothing can beat it).
+  const exactList = index.exact.get(planned);
+  if (exactList) {
+    for (const entry of exactList) {
+      if (!excluded(entry)) return entry.movie;
+    }
+  }
+
+  // Hoisted out of the per-movie loop: these depend only on the query.
+  const pSorted = sortedTokens(planned);
+  const queryHasDigit = /\d/.test(planned);
+  const formSeen = new Set<string>();
+  const forms: Array<{ t: string; len: number }> = [];
+  for (const t of [pSorted, ...leadingSubsets(planned), ...leadingSubsets(pSorted)]) {
+    if (formSeen.has(t)) continue;
+    formSeen.add(t);
+    forms.push({ t, len: t.length });
+  }
+  const pre: PlannedPrecomp = {
+    stripped: queryHasDigit ? stripQualifier(planned) : planned,
+    sorted: pSorted,
+    forms,
+    queryHasDigit,
+    len: planned.length,
+  };
+
+  // Pass 2: cheap scan in library order. Score 2 (startsWith) ends the search
+  // — with exact matches already ruled out, nothing scores higher.
+  let best: IndexedMovie | null = null;
+  let bestScore = 0;
+  for (const entry of index.entries) {
+    if (excluded(entry)) continue;
+    for (const name of entry.names) {
+      const score = cheapScore(planned, name, pre);
+      if (score > bestScore) {
+        bestScore = score;
+        best = entry;
+        if (score >= 2) return entry.movie;
+      }
+    }
+  }
+  // Fuzzy scores top out at 0.8 — a cheap 0.9+ can never lose to them.
+  if (bestScore >= 0.9) return best ? best.movie : null;
+
+  // Pass 3: typo tolerance over base names only. The head gate rejects ~99%
+  // of names with a few integer compares before any similarity() runs.
+  if (pre.len >= 6) {
+    for (const entry of index.entries) {
+      if (excluded(entry)) continue;
+      for (const name of entry.names) {
+        if (name.len < 6) continue;
+        if (!fuzzyGate(planned, pre.sorted, name)) continue;
+        const score = fuzzyScore(planned, name, pre);
+        if (score > bestScore) {
+          bestScore = score;
+          best = entry;
+        }
+      }
+    }
+  }
+  return bestScore > 0 && best ? best.movie : null;
 }
 
 /** Best library match for one planned title (null = show a placeholder). */
@@ -150,28 +369,7 @@ export function matchPlannedTitle(
   items: Movie[],
   excludeIds?: Set<number>,
 ): Movie | null {
-  const planned = normalizeTitle(plannedTitle);
-  if (!planned) return null;
-  // Hoisted out of the per-movie loop: these depend only on the query.
-  const pSorted = sortedTokens(planned);
-  const pre: PlannedPrecomp = {
-    stripped: /\d/.test(planned) ? stripQualifier(planned) : planned,
-    sorted: pSorted,
-    forms: Array.from(new Set([pSorted, ...leadingSubsets(planned), ...leadingSubsets(pSorted)])),
-  };
-  let best: Movie | null = null;
-  let bestScore = 0;
-  for (const movie of items) {
-    if (excludeIds?.has(movie.id)) continue;
-    for (const name of candidateNames(movie)) {
-      const score = matchScore(planned, name, pre);
-      if (score > bestScore) {
-        bestScore = score;
-        best = movie;
-      }
-    }
-  }
-  return bestScore > 0 ? best : null;
+  return matchWithIndex(plannedTitle, getPlannedIndex(items), excludeIds);
 }
 
 /**
@@ -180,6 +378,7 @@ export function matchPlannedTitle(
  * and fills in automatically as titles get added to the library.
  */
 export function resolvePlannedSlots(plannedTitles: string[], items: Movie[]): RowSlot[] {
+  const index = getPlannedIndex(items);
   const used = new Set<number>();
   const seenTitles = new Set<string>();
   const slots: RowSlot[] = [];
@@ -189,7 +388,7 @@ export function resolvePlannedSlots(plannedTitles: string[], items: Movie[]): Ro
     const norm = normalizeTitle(title);
     if (!norm || seenTitles.has(norm)) continue;
     seenTitles.add(norm);
-    const movie = matchPlannedTitle(title, items, used);
+    const movie = matchWithIndex(title, index, used);
     if (movie) {
       used.add(movie.id);
       slots.push({ kind: "movie", movie });

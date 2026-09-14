@@ -1,25 +1,22 @@
 import type { Movie } from "../data";
-import { isTvBrowser } from "./browser";
 
 export const FALLBACK_THUMBNAIL =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 360'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%23111111'/%3E%3Cstop offset='.58' stop-color='%231f1f1f'/%3E%3Cstop offset='1' stop-color='%23f47521' stop-opacity='.55'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='640' height='360' fill='url(%23g)'/%3E%3Ccircle cx='320' cy='180' r='52' fill='%23ffffff' fill-opacity='.12'/%3E%3Cpath d='M304 146v68l58-34z' fill='%23ffffff' fill-opacity='.78'/%3E%3C/svg%3E";
 
 /**
- * TV card slots never render wider than ~360px, and a Chromium 69 compositor
- * pays for every decoded byte. `mqdefault.jpg` (320×180, true 16:9, no
- * letterbox bars) is the largest YouTube variant worth fetching there —
- * maxresdefault is roughly 8× the pixels. Hero banners and modals stay on the
- * high-resolution chain. Evaluated once: the UA never changes at runtime and
- * SSR (no navigator) always resolves to false, so desktop output is identical.
+ * Card slots never render wider than ~360px on any device (phone / desktop /
+ * TV), and `mqdefault.jpg` (320×180, true 16:9, no letterbox bars) is a
+ * pixel-perfect fit for them at ~10 KB. It also exists for EVERY video, so
+ * leading with it kills the old maxres→sd→hq 404 cascade that used to stall
+ * hundreds of card images (and re-render every card per failed variant) on
+ * slow networks. Hero banners and modals stay on the high-resolution chain.
  */
-const TV_CARDS = isTvBrowser();
 
 function isUsableImage(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-const GENERIC_POSTER_RE =
-  /(?:pexels-photo-32728014|images\.pexels\.com\/photos\/32728014)/i;
+const GENERIC_POSTER_RE = /(?:pexels-photo-32728014|images\.pexels\.com\/photos\/32728014)/i;
 
 /** True for empty/SVG placeholders and the shared Pexels film-strip used when a series has no real poster. */
 export function isGenericPoster(value: unknown): boolean {
@@ -65,26 +62,28 @@ export function youtubeThumbnailSources(videoId?: string) {
   ];
 }
 
-/** Card-quality chain: 320×180 on TVs, full resolution everywhere else. */
+/**
+ * Card-quality chain: 320×180 everywhere. Cards top out at ~300px wide, so
+ * mqdefault is pixel-perfect at a tenth of the bytes — and since it exists
+ * for every video, cards never pay the maxres/sd 404 cascade.
+ */
 export function cardYouTubeThumbnailSources(videoId?: string): string[] {
   if (!videoId) return [];
-  if (!TV_CARDS) return youtubeThumbnailSources(videoId);
   const base = `https://img.youtube.com/vi/${videoId}`;
   // mqdefault exists for every video; hqdefault covers the rare case where a
   // specific upload serves a broken mq variant.
   return [`${base}/mqdefault.jpg`, `${base}/hqdefault.jpg`];
 }
 
-// Upgrade any hqdefault URL (e.g. one stored in the DB before this fix) to
-// the higher-resolution variants, keeping the original as a fallback. On TV
-// cards the same match downshifts to the 320×180 variant instead.
+// Stored hqdefault URLs (e.g. rows written before this fix): cards downshift
+// to the tiny 320×180 variant first, heroes upgrade to high-res first.
 const HQ_THUMB_RE =
   /^(https?:\/\/(?:img\.youtube\.com|i\d?\.ytimg\.com)\/vi\/([A-Za-z0-9_-]{6,})\/)hqdefault\.jpg.*$/;
 
-function resolveYouTubeThumb(url: string, tvCard: boolean): string[] {
+function resolveYouTubeThumb(url: string, card: boolean): string[] {
   const match = url.match(HQ_THUMB_RE);
   if (!match) return [url];
-  if (tvCard) return [`${match[1]}mqdefault.jpg`, url];
+  if (card) return [`${match[1]}mqdefault.jpg`, url];
   return [`${match[1]}maxresdefault.jpg`, `${match[1]}sddefault.jpg`, url];
 }
 
@@ -104,15 +103,15 @@ function knownSeriesArtwork(movie: Movie): string[] {
 }
 
 export function movieImageSources(movie: Movie, mode: "hero" | "card" = "card") {
-  const tvCard = mode === "card" && TV_CARDS;
+  const card = mode === "card";
   const primary =
     mode === "hero"
       ? [movie.backdrop, movie.thumbnailUrl, movie.image]
       : [movie.thumbnailUrl, movie.image, movie.backdrop];
 
   return unique([
-    ...primary.filter(isRealPoster).flatMap((url) => resolveYouTubeThumb(url, tvCard)),
-    ...(tvCard
+    ...primary.filter(isRealPoster).flatMap((url) => resolveYouTubeThumb(url, card)),
+    ...(card
       ? cardYouTubeThumbnailSources(movie.youtubeId)
       : youtubeThumbnailSources(movie.youtubeId)),
     ...knownSeriesArtwork(movie),

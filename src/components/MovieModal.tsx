@@ -16,7 +16,12 @@ import { FALLBACK_THUMBNAIL, isGenericPoster, movieImageSources } from "../lib/m
 import HeroBannerPicker from "./HeroBannerPicker";
 import SmartImage from "./SmartImage";
 import { useVisibleCount } from "../lib/useVisibleCount";
-import { useHeroBanners, removeHeroBanner } from "../lib/heroBanners";
+import {
+  HERO_SECTION_LABELS,
+  bannerSection,
+  useHeroBanners,
+  removeHeroBanner,
+} from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { isTvBrowser } from "../lib/browser";
 import {
@@ -25,6 +30,8 @@ import {
   formatTimeLeft,
   useResumeForMovie,
 } from "../lib/continueWatching";
+
+const IS_TV = isTvBrowser();
 
 interface MovieModalProps {
   movie: Movie;
@@ -57,7 +64,8 @@ export default function MovieModal({
 }: MovieModalProps) {
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const heroBanners = useHeroBanners();
-  const isHeroBanner = heroBanners.some((b) => b.movieId === movie.id);
+  const heroBannerForMovie = heroBanners.find((b) => b.movieId === movie.id);
+  const isHeroBanner = !!heroBannerForMovie;
   // Continue Watching: exact match for singles, newest episode for series.
   const resume = useResumeForMovie(movie);
   const resumeFromSec =
@@ -117,7 +125,7 @@ export default function MovieModal({
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
   // smooth scroll on desktop, one synchronous card-step on Tizen's slow
   // compositor. The arrow steps aside once the row cannot scroll further.
-  const isTv = isTvBrowser();
+  const isTv = IS_TV;
   const episodesRowRef = useRef<HTMLDivElement>(null);
   const episodesRaf = useRef(0);
   const [showEpisodesArrow, setShowEpisodesArrow] = useState(true);
@@ -189,7 +197,7 @@ export default function MovieModal({
   // On TV, land focus on the primary action so the remote works right away.
   const playButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!isTvBrowser()) return;
+    if (!IS_TV) return;
     const t = setTimeout(() => playButtonRef.current?.focus(), 60);
     return () => clearTimeout(t);
   }, [movie.id]);
@@ -201,10 +209,13 @@ export default function MovieModal({
     [activeSeason],
   );
   // 1000+ episode series (One Piece) must not mount 1000 cards at once.
+  // Only the on-screen handful mounts synchronously with the modal open —
+  // mounting 60 heavy cards in the same frame as the tap is exactly the
+  // "tap a movie, whole site freezes" report on phones and TVs.
   const { visible: visibleEps, showMore: showMoreEps } = useVisibleCount(
     `${movie.id}-${selectedSeason ?? "all"}`,
-    60,
-    120,
+    14,
+    40,
   );
   const currentEp: Movie = isCollection
     ? episodes[selectedEpIdx] || episodes[0] || movie.episodes![0]
@@ -255,7 +266,7 @@ export default function MovieModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/85 overflow-y-auto py-6"
       onClick={onClose}
     >
       <div
@@ -320,7 +331,7 @@ export default function MovieModal({
                 <span className="text-white/60 text-xs">{votes} votes</span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
                   ref={playButtonRef}
                   onClick={() => {
@@ -380,25 +391,32 @@ export default function MovieModal({
                 {canDelete && (
                   <button
                     onClick={() => setShowBannerPicker(true)}
-                    className="flex items-center gap-2 border border-[#ff6a00]/60 bg-[#ff6a00]/15 hover:bg-[#ff6a00] hover:text-black text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
-                    title={isHeroBanner ? "Update hero banner" : "Set as hero banner"}
+                    className="flex items-center gap-2 border border-[#ff6a00]/60 bg-[#ff6a00]/15 hover:bg-[#ff6a00] hover:text-black text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors whitespace-nowrap"
+                    title={
+                      heroBannerForMovie
+                        ? `Banner on ${HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)]} — click to change`
+                        : "Set as page banner"
+                    }
                   >
                     <Sparkles size={14} />
-                    {isHeroBanner ? "Update Hero" : "Set as Hero"}
+                    {heroBannerForMovie
+                      ? `${HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)]} Banner ✓`
+                      : "Set Banner"}
                   </button>
                 )}
-                {canDelete && isHeroBanner && (
+                {canDelete && heroBannerForMovie && (
                   <button
                     onClick={() => {
-                      if (window.confirm(`Remove "${movie.title}" from the hero banner?`)) {
+                      const label = HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)];
+                      if (window.confirm(`Remove "${movie.title}" from the ${label} banner?`)) {
                         removeHeroBanner(movie.id);
                       }
                     }}
-                    className="flex items-center gap-2 border border-red-500/60 bg-red-600/15 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
-                    title="Remove from hero banner"
+                    className="flex items-center gap-2 border border-red-500/60 bg-red-600/15 hover:bg-red-600 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors whitespace-nowrap"
+                    title={`Remove from ${HERO_SECTION_LABELS[bannerSection(heroBannerForMovie)]} banner`}
                   >
                     <Trash2 size={14} />
-                    Remove from Hero
+                    Remove Banner
                   </button>
                 )}
                 {canEditThumbnail && onEditThumbnail && (
@@ -520,7 +538,7 @@ export default function MovieModal({
                   onClick={showMoreEps}
                   className="shrink-0 w-36 self-stretch rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold transition"
                 >
-                  Show {Math.min(120, episodes.length - visibleEps)} more
+                  Show {Math.min(40, episodes.length - visibleEps)} more
                   <span className="block text-[10px] text-white/50 font-normal mt-1">
                     {visibleEps} of {episodes.length}
                   </span>
@@ -622,7 +640,7 @@ function EpisodeCard({
 
   return (
     <div
-      className="group relative shrink-0 w-64 cursor-pointer"
+      className="group relative shrink-0 w-64 cursor-pointer cv-card"
       onClick={current ? onPlay : onSelect}
       tabIndex={0}
       role="button"
@@ -712,7 +730,7 @@ function SimilarCard({
 }) {
   return (
     <div
-      className="group relative shrink-0 w-56 cursor-pointer"
+      className="group relative shrink-0 w-56 cursor-pointer cv-card"
       onClick={onSelect}
       tabIndex={0}
       role="button"
@@ -738,7 +756,7 @@ function SimilarCard({
             onPlay();
           }}
           className={`absolute inset-0 m-auto w-11 h-11 rounded-full bg-[#f47521]/90 hover:bg-[#f47521] flex items-center justify-center transition-opacity ${
-            isTvBrowser() ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            IS_TV ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
           <Play size={16} fill="white" className="text-white ml-0.5" />

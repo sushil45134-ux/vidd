@@ -6,6 +6,53 @@ export interface HeroBanner {
   title?: string;
   description?: string;
   badge?: string;
+  /**
+   * Which page this banner shows on. Missing/undefined = "home" (every
+   * banner saved before sections existed keeps working as a home banner).
+   */
+  section?: HeroSection;
+}
+
+/** Pages that can have their own admin-set banner. */
+export const HERO_SECTIONS = ["home", "movies", "anime", "cartoon"] as const;
+export type HeroSection = (typeof HERO_SECTIONS)[number];
+
+export const HERO_SECTION_LABELS: Record<HeroSection, string> = {
+  home: "Home",
+  movies: "Movies",
+  anime: "Anime",
+  cartoon: "Cartoon",
+};
+
+export function bannerSection(b: HeroBanner): HeroSection {
+  return b.section ?? "home";
+}
+
+/**
+ * Section encoding inside `sort_order` — no Supabase schema change needed.
+ *
+ * hero_banners.movie_id is the primary key, so a section column would need a
+ * database migration on the live project. Instead each section owns a
+ * 1000-wide sort_order band: home 0–999, movies 1000–1999, anime 2000–2999,
+ * cartoon 3000–3999. Every pre-section row has a small sort_order (0, 1, 2…),
+ * so it decodes to "home" automatically and nothing ever breaks.
+ */
+const SECTION_STEP = 1000;
+const SECTION_OFFSET: Record<HeroSection, number> = {
+  home: 0,
+  movies: SECTION_STEP,
+  anime: SECTION_STEP * 2,
+  cartoon: SECTION_STEP * 3,
+};
+
+function encodeSortOrder(section: HeroSection, indexInSection: number): number {
+  return SECTION_OFFSET[section] + Math.max(0, Math.min(indexInSection, SECTION_STEP - 1));
+}
+
+function decodeSection(sortOrder: unknown): HeroSection {
+  const order = typeof sortOrder === "number" && Number.isFinite(sortOrder) ? sortOrder : 0;
+  const idx = Math.max(0, Math.min(Math.floor(order / SECTION_STEP), HERO_SECTIONS.length - 1));
+  return HERO_SECTIONS[idx];
 }
 
 const KEY = "vid:hero-banners:v2";
@@ -29,7 +76,7 @@ function writeLocal(list: HeroBanner[]) {
     localStorage.setItem(KEY, JSON.stringify(list));
   } catch (e) {
     alert(
-      "Banner image is too large to save locally. Please pick a smaller image (under ~2 MB) or use an image URL instead."
+      "Banner image is too large to save locally. Please pick a smaller image (under ~2 MB) or use an image URL instead.",
     );
     throw e;
   }
@@ -44,17 +91,18 @@ function rowToBanner(r: any): HeroBanner {
     title: r.title ?? undefined,
     description: r.description ?? undefined,
     badge: r.badge ?? undefined,
+    section: decodeSection(r.sort_order),
   };
 }
 
-function bannerToRow(b: HeroBanner, sort: number) {
+function bannerToRow(b: HeroBanner, indexInSection: number) {
   return {
     movie_id: b.movieId,
     banner_image: b.bannerImage,
     title: b.title ?? null,
     description: b.description ?? null,
     badge: b.badge ?? null,
-    sort_order: sort,
+    sort_order: encodeSortOrder(bannerSection(b), indexInSection),
   };
 }
 
@@ -73,24 +121,6 @@ async function fetchRemote(): Promise<HeroBanner[] | null> {
   } catch (e) {
     console.warn("[heroBanners] fetch exception", e);
     return null;
-  }
-}
-
-
-async function upsertRemote(entry: HeroBanner, sort: number): Promise<boolean> {
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { error } = await supabase
-      .from("hero_banners")
-      .upsert(bannerToRow(entry, sort), { onConflict: "movie_id" });
-    if (error) {
-      console.warn("[heroBanners] upsert error", error);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.warn("[heroBanners] upsert exception", e);
-    return false;
   }
 }
 
@@ -132,7 +162,15 @@ async function replaceRemote(list: HeroBanner[]): Promise<boolean> {
       if (delErr) console.warn("[heroBanners] replace delete error", delErr);
     }
     if (list.length > 0) {
-      const rows = list.map((b, i) => bannerToRow(b, i));
+      // Per-section position (0, 1, 2…) — the section band is encoded by
+      // bannerToRow, so every page keeps its own banner order.
+      const counters = new Map<HeroSection, number>();
+      const rows = list.map((b) => {
+        const section = bannerSection(b);
+        const idx = counters.get(section) ?? 0;
+        counters.set(section, idx + 1);
+        return bannerToRow({ ...b, section }, idx);
+      });
       const { error: upErr } = await supabase
         .from("hero_banners")
         .upsert(rows, { onConflict: "movie_id" });
@@ -157,7 +195,7 @@ export async function saveHeroBanners(list: HeroBanner[]): Promise<boolean> {
   const saved = await replaceRemote(list);
   if (!saved) {
     alert(
-      "Hero banners public website par save nahi hue. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara save karo."
+      "Hero banners public website par save nahi hue. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara save karo.",
     );
     return false;
   }
@@ -166,12 +204,18 @@ export async function saveHeroBanners(list: HeroBanner[]): Promise<boolean> {
 }
 
 export async function upsertHeroBanner(entry: HeroBanner): Promise<boolean> {
-  const list = readLocal().filter((b) => b.movieId !== entry.movieId);
-  const next = [entry, ...list];
-  const saved = await upsertRemote(entry, 0);
+  const section = bannerSection(entry);
+  const normalized: HeroBanner = { ...entry, section };
+  // The movie goes to the FRONT of its own section (other sections keep
+  // their order). A full rewrite keeps the cross-device order exact.
+  const rest = readLocal().filter((b) => b.movieId !== entry.movieId);
+  const at = rest.findIndex((b) => bannerSection(b) === section);
+  const next =
+    at === -1 ? [...rest, normalized] : [...rest.slice(0, at), normalized, ...rest.slice(at)];
+  const saved = await replaceRemote(next);
   if (!saved) {
     alert(
-      "Hero banner public website par save nahi hua. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara save karo."
+      "Hero banner public website par save nahi hua. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara save karo.",
     );
     return false;
   }
@@ -184,7 +228,7 @@ export async function removeHeroBanner(movieId: number): Promise<boolean> {
   const deleted = await deleteRemote(movieId);
   if (!deleted) {
     alert(
-      "Hero banner public website se remove nahi hua. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara try karo."
+      "Hero banner public website se remove nahi hua. Supabase hero_banners table ki RLS/GRANT policy check karo, phir dobara try karo.",
     );
     return false;
   }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Play, Info, Upload, RefreshCw, Eye, EyeOff } from "lucide-react";
 import type { Movie } from "../data";
 import { useSiteConfig, loadConfig, saveConfig } from "../lib/customization";
@@ -18,7 +18,7 @@ interface HeroBannerProps {
   loading?: boolean;
 }
 
-export default function HeroBanner({
+function HeroBanner({
   movies,
   onMoreInfo,
   onPlay,
@@ -217,3 +217,5 @@ export default function HeroBanner({
     </div>
   );
 }
+
+export default memo(HeroBanner);

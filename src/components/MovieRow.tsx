@@ -5,6 +5,8 @@ import MovieCard from "./MovieCard";
 import { isTvBrowser } from "../lib/browser";
 import type { RowSlot } from "../lib/plannedRows";
 
+const IS_TV = isTvBrowser();
+
 interface MovieRowProps {
   title: string;
   titleSize?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
@@ -34,14 +36,19 @@ const TITLE_SIZE_CLASS: Record<string, string> = {
 };
 
 /**
- * Rows mount only this many cards at first paint and mount the rest once the
- * browser is idle (or the moment the row is scrolled). A big library used to
- * mount every card of every row up front — thousands of DOM nodes of React
- * work before the first frame on phones and TV hardware, which is exactly the
- * "site lags" report. Off-screen cards are invisible either way; images stay
- * loading="lazy" throughout.
+ * Rows mount only this many cards at first paint, grow a little once the
+ * browser is idle, and page in more as the row is scrolled toward its end.
+ * Mounting every card of every row up front used to create thousands of DOM
+ * nodes (and image decoders) before the first frame on phones and TV
+ * hardware — exactly the "site lags" report. Off-screen cards stay
+ * unmounted until they are about to be seen; images stay loading="lazy"
+ * throughout.
  */
-const INITIAL_CARDS_PER_ROW = 12;
+const INITIAL_CARDS_PER_ROW = 10;
+const IDLE_CARDS_PER_ROW = 30;
+const SCROLL_PAGE_SIZE = 30;
+/** Start paging in the next chunk this far (px) before the row end. */
+const SCROLL_PREFETCH_PX = 900;
 
 function MovieRow({
   title,
@@ -65,29 +72,32 @@ function MovieRow({
   const [showRightArrow, setShowRightArrow] = useState(true);
   // Deferred card mounting (see INITIAL_CARDS_PER_ROW).
   const [cardCap, setCardCap] = useState<number>(INITIAL_CARDS_PER_ROW);
-  const expandCards = useCallback(() => setCardCap(Number.POSITIVE_INFINITY), []);
+  const expandCards = useCallback(() => {
+    setCardCap((cap) => (cap >= IDLE_CARDS_PER_ROW ? cap + SCROLL_PAGE_SIZE : IDLE_CARDS_PER_ROW));
+  }, []);
   useEffect(() => {
     if (typeof requestIdleCallback !== "undefined") {
-      const id = requestIdleCallback(() => setCardCap(Number.POSITIVE_INFINITY), { timeout: 2500 });
+      const id = requestIdleCallback(() => setCardCap(IDLE_CARDS_PER_ROW), { timeout: 2500 });
       return () => cancelIdleCallback(id);
     }
-    const t = setTimeout(() => setCardCap(Number.POSITIVE_INFINITY), 2000);
+    const t = setTimeout(() => setCardCap(IDLE_CARDS_PER_ROW), 2000);
     return () => clearTimeout(t);
   }, []);
   // Tizen 5.5 animates every scroll on its slow compositor, so smooth
   // scrolling makes row paging feel laggy and lands on half-cut cards.
-  const isTv = isTvBrowser();
+  const isTv = IS_TV;
 
   const scrollRaf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
   const handleScroll = () => {
-    expandCards();
     cancelAnimationFrame(scrollRaf.current);
     scrollRaf.current = requestAnimationFrame(() => {
       if (rowRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
         setShowLeftArrow(scrollLeft > 20);
         setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
+        // Page in the next chunk before the user hits the mounted end.
+        if (scrollLeft + clientWidth > scrollWidth - SCROLL_PREFETCH_PX) expandCards();
       }
     });
   };
@@ -122,6 +132,10 @@ function MovieRow({
     el.scrollLeft = Math.max(0, Math.min(max, Math.round(target)));
   };
 
+  const items = slots ?? movies.map((movie) => ({ kind: "movie" as const, movie }));
+  const visibleItems = items.slice(0, cardCap);
+  const hasMore = items.length > visibleItems.length;
+
   return (
     <div className="relative px-4 md:px-12 mb-8 group/row cv-row">
       {title && (
@@ -152,29 +166,41 @@ function MovieRow({
           } py-4 px-1`}
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
-          {(slots ?? movies.map((movie) => ({ kind: "movie" as const, movie })))
-            .slice(0, cardCap)
-            .map((slot, index) =>
-              slot.kind === "movie" ? (
-                <MovieCard
-                  key={slot.movie.id}
-                  movie={slot.movie}
-                  isLarge={isLargeRow}
-                  onClick={() => onSelectMovie(slot.movie)}
-                  onPlay={onPlay}
-                  isInMyList={isInMyList(slot.movie.id)}
-                  isLiked={isLiked(slot.movie.id)}
-                  onToggleMyList={() => toggleMyList(slot.movie)}
-                  onToggleLike={() => toggleLike(slot.movie.id)}
-                  canDelete={canDelete}
-                  onDelete={onDelete}
-                  canEditThumbnail={canEditThumbnail}
-                  onEditThumbnail={onEditThumbnail}
-                />
-              ) : (
-                <PlaceholderCard key={`planned-${index}`} title={slot.title} isLarge={isLargeRow} />
-              ),
-            )}
+          {visibleItems.map((slot, index) =>
+            slot.kind === "movie" ? (
+              <MovieCard
+                key={slot.movie.id}
+                movie={slot.movie}
+                isLarge={isLargeRow}
+                onSelectMovie={onSelectMovie}
+                onPlay={onPlay}
+                isInMyList={isInMyList(slot.movie.id)}
+                isLiked={isLiked(slot.movie.id)}
+                onToggleMyList={toggleMyList}
+                onToggleLike={toggleLike}
+                canDelete={canDelete}
+                onDelete={onDelete}
+                canEditThumbnail={canEditThumbnail}
+                onEditThumbnail={onEditThumbnail}
+              />
+            ) : (
+              <PlaceholderCard key={`planned-${index}`} title={slot.title} isLarge={isLargeRow} />
+            ),
+          )}
+          {hasMore && (
+            <button
+              onClick={expandCards}
+              className={`relative flex-shrink-0 self-stretch min-h-[120px] rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold transition ${
+                isLargeRow ? "w-[140px]" : "w-[120px]"
+              }`}
+              aria-label={`Show more in ${title || "this row"}`}
+            >
+              Show more
+              <span className="block text-[10px] text-white/50 font-normal mt-1">
+                {visibleItems.length} of {items.length}
+              </span>
+            </button>
+          )}
         </div>
 
         {showRightArrow && (

@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from "react";
 import { useState } from "react";
 import { Play, Plus, Check, ThumbsUp, ChevronDown, Trash2, Image as ImageIcon } from "lucide-react";
 import type { Movie } from "../data";
@@ -5,25 +6,31 @@ import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
 import { isTvBrowser } from "../lib/browser";
 
+const IS_TV = isTvBrowser();
+
 interface MovieCardProps {
   movie: Movie;
   isLarge?: boolean;
-  onClick: () => void;
+  /**
+   * Stable parent callbacks — the card invokes them with its own movie, so no
+   * per-card closures are created on re-render and memo() actually holds.
+   */
+  onSelectMovie: (movie: Movie) => void;
   onPlay: (movie: Movie) => void;
   isInMyList: boolean;
   isLiked: boolean;
-  onToggleMyList: () => void;
-  onToggleLike: () => void;
+  onToggleMyList: (movie: Movie) => void;
+  onToggleLike: (movieId: number) => void;
   canDelete?: boolean;
   onDelete?: (movie: Movie) => void;
   canEditThumbnail?: boolean;
   onEditThumbnail?: (movie: Movie) => void;
 }
 
-export default function MovieCard({
+function MovieCard({
   movie,
   isLarge = false,
-  onClick,
+  onSelectMovie,
   onPlay,
   isInMyList,
   isLiked,
@@ -41,22 +48,58 @@ export default function MovieCard({
   // forces the D-pad to tab through dozens of off-screen buttons, so on TVs
   // the action row is materialized only for the currently focused card.
   // Desktop keeps the pure hover behaviour.
-  const isTv = isTvBrowser();
-  const showHoverDetails = isTv ? isFocused : isHovered;
+  const showHoverDetails = IS_TV ? isFocused : isHovered;
 
-  const handleCardFocus = () => setIsFocused(true);
-  const handleCardBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+  const handleCardFocus = useCallback(() => setIsFocused(true), []);
+  const handleCardBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
     // Moving between the card's own buttons must not tear the row down.
     const next = e.relatedTarget as Node | null;
     if (!e.currentTarget.contains(next)) setIsFocused(false);
-  };
+  }, []);
+
+  const handleOpen = useCallback(() => onSelectMovie(movie), [onSelectMovie, movie]);
+  const handlePlay = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onPlay(movie);
+    },
+    [onPlay, movie],
+  );
+  const handleToggleMyList = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onToggleMyList(movie);
+    },
+    [onToggleMyList, movie],
+  );
+  const handleToggleLike = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onToggleLike(movie.id);
+    },
+    [onToggleLike, movie.id],
+  );
+  const handleMoreInfo = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onSelectMovie(movie);
+    },
+    [onSelectMovie, movie],
+  );
+  const handleEditThumbnail = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onEditThumbnail?.(movie);
+    },
+    [onEditThumbnail, movie],
+  );
 
   const handleCardKeyDown = (e: React.KeyboardEvent) => {
     // Activate the card only when the card itself (not an inner button)
     // holds focus — inner buttons activate natively on Enter/Space.
     if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
       e.preventDefault();
-      onClick();
+      handleOpen();
     }
   };
 
@@ -69,6 +112,10 @@ export default function MovieCard({
     }
   };
 
+  // movieImageSources() builds + dedupes URL arrays; memoize so hover/focus
+  // toggles (and parent re-renders) don't rebuild them per render.
+  const imageSources = useMemo(() => movieImageSources(movie), [movie]);
+
   return (
     <div
       className={`movie-card ${isLarge ? "movie-card-large" : ""} relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
@@ -78,12 +125,12 @@ export default function MovieCard({
       onMouseLeave={() => setIsHovered(false)}
       onFocus={handleCardFocus}
       onBlur={handleCardBlur}
-      onClick={onClick}
+      onClick={handleOpen}
       tabIndex={0}
       role="button"
       aria-label={`${movie.title} — open details`}
       onKeyDown={handleCardKeyDown}
-      data-tv-card-focused={isTv && isFocused ? "1" : undefined}
+      data-tv-card-focused={IS_TV && isFocused ? "1" : undefined}
     >
       <div
         className={`movie-card-surface relative overflow-hidden rounded-md transition-all duration-300 ${
@@ -92,7 +139,7 @@ export default function MovieCard({
       >
         <div className="legacy-media movie-card-media">
           <SmartImage
-            src={movieImageSources(movie)}
+            src={imageSources}
             alt={movie.title}
             loading="lazy"
             className="w-full h-full object-cover transition-all duration-300"
@@ -107,20 +154,14 @@ export default function MovieCard({
           <div className="bg-[#181818] p-3 rounded-b-md">
             <div className="flex items-center gap-2 mb-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPlay(movie);
-                }}
+                onClick={handlePlay}
                 className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors"
                 title="Play"
               >
                 <Play size={16} fill="black" className="text-black ml-0.5" />
               </button>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleMyList();
-                }}
+                onClick={handleToggleMyList}
                 className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
                   isInMyList ? "border-white bg-white/20" : "border-gray-500 hover:border-white"
                 }`}
@@ -133,10 +174,7 @@ export default function MovieCard({
                 )}
               </button>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleLike();
-                }}
+                onClick={handleToggleLike}
                 className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
                   isLiked ? "border-white bg-white/20" : "border-gray-500 hover:border-white"
                 }`}
@@ -145,10 +183,7 @@ export default function MovieCard({
                 <ThumbsUp size={14} className={isLiked ? "text-white fill-white" : "text-white"} />
               </button>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick();
-                }}
+                onClick={handleMoreInfo}
                 className="w-8 h-8 rounded-full border-2 border-gray-500 flex items-center justify-center hover:border-white transition-colors ml-auto"
                 title="More Info"
               >
@@ -165,10 +200,7 @@ export default function MovieCard({
               )}
               {canEditThumbnail && onEditThumbnail && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditThumbnail(movie);
-                  }}
+                  onClick={handleEditThumbnail}
                   className="w-8 h-8 rounded-full border-2 border-[#f47521]/60 bg-[#f47521]/15 hover:bg-[#f47521] flex items-center justify-center transition-colors"
                   title={movie.isCollection ? "Change series thumbnail" : "Change thumbnail"}
                 >
@@ -197,9 +229,11 @@ export default function MovieCard({
         )}
       </div>
 
-      {(!showHoverDetails || isTv) && (
+      {(!showHoverDetails || IS_TV) && (
         <p className="text-gray-300 text-xs mt-1 truncate px-0.5">{movie.title}</p>
       )}
     </div>
   );
 }
+
+export default memo(MovieCard);

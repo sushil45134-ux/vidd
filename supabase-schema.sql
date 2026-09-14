@@ -141,6 +141,11 @@ create policy "watch self" on public.watch_history for all to authenticated
 -- =====================================================================
 -- 6) HERO BANNERS  (admin custom hero overrides)
 -- =====================================================================
+-- NOTE: banners are per-page (home / movies / anime / cartoon) WITHOUT a
+-- section column: sort_order carries a 1000-wide band per section —
+--   home 0–999, movies 1000–1999, anime 2000–2999, cartoon 3000–3999 —
+-- plus the banner's position inside its page. Pre-section rows (0, 1, 2…)
+-- decode to "home", so no migration is ever needed. See heroBanners.ts.
 create table if not exists public.hero_banners (
   movie_id     bigint primary key references public.movies(id) on delete cascade,
   banner_image text not null,
