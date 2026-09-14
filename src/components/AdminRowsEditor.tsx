@@ -45,8 +45,6 @@ const SECTION_OPTIONS: { value: RowSection; label: string }[] = [
   { value: "movies", label: "Movies" },
   { value: "anime", label: "Anime" },
   { value: "cartoon", label: "Cartoon" },
-  { value: "tvshows", label: "TV Shows" },
-  { value: "new", label: "New" },
   { value: "mylist", label: "My List" },
   { value: "all", label: "All Sections" },
 ];

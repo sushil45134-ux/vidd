@@ -32,7 +32,6 @@ export interface Season {
   episodes: Movie[];
 }
 
-
 // Demo content removed — app now only shows user-uploaded and synced videos.
 export const featuredMovie: Movie | null = null;
 export const trendingNow: Movie[] = [];
@@ -43,4 +42,4 @@ export const myListDefault: Movie[] = [];
 export const newReleases: Movie[] = [];
 export const allMovies: Movie[] = [];
 
-export type Category = "home" | "movies" | "anime" | "cartoon" | "tvshows" | "new" | "mylist" | "discover";
+export type Category = "home" | "movies" | "anime" | "cartoon" | "mylist" | "discover";

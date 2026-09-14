@@ -21,15 +21,21 @@ export interface RowConfig {
 
 export type TitleSize = "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 
-export type RowSection =
-  | "home"
-  | "movies"
-  | "anime"
-  | "cartoon"
-  | "tvshows"
-  | "new"
-  | "mylist"
-  | "all";
+export type RowSection = "home" | "movies" | "anime" | "cartoon" | "mylist" | "all";
+
+/**
+ * Retired sections ("tvshows", "new") remap to "anime" so old rows keep
+ * showing; anything unknown falls back to "home".
+ */
+export function normalizeRowSection(section: unknown): RowSection {
+  if (section === "tvshows" || section === "new") return "anime";
+  const valid: RowSection[] = ["home", "movies", "anime", "cartoon", "mylist", "all"];
+  return valid.includes(section as RowSection) ? (section as RowSection) : "home";
+}
+
+function normalizeCustomRows(rows: CustomRow[] | undefined): CustomRow[] {
+  return (rows || []).map((r) => ({ ...r, section: normalizeRowSection(r.section) }));
+}
 
 export interface CustomRow {
   id: string;
@@ -103,7 +109,8 @@ function isRemoteNewer(remote: any, localSavedAt: string | null): boolean {
 function mergeConfig(parsed: Partial<SiteConfig>): SiteConfig {
   const rowMap = new Map((parsed.rows || []).map((r) => [r.key, r]));
   const rows = DEFAULT_CONFIG.rows.map((d) => ({ ...d, ...(rowMap.get(d.key) || {}) }));
-  return { ...DEFAULT_CONFIG, ...parsed, rows };
+  const customRows = normalizeCustomRows(parsed.customRows);
+  return { ...DEFAULT_CONFIG, ...parsed, rows, customRows };
 }
 
 function loadCustomRowsBackup(): CustomRow[] {
@@ -111,7 +118,7 @@ function loadCustomRowsBackup(): CustomRow[] {
   try {
     const raw = localStorage.getItem(CUSTOM_ROWS_BACKUP_KEY);
     const rows = raw ? (JSON.parse(raw) as CustomRow[]) : [];
-    return Array.isArray(rows) ? rows : [];
+    return Array.isArray(rows) ? normalizeCustomRows(rows) : [];
   } catch {
     return [];
   }

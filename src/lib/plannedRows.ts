@@ -1,4 +1,5 @@
 import type { Movie } from "../data";
+import type { CustomRow } from "./customization";
 
 /** One ordered slot inside a planned (wishlist) row. */
 export type RowSlot = { kind: "movie"; movie: Movie } | { kind: "placeholder"; title: string };
@@ -185,6 +186,27 @@ export function resolvePlannedSlots(plannedTitles: string[], items: Movie[]): Ro
     }
   }
   return slots;
+}
+
+/**
+ * IDs claimed by visible custom rows (manual picks AND planned matches,
+ * from every section): auto grids must hide these so a placed title shows
+ * only in its row.
+ */
+export function collectPlacedIds(
+  rows: CustomRow[] | undefined,
+  resolve: (row: CustomRow) => RowSlot[],
+): Set<number> {
+  const ids = new Set<number>();
+  (rows || []).forEach((row) => {
+    if (!row.visible) return;
+    resolve(row).forEach((slot) => {
+      if (slot.kind !== "movie") return;
+      ids.add(slot.movie.id);
+      slot.movie.episodes?.forEach((e) => ids.add(e.id));
+    });
+  });
+  return ids;
 }
 
 /**

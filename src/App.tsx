@@ -28,7 +28,7 @@ import {
   saveWatchProgress,
   useContinueWatching,
 } from "./lib/continueWatching";
-import { resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
+import { collectPlacedIds, resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
 import { isTvBrowser } from "./lib/browser";
 import { useHeroBanners } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
@@ -38,8 +38,6 @@ const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
   cartoon: (m) => m.genre.some((g) => g.toLowerCase() === "cartoon"),
   movies: (m) => !m.genre.some((g) => ["anime", "cartoon"].includes(g.toLowerCase())),
-  tvshows: (m) => (m.rating || "").startsWith("TV"),
-  new: (m) => m.year === new Date().getFullYear(),
 };
 
 /**
@@ -363,21 +361,11 @@ function App() {
     if (activeCategory === "mylist") return myList;
     const matcher = CATEGORY_MATCH[activeCategory];
     if (!matcher) return [];
-    // Movies already placed in a custom row for THIS section must not also
-    // appear in the auto grid below — otherwise the same title shows twice
-    // (once in the custom row, once in the auto-generated grid).
-    const scoped = new Set<number>();
-    cfg.customRows?.forEach((row) => {
-      if (!row.visible) return;
-      const sec = row.section || "home";
-      if (sec !== activeCategory && sec !== "all") return;
-      resolveCustomRowItems(row).forEach((m) => {
-        scoped.add(m.id);
-        m.episodes?.forEach((e) => scoped.add(e.id));
-      });
-    });
+    // A title placed in ANY visible custom row (any section, manual or
+    // planned) shows only in its row — never again in the auto grid below.
+    const scoped = collectPlacedIds(cfg.customRows, resolveRowSlots);
     return displayItems.filter((m) => matcher(m) && !scoped.has(m.id));
-  }, [activeCategory, myList, displayItems, cfg.customRows, resolveCustomRowItems]);
+  }, [activeCategory, myList, displayItems, cfg.customRows, resolveRowSlots]);
 
   const handlePlay = useCallback((movie: Movie, opts?: { fromStart?: boolean }) => {
     setSelectedMovie(null);
@@ -676,13 +664,9 @@ function App() {
                   ? "Anime"
                   : activeCategory === "cartoon"
                     ? "Cartoon"
-                    : activeCategory === "tvshows"
-                      ? "TV Shows"
-                      : activeCategory === "mylist"
-                        ? "My List"
-                        : activeCategory === "new"
-                          ? "New & Popular"
-                          : activeCategory}
+                    : activeCategory === "mylist"
+                      ? "My List"
+                      : activeCategory}
             </h1>
 
             {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
