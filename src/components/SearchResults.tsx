@@ -4,9 +4,7 @@ import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
 import { useVisibleCount } from "../lib/useVisibleCount";
-import { isTvBrowser } from "../lib/browser";
-
-const IS_TV = isTvBrowser();
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
 function handleCardKeyDown(e: React.KeyboardEvent, action: () => void) {
   if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
@@ -36,6 +34,7 @@ function SearchResults({
   toggleMyList,
   toggleLike,
 }: SearchResultsProps) {
+  const IS_TV = useIsTvBrowser();
   const { visible, showMore } = useVisibleCount(query, 60, 60);
   const shown = results.slice(0, visible);
   return (

@@ -4,9 +4,7 @@ import { Play, Plus, Check, ThumbsUp, ChevronDown, Trash2, Image as ImageIcon } 
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
-import { isTvBrowser } from "../lib/browser";
-
-const IS_TV = isTvBrowser();
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
 interface MovieCardProps {
   movie: Movie;
@@ -41,6 +39,7 @@ function MovieCard({
   canEditThumbnail = false,
   onEditThumbnail,
 }: MovieCardProps) {
+  const IS_TV = useIsTvBrowser();
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   // TVs have no hover. Rendering the full action row (Play / My List / Like /

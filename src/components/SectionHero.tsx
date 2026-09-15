@@ -2,10 +2,8 @@ import { memo, useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
-import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import SmartImage from "./SmartImage";
-
-const IS_TV = isTvBrowser();
 
 interface SectionHeroProps {
   /** Resolved banner movies for this section (admin picks, else top titles). */
@@ -22,6 +20,7 @@ interface SectionHeroProps {
  * banner system as home: "Set Banner" on any title, then pick the page.
  */
 function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHeroProps) {
+  const IS_TV = useIsTvBrowser();
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -31,7 +30,9 @@ function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHer
     if (IS_TV) return;
     const t = setInterval(() => setIndex((i) => (i + 1) % movies.length), 8000);
     return () => clearInterval(t);
-  }, [movies.length]);
+    // IS_TV is false until hydration completes, so the auto-rotate interval
+    // must be torn down when a TV is detected.
+  }, [movies.length, IS_TV]);
 
   if (movies.length === 0 && loading) {
     return (

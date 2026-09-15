@@ -2,10 +2,8 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import type { Movie } from "../data";
 import MovieCard from "./MovieCard";
-import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import type { RowSlot } from "../lib/plannedRows";
-
-const IS_TV = isTvBrowser();
 
 interface MovieRowProps {
   title: string;
@@ -73,7 +71,7 @@ function MovieRow({
   canEditThumbnail = false,
   onEditThumbnail,
 }: MovieRowProps) {
-  const isTv = IS_TV;
+  const isTv = useIsTvBrowser();
   const rowRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -83,6 +81,16 @@ function MovieRow({
   const IDLE_CARDS_PER_ROW = isTv ? IDLE_CARDS_PER_ROW_TV : IDLE_CARDS_PER_ROW_DESKTOP;
   const PAGE_SIZE = isTv ? SCROLL_PAGE_SIZE_TV : SCROLL_PAGE_SIZE;
   const [cardCap, setCardCap] = useState<number>(INITIAL_CARDS_PER_ROW);
+  // The TV answer only arrives after hydration, so the cap seeded on the
+  // first (server-matching) render is the desktop 10. Reseed it once the TV
+  // value lands, otherwise Tizen mounts 10 cards and loses the 6-card fast
+  // first paint. Never shrink a cap that idle/scroll paging already grew.
+  const seededCap = useRef(INITIAL_CARDS_PER_ROW);
+  useEffect(() => {
+    if (seededCap.current === INITIAL_CARDS_PER_ROW) return;
+    seededCap.current = INITIAL_CARDS_PER_ROW;
+    setCardCap((cap) => (cap === INITIAL_CARDS_PER_ROW_DESKTOP ? INITIAL_CARDS_PER_ROW : cap));
+  }, [INITIAL_CARDS_PER_ROW]);
   const expandCards = useCallback(() => {
     setCardCap((cap) => (cap >= IDLE_CARDS_PER_ROW ? cap + PAGE_SIZE : IDLE_CARDS_PER_ROW));
   }, [IDLE_CARDS_PER_ROW, PAGE_SIZE]);

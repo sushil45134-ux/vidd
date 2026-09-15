@@ -2,9 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, X, Play } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
-import { isTvBrowser } from "../lib/browser";
-
-const IS_TV = isTvBrowser();
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import SmartImage from "./SmartImage";
 import { useVisibleCount } from "../lib/useVisibleCount";
 
@@ -16,6 +14,7 @@ interface Props {
 }
 
 export default function UnifiedSearch({ onPlay, library, onSelectMovie }: Props) {
+  const IS_TV = useIsTvBrowser();
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   useEffect(() => {

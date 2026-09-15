@@ -23,15 +23,13 @@ import {
   removeHeroBanner,
 } from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
-import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import {
   episodeTag,
   formatClock,
   formatTimeLeft,
   useResumeForMovie,
 } from "../lib/continueWatching";
-
-const IS_TV = isTvBrowser();
 
 interface MovieModalProps {
   movie: Movie;
@@ -125,7 +123,7 @@ export default function MovieModal({
   // handler, so it never moved the row. Same desktop/TV split as MovieRow:
   // smooth scroll on desktop, one synchronous card-step on Tizen's slow
   // compositor. The arrow steps aside once the row cannot scroll further.
-  const isTv = IS_TV;
+  const isTv = useIsTvBrowser();
   const episodesRowRef = useRef<HTMLDivElement>(null);
   const episodesRaf = useRef(0);
   const [showEpisodesArrow, setShowEpisodesArrow] = useState(true);
@@ -197,10 +195,12 @@ export default function MovieModal({
   // On TV, land focus on the primary action so the remote works right away.
   const playButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (!IS_TV) return;
+    if (!isTv) return;
     const t = setTimeout(() => playButtonRef.current?.focus(), 60);
     return () => clearTimeout(t);
-  }, [movie.id]);
+    // isTv stays false until hydration completes, so the focus pass has to
+    // run again once the TV value lands.
+  }, [movie.id, isTv]);
 
   const activeSeason: Season | undefined =
     selectedSeason != null ? seasons.find((s) => s.seasonNumber === selectedSeason) : undefined;
@@ -728,6 +728,7 @@ function SimilarCard({
   onPlay: () => void;
   onSelect: () => void;
 }) {
+  const isTv = useIsTvBrowser();
   return (
     <div
       className="group relative shrink-0 w-56 cursor-pointer cv-card"
@@ -756,7 +757,7 @@ function SimilarCard({
             onPlay();
           }}
           className={`absolute inset-0 m-auto w-11 h-11 rounded-full bg-[#f47521]/90 hover:bg-[#f47521] flex items-center justify-center transition-opacity ${
-            IS_TV ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            isTv ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
           <Play size={16} fill="white" className="text-white ml-0.5" />
