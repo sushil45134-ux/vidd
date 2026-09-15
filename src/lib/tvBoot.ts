@@ -575,6 +575,49 @@ export const TV_BOOT_SCRIPT = String.raw`
     });
   }
 
+  /* requestAnimationFrame — old TV shells sometimes expose neither rAF nor
+   * the vendor-prefixed variant. Rows and modal episode paging call rAF on
+   * scroll, so leaving this missing turns a harmless remote press into an
+   * uncaught TypeError. A timer is the correct low-cost fallback for these
+   * already-low-frame-rate devices. */
+  if (typeof g.requestAnimationFrame !== "function") {
+    defineValue(g, "requestAnimationFrame", function (callback) {
+      return g.setTimeout(function () {
+        callback(Date.now());
+      }, 16);
+    });
+  }
+  if (typeof g.cancelAnimationFrame !== "function") {
+    defineValue(g, "cancelAnimationFrame", function (id) {
+      g.clearTimeout(id);
+    });
+  }
+
+  /* matchMedia — not present in a few embedded TV webviews. The app only
+   * needs the matches value and listener shape, so provide a conservative
+   * viewport-only implementation instead of failing while Navbar mounts. */
+  if (typeof g.matchMedia !== "function") {
+    defineValue(g, "matchMedia", function (query) {
+      var text = String(query || "");
+      var width = Number(g.innerWidth || 0);
+      var max = text.match(/max-width\s*:\s*(\d+)px/i);
+      var min = text.match(/min-width\s*:\s*(\d+)px/i);
+      var matches = true;
+      if (max) matches = matches && width <= Number(max[1]);
+      if (min) matches = matches && width >= Number(min[1]);
+      if (!max && !min) matches = false;
+      return {
+        matches: matches,
+        media: text,
+        addListener: function () {},
+        removeListener: function () {},
+        addEventListener: function () {},
+        removeEventListener: function () {},
+        onchange: null,
+      };
+    });
+  }
+
   /* ResizeObserver — Chrome 64+, but TV may lack. No-op fallback keeps app from crashing. */
   if (typeof g.ResizeObserver !== "function") {
     var NoopResizeObserver = function () {};

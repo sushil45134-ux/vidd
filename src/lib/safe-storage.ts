@@ -32,42 +32,66 @@ function createMemoryStorage(): StorageLike {
   };
 }
 
+const localMem = createMemoryStorage();
+const sessionMem = createMemoryStorage();
+
+// Resolve the browser storage once. The old implementation called
+// `window.localStorage` on every operation and returned a *new* memory store
+// whenever access was blocked, so a TV could successfully write a preference
+// and immediately fail to read it back. Keeping the selected store stable
+// makes the fallback useful and also avoids repeatedly probing a fragile TV
+// storage implementation during React renders.
+let localStore: StorageLike | null = null;
+let sessionStore: StorageLike | null = null;
+
 function pick(kind: "local" | "session"): StorageLike {
-  if (typeof window === "undefined") return createMemoryStorage();
+  const cached = kind === "local" ? localStore : sessionStore;
+  if (cached) return cached;
+  if (typeof window === "undefined") return kind === "local" ? localMem : sessionMem;
+
+  const fallback = kind === "local" ? localMem : sessionMem;
   try {
     const storage = kind === "local" ? window.localStorage : window.sessionStorage;
     const probe = "__ss_probe__";
     storage.setItem(probe, "1");
     storage.removeItem(probe);
+    if (kind === "local") localStore = storage;
+    else sessionStore = storage;
     return storage;
   } catch {
-    return createMemoryStorage();
+    if (kind === "local") localStore = fallback;
+    else sessionStore = fallback;
+    return fallback;
   }
 }
 
-const localMem = createMemoryStorage();
-const sessionMem = createMemoryStorage();
+function switchToMemory(kind: "local" | "session"): StorageLike {
+  const fallback = kind === "local" ? localMem : sessionMem;
+  if (kind === "local") localStore = fallback;
+  else sessionStore = fallback;
+  return fallback;
+}
 
 export const safeLocalStorage = {
   getItem(key: string): string | null {
     try {
       return pick("local").getItem(key);
     } catch {
-      return localMem.getItem(key);
+      return switchToMemory("local").getItem(key);
     }
   },
   setItem(key: string, value: string): void {
     try {
       pick("local").setItem(key, value);
     } catch {
-      localMem.setItem(key, value);
+      switchToMemory("local").setItem(key, value);
     }
   },
   removeItem(key: string): void {
     try {
       pick("local").removeItem(key);
     } catch {
-      localMem.removeItem(key);
+      switchToMemory("local").removeItem(key);
     }
   },
 };
@@ -77,21 +101,21 @@ export const safeSessionStorage = {
     try {
       return pick("session").getItem(key);
     } catch {
-      return sessionMem.getItem(key);
+      return switchToMemory("session").getItem(key);
     }
   },
   setItem(key: string, value: string): void {
     try {
       pick("session").setItem(key, value);
     } catch {
-      sessionMem.setItem(key, value);
+      switchToMemory("session").setItem(key, value);
     }
   },
   removeItem(key: string): void {
     try {
       pick("session").removeItem(key);
     } catch {
-      sessionMem.removeItem(key);
+      switchToMemory("session").removeItem(key);
     }
   },
 };

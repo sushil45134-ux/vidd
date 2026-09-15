@@ -19,7 +19,14 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-const TV_BOOT_TAG_PATTERN = new RegExp(`<script\\b[^>]*\\b${TV_BOOT_MARKER}(?:\\s*=|\\s|>)`, "i");
+// The pattern is intentionally built from a string because the marker is
+// shared with the inline boot tag. Keep the escapes at the RegExp level (one
+// backslash in the resulting expression); four backslashes here would look
+// for the literal characters "\\b" and would inject the boot payload twice.
+const TV_BOOT_TAG_PATTERN = new RegExp(
+  String.raw`<script\b[^>]*\b${TV_BOOT_MARKER}(?:\s*=|\s|>)`,
+  "i",
+);
 
 /**
  * Put the legacy-browser boot payload in every SSR HTML response. The root
