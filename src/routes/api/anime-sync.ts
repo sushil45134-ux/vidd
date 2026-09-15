@@ -443,7 +443,7 @@ export const Route = createFileRoute("/api/anime-sync")({
           const detailed = await anilistBatchDetails(picked.map((m) => m?.id));
           const prefetched = new Map(collectionList.map((c, i) => [c, detailed[i] || picked[i]]));
 
-          for (const [playlistId, col] of collections {
+          for (const [playlistId, col] of collections) {
             const info: CollectionSyncInfo = {
               playlistId,
               playlistTitle: col.title,
@@ -461,6 +461,7 @@ export const Route = createFileRoute("/api/anime-sync")({
             }
 
             // AniList data was prefetched in aliased batches before the loop.
+            let chain: SyncMedia[] = [];
             const prefetchedMedia = prefetched.get(col);
             if (prefetchedMedia) chain = buildChain(prefetchedMedia);
             if (chain.length === 0) {
