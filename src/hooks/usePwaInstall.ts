@@ -27,8 +27,11 @@ export function usePwaInstall() {
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
     // Already installed (running as standalone app)?
+    const isStandalone =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches;
     if (
-      window.matchMedia("(display-mode: standalone)").matches ||
+      isStandalone ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true
     ) {
       setInstalled(true);
