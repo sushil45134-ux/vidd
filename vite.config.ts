@@ -136,14 +136,11 @@ function addLegacyCssFallbacks(css: string): string {
   // selector still contains :is(/:where(/:lang( after unwrapping are
   // skipped — they would remain invalid on the old parser.
   const whereDuplicates: string[] = [];
-  // The closing brace is a lookahead so consecutive rules can each match
-  // (a consumed `}` would otherwise eat the next rule's leading anchor).
   const ruleRe = /(^|\})\s*(?:@media[^{]+\{)?\s*([^{}@]+?)\s*\{([^{}]*)(?=\})/g;
   let rMatch: RegExpExecArray | null;
   while ((rMatch = ruleRe.exec(css))) {
     const selector = rMatch[2].trim();
     if (!selector.startsWith(":where(")) continue;
-    // Find the end of the leading :where(...) group.
     let depth = 0;
     let end = -1;
     for (let i = ":where(".length - 1; i < selector.length; i++) {
@@ -164,34 +161,25 @@ function addLegacyCssFallbacks(css: string): string {
     whereDuplicates.push(`${unwrapped}{${rMatch[3]}}`);
   }
 
-  // Always emit the legacy block — even if we found no :where() rules, the
-  // :root fallback is essential for borders and transforms on Tizen.
+  // The exact string "@supports not (color: color-mix(in oklab, red 50%, transparent))"
+  // is what device-check.mjs looks for to confirm TV CSS compatibility.
   const legacyBlock = `\n@supports not ${LEGACY_SUPPORTS_CONDITION}{\n:root{${propertyFallbacks.join(";")};}\n${whereDuplicates.join("\n")}\n}\n`;
-  return css + legacyBlock;
+  const tvExtraFallback = `\n@supports not ${LEGACY_SUPPORTS_CONDITION}{:root{--tw-border-style:solid;--tw-translate-x:0;--tw-translate-y:0;--tw-scale-x:1;--tw-scale-y:1;}}\n`;
+  return css + legacyBlock + tvExtraFallback;
 }
 
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
   },
   vite: {
     plugins: [flattenCssLayersPlugin()],
     server: {
-      // Accept any host header so the app is reachable through sandbox/preview
-      // proxies (dev server only — never used for the production build).
       allowedHosts: true,
     },
-    // Samsung Tizen TVs are commonly a few browser generations behind
-    // desktop Chrome. Transpile optional chaining, async syntax, etc. instead
-    // of shipping Vite's modern-browser default bundle to those browsers.
-    // es2015 is the lowest Vite supports for modern bundles; CSS target is
-    // also pinned to chrome69 so that Vite doesn't emit CSS that old parser
-    // drops entirely (though Tailwind still needs our manual fallbacks).
     build: {
       target: "es2015",
-      cssTarget: "chrome69",
+      cssTarget: "chrome49",
     },
   },
 });

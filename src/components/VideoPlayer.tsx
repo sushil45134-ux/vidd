@@ -106,9 +106,12 @@ export function VideoPlayer({
   // (Chromium 69) than the IFrame API + custom controls. Default to simple
   // embed on TV; desktop keeps the API player. Native controls are still the
   // emergency fallback on desktop when the API cannot become usable.
+  // On TV, default to youtube-nocookie (stage 1) which is more privacy-friendly
+  // and works better on Tizen's strict referrer policy.
   const [useSimpleEmbed, setUseSimpleEmbed] = useState(() => isTv);
   // TV fallback chain: 0 = youtube.com embed, 1 = youtube-nocookie embed.
-  const [tvStage, setTvStage] = useState(0);
+  // Default to 1 (nocookie) on TV for best compatibility.
+  const [tvStage, setTvStage] = useState(() => (isTv ? 1 : 0));
   // After a grace period, offer remote-focusable recovery actions in case
   // the embed cannot start (network / codec / Error-153 style referrer issues).
   const [showTvFallback, setShowTvFallback] = useState(false);
@@ -961,13 +964,16 @@ export function VideoPlayer({
   // the origin/referrer of the embedding page is missing. The iframe also
   // sends a proper referrer via referrerPolicy below. On Tizen we also add
   // widget_referrer which helps YouTube's embed validation.
+  // For TV, use youtube-nocookie by default and add extra params for Tizen compatibility.
   const tvEmbedSrc = `${
     tvStage === 1 ? "https://www.youtube-nocookie.com" : "https://www.youtube.com"
   }/embed/${encodeURIComponent(videoId)}?autoplay=${autoPlay ? 1 : 0}&controls=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1&playsinline=1&enablejsapi=0&widget_referrer=${encodeURIComponent(
     typeof window !== "undefined" ? window.location.origin : "",
   )}&origin=${encodeURIComponent(
     typeof window !== "undefined" ? window.location.origin : "",
-  )}${startAt > 0 ? `&start=${Math.floor(startAt)}` : ""}`;
+  )}&widget_referrer=${encodeURIComponent(
+    typeof window !== "undefined" ? window.location.href : "",
+  )}${startAt > 0 ? `&start=${Math.floor(startAt)}` : ""}&enablejsapi=0&disablekb=0`;
 
   // TV auto-hide is only ever active for the custom (API) player.
   const tvHidden = isTv && !useSimpleEmbed && tvControlsHidden;

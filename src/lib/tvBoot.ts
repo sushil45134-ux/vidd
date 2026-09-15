@@ -85,6 +85,52 @@ export const TV_BOOT_SCRIPT = String.raw`
     });
   }
 
+  /* Object.assign — Chrome 45+, but ensure for very old TV (Chrome 38-44) */
+  if (typeof O.assign !== "function") {
+    defineValue(O, "assign", function (target) {
+      if (target === null || target === undefined) throw new TypeError("Cannot convert undefined or null to object");
+      var to = O(target);
+      for (var i = 1; i < arguments.length; i++) {
+        var source = arguments[i];
+        if (source === null || source === undefined) continue;
+        for (var key in source) {
+          if (O.prototype.hasOwnProperty.call(source, key)) to[key] = source[key];
+        }
+      }
+      return to;
+    });
+  }
+
+  /* Object.entries — Chromium 54+, missing on Tizen 3 (Chrome 49) */
+  if (typeof O.entries !== "function") {
+    defineValue(O, "entries", function (obj) {
+      var ownProps = O.keys(obj);
+      var i = ownProps.length;
+      var resArray = new Array(i);
+      while (i--) resArray[i] = [ownProps[i], obj[ownProps[i]]];
+      return resArray;
+    });
+  }
+
+  /* Object.values — Chromium 54+ */
+  if (typeof O.values !== "function") {
+    defineValue(O, "values", function (obj) {
+      var ownProps = O.keys(obj);
+      var i = ownProps.length;
+      var resArray = new Array(i);
+      while (i--) resArray[i] = obj[ownProps[i]];
+      return resArray;
+    });
+  }
+
+  /* Object.is — Chromium 19+, but safe */
+  if (typeof O.is !== "function") {
+    defineValue(O, "is", function (x, y) {
+      if (x === y) return x !== 0 || 1 / x === 1 / y;
+      return x !== x && y !== y;
+    });
+  }
+
   function toList(value) {
     var list = [];
     var i;
@@ -158,7 +204,7 @@ export const TV_BOOT_SCRIPT = String.raw`
     });
   }
 
-  /* Promise.allSettled — Chromium 76+. */
+  /* Promise polyfills */
   var P = g.Promise;
   if (typeof P === "function") {
     if (typeof P.allSettled !== "function") {
@@ -173,7 +219,21 @@ export const TV_BOOT_SCRIPT = String.raw`
       });
     }
 
-    /* Promise.withResolvers — Chromium 119+. */
+    if (typeof P.prototype.finally !== "function") {
+      defineProto(P.prototype, "finally", function (onFinally) {
+        var C = this.constructor;
+        var isFunction = typeof onFinally === "function";
+        return this.then(
+          function (value) {
+            return C.resolve(isFunction ? onFinally() : onFinally).then(function () { return value; });
+          },
+          function (reason) {
+            return C.resolve(isFunction ? onFinally() : onFinally).then(function () { throw reason; });
+          }
+        );
+      });
+    }
+
     if (typeof P.withResolvers !== "function") {
       defineValue(P, "withResolvers", function () {
         var resolve;
@@ -186,7 +246,6 @@ export const TV_BOOT_SCRIPT = String.raw`
       });
     }
 
-    /* Promise.try — Chromium 125+ (ES2025). */
     if (typeof P.try !== "function") {
       defineValue(P, "try", function (callback) {
         return new P(function (resolve, reject) {
@@ -199,7 +258,6 @@ export const TV_BOOT_SCRIPT = String.raw`
       });
     }
 
-    /* Promise.any — Chromium 85+. */
     if (typeof P.any !== "function") {
       defineValue(P, "any", function (values) {
         var list = toList(values);
@@ -224,6 +282,178 @@ export const TV_BOOT_SCRIPT = String.raw`
         });
       });
     }
+  }
+
+  /* String polyfills — many TV browsers lack ES2017+ string methods */
+  if (typeof String.prototype.includes !== "function") {
+    defineProto(String.prototype, "includes", function (search, start) {
+      if (typeof start !== "number") start = 0;
+      if (start + search.length > this.length) return false;
+      return this.indexOf(search, start) !== -1;
+    });
+  }
+  if (typeof String.prototype.startsWith !== "function") {
+    defineProto(String.prototype, "startsWith", function (search, pos) {
+      pos = !pos || pos < 0 ? 0 : +pos;
+      return this.substring(pos, pos + search.length) === search;
+    });
+  }
+  if (typeof String.prototype.endsWith !== "function") {
+    defineProto(String.prototype, "endsWith", function (search, this_len) {
+      if (this_len === undefined || this_len > this.length) this_len = this.length;
+      return this.substring(this_len - search.length, this_len) === search;
+    });
+  }
+  if (typeof String.prototype.repeat !== "function") {
+    defineProto(String.prototype, "repeat", function (count) {
+      if (this == null) throw new TypeError("can't convert " + this + " to object");
+      var str = "" + this;
+      count = +count;
+      if (count < 0 || count === Infinity) throw new RangeError("Invalid count value");
+      count = Math.floor(count);
+      if (str.length === 0 || count === 0) return "";
+      if (str.length * count >= 1 << 28) throw new RangeError("Repeat count must not overflow maximum string size");
+      var rpt = "";
+      for (var i = 0; i < count; i++) rpt += str;
+      return rpt;
+    });
+  }
+  if (typeof String.prototype.padStart !== "function") {
+    defineProto(String.prototype, "padStart", function (targetLength, padString) {
+      targetLength = targetLength >> 0;
+      padString = String(typeof padString !== "undefined" ? padString : " ");
+      if (this.length > targetLength) return String(this);
+      targetLength = targetLength - this.length;
+      if (targetLength > padString.length) padString += padString.repeat(targetLength / padString.length);
+      return padString.slice(0, targetLength) + String(this);
+    });
+  }
+  if (typeof String.prototype.padEnd !== "function") {
+    defineProto(String.prototype, "padEnd", function (targetLength, padString) {
+      targetLength = targetLength >> 0;
+      padString = String(typeof padString !== "undefined" ? padString : " ");
+      if (this.length > targetLength) return String(this);
+      targetLength = targetLength - this.length;
+      if (targetLength > padString.length) padString += padString.repeat(targetLength / padString.length);
+      return String(this) + padString.slice(0, targetLength);
+    });
+  }
+  if (typeof String.prototype.trimStart !== "function") {
+    defineProto(String.prototype, "trimStart", function () { return this.replace(/^\s+/, ""); });
+  }
+  if (typeof String.prototype.trimEnd !== "function") {
+    defineProto(String.prototype, "trimEnd", function () { return this.replace(/\s+$/, ""); });
+  }
+
+  /* Array polyfills for Chrome 49 */
+  if (typeof Array.prototype.includes !== "function") {
+    defineProto(Array.prototype, "includes", function (searchElement, fromIndex) {
+      if (this == null) throw new TypeError('"this" is null or not defined');
+      var o = O(this);
+      var len = o.length >>> 0;
+      if (len === 0) return false;
+      var n = fromIndex | 0;
+      var k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
+      while (k < len) {
+        if (o[k] === searchElement || (typeof o[k] === "number" && typeof searchElement === "number" && isNaN(o[k]) && isNaN(searchElement))) return true;
+        k++;
+      }
+      return false;
+    });
+  }
+  if (typeof Array.prototype.find !== "function") {
+    defineProto(Array.prototype, "find", function (predicate, thisArg) {
+      if (this == null) throw new TypeError('"this" is null or not defined');
+      var o = O(this);
+      var len = o.length >>> 0;
+      if (typeof predicate !== "function") throw new TypeError("predicate must be a function");
+      var k = 0;
+      while (k < len) {
+        var kValue = o[k];
+        if (predicate.call(thisArg, kValue, k, o)) return kValue;
+        k++;
+      }
+      return undefined;
+    });
+  }
+  if (typeof Array.prototype.findIndex !== "function") {
+    defineProto(Array.prototype, "findIndex", function (predicate, thisArg) {
+      if (this == null) throw new TypeError('"this" is null or not defined');
+      var o = O(this);
+      var len = o.length >>> 0;
+      if (typeof predicate !== "function") throw new TypeError("predicate must be a function");
+      var k = 0;
+      while (k < len) {
+        if (predicate.call(thisArg, o[k], k, o)) return k;
+        k++;
+      }
+      return -1;
+    });
+  }
+
+  function isNaNPoly(v) { return v !== v; }
+
+  /* NodeList.forEach — Chrome 51+ */
+  if (typeof g.NodeList !== "undefined" && typeof g.NodeList.prototype.forEach !== "function") {
+    defineProto(g.NodeList.prototype, "forEach", function (callback, thisArg) {
+      for (var i = 0; i < this.length; i++) callback.call(thisArg, this[i], i, this);
+    });
+  }
+  /* DOMTokenList.forEach */
+  if (typeof g.DOMTokenList !== "undefined" && typeof g.DOMTokenList.prototype.forEach !== "function") {
+    defineProto(g.DOMTokenList.prototype, "forEach", function (callback, thisArg) {
+      for (var i = 0; i < this.length; i++) callback.call(thisArg, this[i], i, this);
+    });
+  }
+  /* HTMLCollection.forEach — not standard but some code expects it */
+  if (typeof g.HTMLCollection !== "undefined" && typeof g.HTMLCollection.prototype.forEach !== "function") {
+    defineProto(g.HTMLCollection.prototype, "forEach", function (callback, thisArg) {
+      for (var i = 0; i < this.length; i++) callback.call(thisArg, this[i], i, this);
+    });
+  }
+
+  /* Element polyfills — closest, matches, remove */
+  if (typeof g.Element !== "undefined") {
+    if (typeof g.Element.prototype.matches !== "function") {
+      var protoMatches = g.Element.prototype.matchesSelector ||
+        g.Element.prototype.mozMatchesSelector ||
+        g.Element.prototype.msMatchesSelector ||
+        g.Element.prototype.oMatchesSelector ||
+        g.Element.prototype.webkitMatchesSelector;
+      if (protoMatches) {
+        defineProto(g.Element.prototype, "matches", function (selector) { return protoMatches.call(this, selector); });
+      } else {
+        defineProto(g.Element.prototype, "matches", function (selector) {
+          var matches = (this.document || this.ownerDocument).querySelectorAll(selector);
+          var i = matches.length;
+          while (--i >= 0 && matches[i] !== this) {}
+          return i > -1;
+        });
+      }
+    }
+    defineProto(g.Element.prototype, "closest", function (selector) {
+      var el = this;
+      while (el && el.nodeType === 1) {
+        if (el.matches(selector)) return el;
+        el = el.parentElement || el.parentNode;
+      }
+      return null;
+    });
+    defineProto(g.Element.prototype, "remove", function () {
+      if (this.parentNode) this.parentNode.removeChild(this);
+    });
+  }
+
+  /* CustomEvent polyfill — Chrome 49+ has it but some TV shells strip it */
+  if (typeof g.CustomEvent !== "function") {
+    var CustomEventPoly = function (event, params) {
+      params = params || { bubbles: false, cancelable: false, detail: null };
+      var evt = doc.createEvent("CustomEvent");
+      evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
+      return evt;
+    };
+    CustomEventPoly.prototype = g.Event ? g.Event.prototype : {};
+    defineValue(g, "CustomEvent", CustomEventPoly);
   }
 
   /* String.prototype.matchAll — Chromium 73+. */
@@ -721,6 +951,17 @@ export const TV_BOOT_SCRIPT = String.raw`
     TVIntersectionObserver.prototype.takeRecords = function () { return []; };
     TVIntersectionObserver.__tvBootShim = true;
     defineValue(g, "IntersectionObserver", TVIntersectionObserver);
+  }
+
+  /* ── Extra hardening for very old TV browsers ───────────────────── */
+  /* Ensure console exists — some TV shells lack it until devtools open */
+  if (typeof g.console === "undefined") {
+    g.console = { log: function(){}, error: function(){}, warn: function(){}, info: function(){} };
+  }
+
+  /* Ensure Symbol exists at least minimally */
+  if (typeof g.Symbol === "undefined") {
+    defineValue(g, "Symbol", { iterator: "@@iterator" });
   }
 
   /*

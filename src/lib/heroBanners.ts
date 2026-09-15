@@ -108,6 +108,20 @@ function bannerToRow(b: HeroBanner, indexInSection: number) {
 }
 
 async function fetchRemote(): Promise<HeroBanner[] | null> {
+  // Try proxy first on TV/local to avoid CORS
+  try {
+    if (typeof window !== "undefined") {
+      const isTv = /SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(navigator.userAgent);
+      const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+      if (isTv || isLocal) {
+        const res = await fetch("/api/supabase?table=hero_banners&select=movie_id,banner_image,title,description,badge,sort_order&order=sort_order.asc");
+        if (res.ok) {
+          const json = (await res.json()) as { data?: any[] };
+          return (json.data ?? []).map(rowToBanner);
+        }
+      }
+    }
+  } catch {}
   try {
     const { supabase } = await import("@/integrations/supabase/client");
     const { data, error } = await supabase

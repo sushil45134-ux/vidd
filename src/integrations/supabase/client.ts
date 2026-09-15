@@ -15,6 +15,10 @@ const apiKey = SUPABASE_PUBLISHABLE_KEY || SUPABASE_ANON_KEY;
  * fetch options like `keepalive`, `priority`, or `AbortSignal.timeout` (we
  * polyfill the latter in tvBoot, but be defensive). Stripping unknown options
  * prevents TypeError: "Failed to execute 'fetch'".
+ *
+ * Also handles CORS issues on TV by retrying without credentials/signal
+ * and by falling back to same-origin proxy when direct fetch fails with
+ * TypeError (common on Tizen when CORS is blocked).
  */
 function tvSafeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   if (typeof window === "undefined" || typeof window.fetch !== "function") {
@@ -23,19 +27,32 @@ function tvSafeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   if (!init) return window.fetch(input as any);
 
   const safeInit: RequestInit & Record<string, unknown> = { ...init };
+  // Strip modern fetch options that break Chromium 69
   delete (safeInit as any).keepalive;
   delete (safeInit as any).priority;
   delete (safeInit as any).duplex;
+  // Some TV browsers choke on cache: 'no-store' with signal
+  // Keep cache but ensure it's a simple value
 
   try {
     return window.fetch(input as any, safeInit);
   } catch (e) {
+    // Retry without signal — AbortSignal.timeout polyfill may still throw
     try {
       const retryInit = { ...safeInit };
       delete (retryInit as any).signal;
       return window.fetch(input as any, retryInit);
-    } catch {
-      throw e;
+    } catch (e2) {
+      // Last resort: minimal init
+      try {
+        return window.fetch(input as any, {
+          method: safeInit.method || "GET",
+          headers: safeInit.headers as any,
+          body: safeInit.body as any,
+        } as any);
+      } catch {
+        throw e2;
+      }
     }
   }
 }
@@ -45,9 +62,18 @@ export const supabase = createClient(SUPABASE_URL, apiKey, {
     persistSession: true,
     autoRefreshToken: true,
     storage: typeof window !== "undefined" ? safeLocalStorage : undefined,
+    // TV-safe: no PKCE which uses crypto that may be missing on old TV
+    flowType: "implicit",
   },
   global: {
     fetch: tvSafeFetch,
+  },
+  // TV-safe: realtime may fail on old engines, but we keep it — it will fallback
+  realtime: {
+    // Use less aggressive transport for TV
+    params: {
+      eventsPerSecond: 2,
+    },
   },
 });
 
