@@ -287,10 +287,11 @@ async function readAnimeCollections(onlyPlaylistId?: string): Promise<DbRow[]> {
   for (;;) {
     const url = new URL(`${SUPABASE_URL}/rest/v1/movies`);
     url.searchParams.set("select", SYNC_COLUMNS);
-    url.searchParams.set(
-      "playlist_id",
-      onlyPlaylistId ? `eq.${onlyPlaylistId}` : "like.anime-auto-*",
-    );
+    if (onlyPlaylistId) {
+      url.searchParams.set("playlist_id", `eq.${onlyPlaylistId}`);
+    } else {
+      url.searchParams.set("embed_url", "like.*/tv/*");
+    }
     url.searchParams.set("season_number", "not.is.null");
     url.searchParams.set("episode_number", "not.is.null");
     url.searchParams.set("order", "playlist_id,season_number,episode_number");
@@ -304,7 +305,9 @@ async function readAnimeCollections(onlyPlaylistId?: string): Promise<DbRow[]> {
     rows.push(...data);
     if (data.length < pageSize) break;
   }
-  return rows;
+  return rows.filter(
+    (r) => r.playlist_id.startsWith("anime-auto-") || (r.genre || []).includes("Anime"),
+  );
 }
 
 /* ─────────────────────────── plan building ─────────────────────────── */

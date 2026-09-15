@@ -77,7 +77,7 @@ SUPABASE_SERVICE_ROLE_KEY=xxx node scripts/anime-sync.mjs  # actually insert kar
 Logic tests (offline): `node scripts/anime-sync.test.mjs`
 
 ## Safe by design
-- Sirf `playlist_id LIKE 'anime-auto-%'` collections sync hoti hain (manual uploads untouched).
+- Ab filter hai embed_url LIKE %/tv/% + genre me Anime (ya playlist_id anime-auto-*) (manual uploads untouched).
 - Sirf wahi provider template use hota hai jo collection ke existing episodes me hai.
 - Per-season cap (default 50) — long-running shows ek run me flood nahi karte.
 - AniList ka `nextAiringEpisode` use hota hai, isliye episode tabhi add hota hai jab

@@ -110,7 +110,8 @@ export default function AnimeEpisodeSyncPanel({ onAddMovies }: Props) {
             <p className="font-bold text-white text-xs">New Episode Auto-Sync</p>
             <p className="text-gray-400 text-[10px]">
               AniList se aired episodes check hota hai — naye episode (aur naye season) apne aap
-              suggest ho jate hain, same Nxsha/NHD embed ke saath.
+              suggest ho jate hain, same Nxsha/NHD embed ke saath. Auto-fetch aur rows-system
+              (Series tab) — dono tarah ke collections sync hote hain.
             </p>
           </div>
         </div>
