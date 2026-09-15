@@ -43,10 +43,16 @@ const TITLE_SIZE_CLASS: Record<string, string> = {
  * hardware — exactly the "site lags" report. Off-screen cards stay
  * unmounted until they are about to be seen; images stay loading="lazy"
  * throughout.
+ *
+ * TV gets even fewer initial cards — Tizen 5.5 SoC is the weakest in fleet,
+ * so 6 cards paint ~100x faster than 30 and D-pad stays 60fps.
  */
-const INITIAL_CARDS_PER_ROW = 10;
-const IDLE_CARDS_PER_ROW = 30;
+const INITIAL_CARDS_PER_ROW_DESKTOP = 10;
+const INITIAL_CARDS_PER_ROW_TV = 6;
+const IDLE_CARDS_PER_ROW_DESKTOP = 30;
+const IDLE_CARDS_PER_ROW_TV = 12;
 const SCROLL_PAGE_SIZE = 30;
+const SCROLL_PAGE_SIZE_TV = 12;
 /** Start paging in the next chunk this far (px) before the row end. */
 const SCROLL_PREFETCH_PX = 900;
 
@@ -67,14 +73,19 @@ function MovieRow({
   canEditThumbnail = false,
   onEditThumbnail,
 }: MovieRowProps) {
+  const isTv = IS_TV;
   const rowRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   // Deferred card mounting (see INITIAL_CARDS_PER_ROW).
+  // TV: 6 initial, 12 idle for 100x faster first paint on Tizen SoC.
+  const INITIAL_CARDS_PER_ROW = isTv ? INITIAL_CARDS_PER_ROW_TV : INITIAL_CARDS_PER_ROW_DESKTOP;
+  const IDLE_CARDS_PER_ROW = isTv ? IDLE_CARDS_PER_ROW_TV : IDLE_CARDS_PER_ROW_DESKTOP;
+  const PAGE_SIZE = isTv ? SCROLL_PAGE_SIZE_TV : SCROLL_PAGE_SIZE;
   const [cardCap, setCardCap] = useState<number>(INITIAL_CARDS_PER_ROW);
   const expandCards = useCallback(() => {
-    setCardCap((cap) => (cap >= IDLE_CARDS_PER_ROW ? cap + SCROLL_PAGE_SIZE : IDLE_CARDS_PER_ROW));
-  }, []);
+    setCardCap((cap) => (cap >= IDLE_CARDS_PER_ROW ? cap + PAGE_SIZE : IDLE_CARDS_PER_ROW));
+  }, [IDLE_CARDS_PER_ROW, PAGE_SIZE]);
   useEffect(() => {
     if (typeof requestIdleCallback !== "undefined") {
       const id = requestIdleCallback(() => setCardCap(IDLE_CARDS_PER_ROW), { timeout: 2500 });
@@ -82,10 +93,9 @@ function MovieRow({
     }
     const t = setTimeout(() => setCardCap(IDLE_CARDS_PER_ROW), 2000);
     return () => clearTimeout(t);
-  }, []);
+  }, [IDLE_CARDS_PER_ROW]);
   // Tizen 5.5 animates every scroll on its slow compositor, so smooth
   // scrolling makes row paging feel laggy and lands on half-cut cards.
-  const isTv = IS_TV;
 
   const scrollRaf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
@@ -150,7 +160,9 @@ function MovieRow({
         {showLeftArrow && (
           <button
             onClick={() => scroll("left")}
-            className="absolute left-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all opacity-0 group-hover/row:opacity-100 rounded-r"
+            className={`absolute left-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all rounded-r ${
+              isTv ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
+            }`}
           >
             <ChevronLeft size={36} className="text-white" />
           </button>
@@ -206,7 +218,9 @@ function MovieRow({
         {showRightArrow && (
           <button
             onClick={() => scroll("right")}
-            className="absolute right-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all opacity-0 group-hover/row:opacity-100 rounded-l"
+            className={`absolute right-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all rounded-l ${
+              isTv ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
+            }`}
           >
             <ChevronRight size={36} className="text-white" />
           </button>

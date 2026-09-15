@@ -19,6 +19,7 @@ export const TV_BOOT_SCRIPT = String.raw`
     try { return Function("return this")(); } catch (e) { return {}; }
   })();
   var O = g.Object || Object;
+  var doc = g.document;
 
   function defineValue(target, name, value) {
     try {
@@ -31,6 +32,44 @@ export const TV_BOOT_SCRIPT = String.raw`
     } catch (e) {
       try { target[name] = value; } catch (ignored) {}
     }
+  }
+
+  function defineProto(proto, name, value) {
+    if (!proto) return;
+    try {
+      if (typeof proto[name] !== "function") defineValue(proto, name, value);
+    } catch (ignored) {}
+  }
+
+  /* ── Early TV detection — runs before any module code ─────────────── */
+  var userAgentEarly = "";
+  try { userAgentEarly = String((g.navigator && g.navigator.userAgent) || ""); } catch (ignored) {}
+  var isTvEarly = /SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(userAgentEarly);
+
+  /* Add tv-layout class immediately so CSS applies even before React hydrates. */
+  if (isTvEarly) {
+    try {
+      var htmlEl = doc && doc.documentElement;
+      if (htmlEl && htmlEl.classList) htmlEl.classList.add("tv-layout");
+    } catch (ignored) {}
+    /* Pin viewport to 1280px on TVs that report a small width (some Tizen sets report 960x540). */
+    try {
+      if (doc) {
+        var viewportMeta = doc.querySelector('meta[name="viewport"]');
+        if (viewportMeta) {
+          var currentContent = viewportMeta.getAttribute("content") || "";
+          if (currentContent.indexOf("width=1280") === -1) {
+            viewportMeta.setAttribute("content", "width=1280, initial-scale=1");
+          }
+        } else {
+          /* If no viewport meta yet, create one — SSR should have it but be safe. */
+          var meta = doc.createElement("meta");
+          meta.name = "viewport";
+          meta.content = "width=1280, initial-scale=1";
+          if (doc.head) doc.head.appendChild(meta);
+        }
+      }
+    } catch (ignored) {}
   }
 
   /* globalThis — Chromium 69 predates this global. */
@@ -82,6 +121,43 @@ export const TV_BOOT_SCRIPT = String.raw`
     });
   }
 
+  /* Object.groupBy — Chromium 117+. Used by newer libraries. */
+  if (typeof O.groupBy !== "function") {
+    defineValue(O, "groupBy", function (items, callback) {
+      var result = {};
+      var list = toList(items);
+      var i;
+      var key;
+      for (i = 0; i < list.length; i++) {
+        key = callback(list[i], i);
+        if (!result[key]) result[key] = [];
+        result[key].push(list[i]);
+      }
+      return result;
+    });
+  }
+
+  /* Map.groupBy — Chromium 117+. */
+  if (typeof g.Map === "function" && typeof g.Map.groupBy !== "function") {
+    defineValue(g.Map, "groupBy", function (items, callback) {
+      var result = new g.Map();
+      var list = toList(items);
+      var i;
+      var key;
+      var group;
+      for (i = 0; i < list.length; i++) {
+        key = callback(list[i], i);
+        group = result.get(key);
+        if (!group) {
+          group = [];
+          result.set(key, group);
+        }
+        group.push(list[i]);
+      }
+      return result;
+    });
+  }
+
   /* Promise.allSettled — Chromium 76+. */
   var P = g.Promise;
   if (typeof P === "function") {
@@ -107,6 +183,45 @@ export const TV_BOOT_SCRIPT = String.raw`
           reject = promiseReject;
         });
         return { promise: promise, resolve: resolve, reject: reject };
+      });
+    }
+
+    /* Promise.try — Chromium 125+ (ES2025). */
+    if (typeof P.try !== "function") {
+      defineValue(P, "try", function (callback) {
+        return new P(function (resolve, reject) {
+          try {
+            resolve(callback());
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+    }
+
+    /* Promise.any — Chromium 85+. */
+    if (typeof P.any !== "function") {
+      defineValue(P, "any", function (values) {
+        var list = toList(values);
+        return new P(function (resolve, reject) {
+          var errors = [];
+          var remaining = list.length;
+          if (remaining === 0) {
+            reject(new g.AggregateError([], "All promises were rejected"));
+            return;
+          }
+          list.forEach(function (value, index) {
+            P.resolve(value).then(function (v) {
+              resolve(v);
+            }, function (e) {
+              errors[index] = e;
+              remaining--;
+              if (remaining === 0) {
+                reject(new g.AggregateError(errors, "All promises were rejected"));
+              }
+            });
+          });
+        });
       });
     }
   }
@@ -145,7 +260,6 @@ export const TV_BOOT_SCRIPT = String.raw`
             finished = true;
             return { value: undefined, done: true };
           }
-          /* Prevent an empty expression from making no progress. */
           if (match[0] === "") regex.lastIndex += 1;
           return { value: match, done: false };
         }
@@ -208,12 +322,8 @@ export const TV_BOOT_SCRIPT = String.raw`
   }
 
   /* Array.prototype.at / String.prototype.at — Chromium 92+. */
-  if (typeof Array.prototype.at !== "function") {
-    defineValue(Array.prototype, "at", at);
-  }
-  if (typeof String.prototype.at !== "function") {
-    defineValue(String.prototype, "at", at);
-  }
+  defineProto(Array.prototype, "at", at);
+  defineProto(String.prototype, "at", at);
 
   function flattenInto(result, source, depth) {
     var object = O(source);
@@ -232,35 +342,90 @@ export const TV_BOOT_SCRIPT = String.raw`
   }
 
   /* Array.prototype.flat / flatMap — Chromium 69 predates both. */
-  if (typeof Array.prototype.flat !== "function") {
-    defineValue(Array.prototype, "flat", function (depth) {
-      var level = depth === undefined ? 1 : Number(depth);
-      var result = [];
-      if (level !== level || level < 0) level = 0;
-      flattenInto(result, this, level);
-      return result;
-    });
-  }
-  if (typeof Array.prototype.flatMap !== "function") {
-    defineValue(Array.prototype, "flatMap", function (callback, thisArg) {
-      var object = O(this);
-      var length = object.length >>> 0;
-      var result = [];
-      var i;
-      var mapped;
-      if (typeof callback !== "function") throw new TypeError("flatMap callback must be a function");
-      for (i = 0; i < length; i++) {
-        if (!(i in object)) continue;
-        mapped = callback.call(thisArg, object[i], i, object);
-        if (Array.isArray(mapped)) {
-          flattenInto(result, mapped, 0);
-        } else {
-          result.push(mapped);
-        }
+  defineProto(Array.prototype, "flat", function (depth) {
+    var level = depth === undefined ? 1 : Number(depth);
+    var result = [];
+    if (level !== level || level < 0) level = 0;
+    flattenInto(result, this, level);
+    return result;
+  });
+  defineProto(Array.prototype, "flatMap", function (callback, thisArg) {
+    var object = O(this);
+    var length = object.length >>> 0;
+    var result = [];
+    var i;
+    var mapped;
+    if (typeof callback !== "function") throw new TypeError("flatMap callback must be a function");
+    for (i = 0; i < length; i++) {
+      if (!(i in object)) continue;
+      mapped = callback.call(thisArg, object[i], i, object);
+      if (Array.isArray(mapped)) {
+        flattenInto(result, mapped, 0);
+      } else {
+        result.push(mapped);
       }
-      return result;
-    });
-  }
+    }
+    return result;
+  });
+
+  /* Array.prototype.findLast / findLastIndex — Chromium 97+. */
+  defineProto(Array.prototype, "findLast", function (callback, thisArg) {
+    var object = O(this);
+    var length = object.length >>> 0;
+    var i;
+    if (typeof callback !== "function") throw new TypeError("findLast callback must be a function");
+    for (i = length - 1; i >= 0; i--) {
+      if (i in object) {
+        var value = object[i];
+        if (callback.call(thisArg, value, i, object)) return value;
+      }
+    }
+    return undefined;
+  });
+  defineProto(Array.prototype, "findLastIndex", function (callback, thisArg) {
+    var object = O(this);
+    var length = object.length >>> 0;
+    var i;
+    if (typeof callback !== "function") throw new TypeError("findLastIndex callback must be a function");
+    for (i = length - 1; i >= 0; i--) {
+      if (i in object) {
+        if (callback.call(thisArg, object[i], i, object)) return i;
+      }
+    }
+    return -1;
+  });
+
+  /* Array.prototype.toReversed / toSorted / toSpliced / with — Chromium 110+. */
+  defineProto(Array.prototype, "toReversed", function () {
+    var object = O(this);
+    var length = object.length >>> 0;
+    var result = new Array(length);
+    var i;
+    for (i = 0; i < length; i++) {
+      result[i] = object[length - 1 - i];
+    }
+    return result;
+  });
+  defineProto(Array.prototype, "toSorted", function (compareFn) {
+    var copy = Array.prototype.slice.call(this);
+    return copy.sort(compareFn);
+  });
+  defineProto(Array.prototype, "toSpliced", function (start, deleteCount) {
+    var args = Array.prototype.slice.call(arguments);
+    var copy = Array.prototype.slice.call(this);
+    Array.prototype.splice.apply(copy, args);
+    return copy;
+  });
+  defineProto(Array.prototype, "with", function (index, value) {
+    var object = O(this);
+    var length = object.length >>> 0;
+    var pos = toInteger(index);
+    if (pos < 0) pos += length;
+    if (pos < 0 || pos >= length) throw new RangeError("Invalid index");
+    var copy = Array.prototype.slice.call(object);
+    copy[pos] = value;
+    return copy;
+  });
 
   /* queueMicrotask — Chromium 71+. */
   if (typeof g.queueMicrotask !== "function") {
@@ -316,6 +481,163 @@ export const TV_BOOT_SCRIPT = String.raw`
     });
   }
 
+  /* AbortSignal.timeout / any — Chromium 100+ / 117+. Supabase uses timeout. */
+  if (typeof g.AbortSignal === "function") {
+    if (typeof g.AbortSignal.timeout !== "function") {
+      defineValue(g.AbortSignal, "timeout", function (ms) {
+        var controller = new g.AbortController();
+        g.setTimeout(function () {
+          controller.abort(new DOMException("TimeoutError", "TimeoutError"));
+        }, ms);
+        return controller.signal;
+      });
+    }
+    if (typeof g.AbortSignal.any !== "function") {
+      defineValue(g.AbortSignal, "any", function (signals) {
+        var controller = new g.AbortController();
+        var list = toList(signals);
+        var i;
+        var signal;
+        function abort() {
+          controller.abort();
+        }
+        for (i = 0; i < list.length; i++) {
+          signal = list[i];
+          if (signal && signal.aborted) {
+            controller.abort(signal.reason);
+            break;
+          }
+          if (signal && signal.addEventListener) {
+            signal.addEventListener("abort", abort);
+          }
+        }
+        return controller.signal;
+      });
+    }
+  }
+
+  /* URL.canParse — Chromium 120+. */
+  if (typeof g.URL === "function" && typeof g.URL.canParse !== "function") {
+    defineValue(g.URL, "canParse", function (url, base) {
+      try {
+        if (base !== undefined) new g.URL(url, base);
+        else new g.URL(url);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    });
+  }
+
+  /* Element.prototype.replaceChildren — Chromium 86+. */
+  if (typeof g.Element !== "undefined") {
+    defineProto(g.Element.prototype, "replaceChildren", function () {
+      var args = arguments;
+      var i;
+      while (this.firstChild) this.removeChild(this.firstChild);
+      for (i = 0; i < args.length; i++) {
+        var node = args[i];
+        if (typeof node === "string") node = doc.createTextNode(node);
+        if (node) this.appendChild(node);
+      }
+    });
+  }
+
+  /* Element.prototype.toggleAttribute — Chromium 69 exactly, but be safe. */
+  if (typeof g.Element !== "undefined") {
+    defineProto(g.Element.prototype, "toggleAttribute", function (name, force) {
+      var has = this.hasAttribute(name);
+      var shouldAdd = force !== undefined ? !!force : !has;
+      if (shouldAdd) this.setAttribute(name, "");
+      else this.removeAttribute(name);
+      return shouldAdd;
+    });
+  }
+
+  /* requestIdleCallback / cancelIdleCallback — Chrome 47+, but some TV shells strip it. */
+  if (typeof g.requestIdleCallback !== "function") {
+    defineValue(g, "requestIdleCallback", function (callback, options) {
+      var timeout = options && options.timeout ? options.timeout : 0;
+      var start = Date.now();
+      return g.setTimeout(function () {
+        callback({
+          didTimeout: false,
+          timeRemaining: function () {
+            return Math.max(0, 50 - (Date.now() - start));
+          }
+        });
+      }, timeout || 1);
+    });
+  }
+  if (typeof g.cancelIdleCallback !== "function") {
+    defineValue(g, "cancelIdleCallback", function (id) {
+      g.clearTimeout(id);
+    });
+  }
+
+  /* ResizeObserver — Chrome 64+, but TV may lack. No-op fallback keeps app from crashing. */
+  if (typeof g.ResizeObserver !== "function") {
+    var NoopResizeObserver = function () {};
+    NoopResizeObserver.prototype.observe = function () {};
+    NoopResizeObserver.prototype.unobserve = function () {};
+    NoopResizeObserver.prototype.disconnect = function () {};
+    defineValue(g, "ResizeObserver", NoopResizeObserver);
+  }
+
+  /* scrollBy / scrollTo with options object — ensure object form works on Chromium 69. */
+  if (typeof g.Element !== "undefined") {
+    (function () {
+      var originalScrollBy = g.Element.prototype.scrollBy;
+      var originalScrollTo = g.Element.prototype.scrollTo;
+      try {
+        defineValue(g.Element.prototype, "scrollBy", function (optionsOrX, y) {
+          if (typeof optionsOrX === "object" && optionsOrX !== null) {
+            var left = optionsOrX.left || 0;
+            var top = optionsOrX.top || 0;
+            if (typeof originalScrollBy === "function") {
+              try {
+                return originalScrollBy.call(this, optionsOrX);
+              } catch (e) {}
+            }
+            this.scrollLeft += left;
+            this.scrollTop += top;
+          } else {
+            if (typeof originalScrollBy === "function") {
+              try {
+                return originalScrollBy.call(this, optionsOrX, y);
+              } catch (e) {}
+            }
+            this.scrollLeft += optionsOrX || 0;
+            this.scrollTop += y || 0;
+          }
+        });
+      } catch (ignored) {}
+      try {
+        defineValue(g.Element.prototype, "scrollTo", function (optionsOrX, y) {
+          if (typeof optionsOrX === "object" && optionsOrX !== null) {
+            var left = optionsOrX.left !== undefined ? optionsOrX.left : this.scrollLeft;
+            var top = optionsOrX.top !== undefined ? optionsOrX.top : this.scrollTop;
+            if (typeof originalScrollTo === "function") {
+              try {
+                return originalScrollTo.call(this, optionsOrX);
+              } catch (e) {}
+            }
+            this.scrollLeft = left;
+            this.scrollTop = top;
+          } else {
+            if (typeof originalScrollTo === "function") {
+              try {
+                return originalScrollTo.call(this, optionsOrX, y);
+              } catch (e) {}
+            }
+            if (optionsOrX !== undefined) this.scrollLeft = optionsOrX;
+            if (y !== undefined) this.scrollTop = y;
+          }
+        });
+      } catch (ignored) {}
+    })();
+  }
+
   /* IntersectionObserver fallback: load lazy posters immediately on old TVs. */
   if (typeof g.IntersectionObserver !== "function") {
     var TVIntersectionObserver = function (callback) {
@@ -354,9 +676,6 @@ export const TV_BOOT_SCRIPT = String.raw`
       this._observed = [];
     };
     TVIntersectionObserver.prototype.takeRecords = function () { return []; };
-    /* SmartImage checks this marker and skips the shim, so TV posters use
-     * their real viewport logic instead of loading everything through a fake
-     * that always reports "intersecting". */
     TVIntersectionObserver.__tvBootShim = true;
     defineValue(g, "IntersectionObserver", TVIntersectionObserver);
   }
@@ -432,7 +751,6 @@ export const TV_BOOT_SCRIPT = String.raw`
     }
 
     g.addEventListener("error", function (event) {
-      /* Ignore resource-load events; show uncaught script/runtime errors. */
       if (event && event.target && event.target !== g && !event.error && !event.message) return;
       showRuntimeError(event && (event.error || event.message) || event, event);
     }, false);

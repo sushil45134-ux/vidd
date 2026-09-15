@@ -16,16 +16,37 @@ export function isSamsungTvBrowser(): boolean {
  */
 export function isTvBrowser(): boolean {
   if (typeof navigator === "undefined") return false;
-  return /SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(
+  return /SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari|HbbTV|Maple|NetFront|Opera TV|TV.*Safari/i.test(
     navigator.userAgent,
   );
 }
 
 /**
  * True when the TV layout class is active on <html>. Safe to call from
- * non-React modules (the class is applied once on the client).
+ * non-React modules (the class is applied once on the client — now also
+ * early via tvBoot).
  */
 export function isTvLayoutActive(): boolean {
   if (typeof document === "undefined") return false;
   return document.documentElement.classList.contains("tv-layout");
+}
+
+/**
+ * Detect old Chromium (<80) which lacks many modern APIs. Used to force
+ * simpler rendering paths even on non-TV old browsers (old Android, iOS).
+ */
+export function isOldChromium(): boolean {
+  if (typeof navigator === "undefined") return false;
+  var ua = navigator.userAgent;
+  var match = ua.match(/Chrome\/(\d+)/);
+  if (!match) return false;
+  var version = parseInt(match[1], 10);
+  return version > 0 && version < 80;
+}
+
+/**
+ * True for any environment that should use TV-safe fallbacks (TV or old Chromium).
+ */
+export function shouldUseTvFallbacks(): boolean {
+  return isTvBrowser() || isOldChromium() || isTvLayoutActive();
 }

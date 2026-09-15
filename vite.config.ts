@@ -109,6 +109,28 @@ function addLegacyCssFallbacks(css: string): string {
     propertyFallbacks.push(`${pMatch[1]}:${pMatch[2].trim()}`);
   }
 
+  // Ensure at least border-style and common transform variables exist even
+  // if @property was already stripped or not present — otherwise borders
+  // disappear on Chromium 69.
+  const essentialFallbacks = [
+    "--tw-border-style:solid",
+    "--tw-translate-x:0",
+    "--tw-translate-y:0",
+    "--tw-scale-x:1",
+    "--tw-scale-y:1",
+    "--tw-rotate-x:initial",
+    "--tw-rotate-y:initial",
+    "--tw-rotate-z:initial",
+    "--tw-skew-x:initial",
+    "--tw-skew-y:initial",
+  ];
+  for (const essential of essentialFallbacks) {
+    const name = essential.split(":")[0];
+    if (!propertyFallbacks.some((f) => f.startsWith(name + ":"))) {
+      propertyFallbacks.push(essential);
+    }
+  }
+
   // Unwrapped duplicates of top-level :where(...) rules (space-y-*, the
   // preflight element selectors) inside the legacy block. Rules whose
   // selector still contains :is(/:where(/:lang( after unwrapping are
@@ -142,11 +164,9 @@ function addLegacyCssFallbacks(css: string): string {
     whereDuplicates.push(`${unwrapped}{${rMatch[3]}}`);
   }
 
-  if (propertyFallbacks.length === 0 && whereDuplicates.length === 0) return css;
-
-  const legacyBlock = `\n@supports not ${LEGACY_SUPPORTS_CONDITION}{\n${
-    propertyFallbacks.length > 0 ? `:root{${propertyFallbacks.join(";")};}\n` : ""
-  }${whereDuplicates.join("\n")}\n}\n`;
+  // Always emit the legacy block — even if we found no :where() rules, the
+  // :root fallback is essential for borders and transforms on Tizen.
+  const legacyBlock = `\n@supports not ${LEGACY_SUPPORTS_CONDITION}{\n:root{${propertyFallbacks.join(";")};}\n${whereDuplicates.join("\n")}\n}\n`;
   return css + legacyBlock;
 }
 
@@ -166,8 +186,12 @@ export default defineConfig({
     // Samsung Tizen TVs are commonly a few browser generations behind
     // desktop Chrome. Transpile optional chaining, async syntax, etc. instead
     // of shipping Vite's modern-browser default bundle to those browsers.
+    // es2015 is the lowest Vite supports for modern bundles; CSS target is
+    // also pinned to chrome69 so that Vite doesn't emit CSS that old parser
+    // drops entirely (though Tailwind still needs our manual fallbacks).
     build: {
       target: "es2015",
+      cssTarget: "chrome69",
     },
   },
 });

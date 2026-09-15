@@ -151,7 +151,9 @@ function RootComponent() {
   useEffect(() => {
     // Tizen 5.5 does not support several desktop-only hover/CSS behaviours.
     // Expose one stable class for TV-specific layout rules without changing
-    // the desktop/mobile experience.
+    // the desktop/mobile experience. The boot script already adds tv-layout
+    // early, but we toggle here as well for SPA navigations and for browsers
+    // where the boot script ran before <html> existed.
     const isTv = isTvBrowser();
     document.documentElement.classList.toggle("tv-layout", isTv);
 
@@ -159,20 +161,46 @@ function RootComponent() {
       // TV browsers frequently report a small fixed viewport (some Tizen
       // sets expose 960x540 CSS px). Pin the layout viewport to 1280 so the
       // UI scales out and looks exactly like the desktop site on a laptop.
-      if (window.innerWidth > 0 && window.innerWidth < 1200) {
+      // Always pin on TV — not just when innerWidth < 1200 — because some
+      // Tizen sets report 1920 but still need the TV layout.
+      try {
         const meta = document.querySelector('meta[name="viewport"]');
-        if (meta) meta.setAttribute("content", "width=1280");
+        if (meta) {
+          meta.setAttribute("content", "width=1280, initial-scale=1");
+        }
+      } catch (_) {
+        /* ignore */
       }
 
       // D-pad arrows + remote BACK key support.
       const cleanupNav = initSpatialNavigation();
+
+      // On TV, set initial focus to the first focusable element so the
+      // remote immediately works without an extra click. Delay a bit so
+      // the hero and rows have mounted.
+      const focusTimer = window.setTimeout(() => {
+        try {
+          const firstFocusable = document.querySelector<HTMLElement>(
+            'button, a[href], [tabindex="0"]',
+          );
+          if (firstFocusable && document.activeElement === document.body) {
+            firstFocusable.focus({ preventScroll: true } as any);
+          }
+        } catch (_) {
+          /* ignore */
+        }
+      }, 800);
+
       return () => {
+        window.clearTimeout(focusTimer);
         cleanupNav();
       };
     }
 
     // Register the PWA service worker (installable app on Android/desktop).
-    if ("serviceWorker" in navigator) {
+    // Never on TV — Tizen's service worker implementation is buggy and can
+    // cache a broken shell, plus it adds unnecessary CPU overhead.
+    if (!isTv && "serviceWorker" in navigator) {
       const register = () => {
         navigator.serviceWorker.register("/sw.js").catch(() => {
           /* not fatal — app still works without offline support */

@@ -102,9 +102,11 @@ export function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(true);
   const [videoTitle, setVideoTitle] = useState("");
   const [showQueue, setShowQueue] = useState(false);
-  // TV first reuses the desktop API/custom controls. Native controls are
-  // reserved for the emergency embed when the API cannot become usable.
-  const [useSimpleEmbed, setUseSimpleEmbed] = useState(false);
+  // TV: native YouTube embed with controls is far more reliable on Tizen
+  // (Chromium 69) than the IFrame API + custom controls. Default to simple
+  // embed on TV; desktop keeps the API player. Native controls are still the
+  // emergency fallback on desktop when the API cannot become usable.
+  const [useSimpleEmbed, setUseSimpleEmbed] = useState(() => isTv);
   // TV fallback chain: 0 = youtube.com embed, 1 = youtube-nocookie embed.
   const [tvStage, setTvStage] = useState(0);
   // After a grace period, offer remote-focusable recovery actions in case
@@ -957,12 +959,15 @@ export function VideoPlayer({
   // TV embed: native YouTube controls (the TV remote can drive them) plus
   // `origin` — several Smart TV engines refuse the embed (Error 153) when
   // the origin/referrer of the embedding page is missing. The iframe also
-  // sends a proper referrer via referrerPolicy below.
+  // sends a proper referrer via referrerPolicy below. On Tizen we also add
+  // widget_referrer which helps YouTube's embed validation.
   const tvEmbedSrc = `${
     tvStage === 1 ? "https://www.youtube-nocookie.com" : "https://www.youtube.com"
-  }/embed/${encodeURIComponent(videoId)}?autoplay=${autoPlay ? 1 : 0}&controls=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1&playsinline=1&enablejsapi=0&origin=${encodeURIComponent(
+  }/embed/${encodeURIComponent(videoId)}?autoplay=${autoPlay ? 1 : 0}&controls=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1&playsinline=1&enablejsapi=0&widget_referrer=${encodeURIComponent(
     typeof window !== "undefined" ? window.location.origin : "",
-  )}`;
+  )}&origin=${encodeURIComponent(
+    typeof window !== "undefined" ? window.location.origin : "",
+  )}${startAt > 0 ? `&start=${Math.floor(startAt)}` : ""}`;
 
   // TV auto-hide is only ever active for the custom (API) player.
   const tvHidden = isTv && !useSimpleEmbed && tvControlsHidden;
