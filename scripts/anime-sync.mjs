@@ -175,7 +175,7 @@ async function readCollections() {
   for (;;) {
     const url = new URL(`${SUPABASE_URL}/rest/v1/movies`);
     url.searchParams.set("select", columns);
-    url.searchParams.set("playlist_id", "like.anime-auto-*");
+    url.searchParams.set("embed_url", "like.*/tv/*");
     url.searchParams.set("season_number", "not.is.null");
     url.searchParams.set("episode_number", "not.is.null");
     url.searchParams.set("order", "playlist_id,season_number,episode_number");
@@ -189,7 +189,9 @@ async function readCollections() {
     rows.push(...data);
     if (data.length < 1000) break;
   }
-  return rows;
+  return rows.filter(
+    (r) => r.playlist_id.startsWith("anime-auto-") || (r.genre || []).includes("Anime"),
+  );
 }
 
 function parseEmbedTemplate(embedUrl) {
