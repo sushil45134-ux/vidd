@@ -126,8 +126,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // The TV boot script adds tv-layout before hydration so legacy CSS is
+  // active on the first frame. React should not treat that intentional
+  // pre-hydration class as a broken server/client render.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
