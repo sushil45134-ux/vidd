@@ -35,7 +35,7 @@ import {
 } from "./lib/continueWatching";
 import { resolvePlannedSlots, type RowSlot } from "./lib/plannedRows";
 import { purgeLegacyMovieCaches, readMoviesCache, writeMoviesCache } from "./lib/moviesCache";
-import { isTvBrowser } from "./lib/browser";
+import { useIsTvBrowser } from "./hooks/useIsTvBrowser";
 import { bannerSection, useHeroBanners, type HeroSection } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
 import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
@@ -47,10 +47,6 @@ import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers"
 // chunk roundtrip with the framework boot, so the first Supabase query starts
 // noticeably earlier.
 const moviesRepoPromise: Promise<typeof import("./lib/moviesRepo")> = import("./lib/moviesRepo");
-
-// Evaluated once — the UA never changes at runtime, and the category grid
-// below used to re-run the regex for every card of every render.
-const IS_TV = isTvBrowser();
 
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
@@ -188,6 +184,9 @@ function OverlayFallback() {
 }
 
 function App() {
+  // Read inside the component, never at module scope: on the server this is
+  // false, on a TV it flips to true after hydration (see useIsTvBrowser).
+  const IS_TV = useIsTvBrowser();
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
   const [resumeAt, setResumeAt] = useState(0);

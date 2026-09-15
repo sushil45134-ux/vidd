@@ -3,10 +3,8 @@ import { ChevronDown, ChevronLeft, ChevronRight, Play, RotateCcw, X } from "luci
 import type { Movie } from "../data";
 import SmartImage from "./SmartImage";
 import { movieImageSources } from "../lib/media";
-import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import { episodeTag, formatTimeLeft, type ResumeItem } from "../lib/continueWatching";
-
-const IS_TV = isTvBrowser();
 
 interface ContinueWatchingRowProps {
   title?: string;
@@ -28,7 +26,7 @@ function ContinueWatchingRow({
   const [showRightArrow, setShowRightArrow] = useState(true);
   // Same desktop/TV split as MovieRow: smooth scroll on desktop, one
   // synchronous card-step on Tizen's slow compositor.
-  const isTv = IS_TV;
+  const isTv = useIsTvBrowser();
 
   const scrollRaf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(scrollRaf.current), []);
@@ -141,7 +139,7 @@ function ResumeCard({
   onRemove: (key: string) => void;
 }) {
   const { movie, percent, progressSec, durationSec } = item;
-  const isTv = IS_TV;
+  const isTv = useIsTvBrowser();
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   // TVs have no hover — reveal the actions for the focused card instead.

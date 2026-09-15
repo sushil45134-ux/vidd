@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize, ChevronLeft, ChevronRight } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
 interface EmbedPlayerProps {
   src: string;
@@ -610,7 +611,7 @@ export function EmbedPlayer({
     }
   };
 
-  const isTv = isTvBrowser();
+  const isTv = useIsTvBrowser();
   return (
     <div
       className={`${

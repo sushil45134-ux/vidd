@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
-import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
 interface Top10RowProps {
   title: string;
@@ -16,7 +16,7 @@ export default function Top10Row({ title, movies, onSelectMovie }: Top10RowProps
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   // No hover on TV: keep the scroll arrows visible and remote-focusable.
-  const isTv = isTvBrowser();
+  const isTv = useIsTvBrowser();
 
   const handleCardKeyDown = (e: React.KeyboardEvent, movie: Movie) => {
     if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
