@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
+import { Route as ApiMoviesRouteImport } from './routes/api/movies'
+import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
 import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
@@ -23,6 +26,21 @@ const AdminRoute = AdminRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSupabaseRoute = ApiSupabaseRouteImport.update({
+  id: '/api/supabase',
+  path: '/api/supabase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMoviesRoute = ApiMoviesRouteImport.update({
+  id: '/api/movies',
+  path: '/api/movies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConfigRoute = ApiConfigRouteImport.update({
+  id: '/api/config',
+  path: '/api/config',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthRoute = ApiAuthRouteImport.update({
@@ -47,6 +65,9 @@ export interface FileRoutesByFullPath {
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/auth': typeof ApiAuthRoute
+  '/api/config': typeof ApiConfigRoute
+  '/api/movies': typeof ApiMoviesRoute
+  '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +75,9 @@ export interface FileRoutesByTo {
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/auth': typeof ApiAuthRoute
+  '/api/config': typeof ApiConfigRoute
+  '/api/movies': typeof ApiMoviesRoute
+  '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,14 +86,41 @@ export interface FileRoutesById {
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/auth': typeof ApiAuthRoute
+  '/api/config': typeof ApiConfigRoute
+  '/api/movies': typeof ApiMoviesRoute
+  '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/api/anime'
+    | '/api/anime-auto'
+    | '/api/auth'
+    | '/api/config'
+    | '/api/movies'
+    | '/api/supabase'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
+  to:
+    | '/'
+    | '/admin'
+    | '/api/anime'
+    | '/api/anime-auto'
+    | '/api/auth'
+    | '/api/config'
+    | '/api/movies'
+    | '/api/supabase'
   id:
-    '__root__' | '/' | '/admin' | '/api/anime' | '/api/anime-auto' | '/api/auth'
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/api/anime'
+    | '/api/anime-auto'
+    | '/api/auth'
+    | '/api/config'
+    | '/api/movies'
+    | '/api/supabase'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,6 +129,9 @@ export interface RootRouteChildren {
   ApiAnimeRoute: typeof ApiAnimeRoute
   ApiAnimeAutoRoute: typeof ApiAnimeAutoRoute
   ApiAuthRoute: typeof ApiAuthRoute
+  ApiConfigRoute: typeof ApiConfigRoute
+  ApiMoviesRoute: typeof ApiMoviesRoute
+  ApiSupabaseRoute: typeof ApiSupabaseRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -94,6 +148,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/supabase': {
+      id: '/api/supabase'
+      path: '/api/supabase'
+      fullPath: '/api/supabase'
+      preLoaderRoute: typeof ApiSupabaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/movies': {
+      id: '/api/movies'
+      path: '/api/movies'
+      fullPath: '/api/movies'
+      preLoaderRoute: typeof ApiMoviesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/config': {
+      id: '/api/config'
+      path: '/api/config'
+      fullPath: '/api/config'
+      preLoaderRoute: typeof ApiConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth': {
@@ -126,6 +201,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnimeRoute: ApiAnimeRoute,
   ApiAnimeAutoRoute: ApiAnimeAutoRoute,
   ApiAuthRoute: ApiAuthRoute,
+  ApiConfigRoute: ApiConfigRoute,
+  ApiMoviesRoute: ApiMoviesRoute,
+  ApiSupabaseRoute: ApiSupabaseRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

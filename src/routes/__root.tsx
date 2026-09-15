@@ -141,8 +141,22 @@ function RootShell({ children }: { children: ReactNode }) {
             src/server.ts also injects this tag for SSR responses that do not
             come through this shell; the marker keeps those paths idempotent. */}
         <script data-tv-boot="1" dangerouslySetInnerHTML={{ __html: TV_BOOT_SCRIPT }} />
+        {/* Fallback for very old TVs (Chrome <61) that don't support type=module.
+            The SSR HTML will still be visible, but we show a helpful banner
+            and keep D-pad focus working via the boot script's early polyfills. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var ua=navigator.userAgent||"";var isTv=/SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(ua);if(!isTv)return;var supportsModule='noModule' in document.createElement('script');if(!supportsModule){document.addEventListener('DOMContentLoaded',function(){try{var b=document.createElement('div');b.setAttribute('data-tv-old-banner','1');b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:2147483646;background:#ff6a00;color:#000;padding:14px 18px;text-align:center;font:600 14px/1.4 Arial,sans-serif;';b.textContent='Aapka TV browser bahut purana hai. Kripya TV software update karein ya Fire TV Stick / Chromecast use karein. SSR content abhi bhi dikhega.';document.body.appendChild(b);}catch(e){}});}}catch(e){}})();`,
+          }}
+        />
         {children}
         <Scripts />
+        {/* If module scripts failed to load (old TV), ensure at least first focusable gets focus */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `setTimeout(function(){try{var ae=document.activeElement;if(ae&&ae!==document.body)return;var f=document.querySelector('button, a[href], [tabindex="0"]');if(f)f.focus();}catch(e){}},2000);`,
+          }}
+        />
       </body>
     </html>
   );
