@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { isTvBrowser } from "../lib/browser";
 import { TV_BOOT_SCRIPT } from "../lib/tvBoot";
 import { initSpatialNavigation } from "../lib/spatialNav";
+import { Analytics } from "@vercel/analytics/react";
 
 function NotFoundComponent() {
   return (
@@ -150,6 +151,9 @@ function RootShell({ children }: { children: ReactNode }) {
           }}
         />
         {children}
+        {/* Vercel Analytics — page views + Web Vitals dashboard par dikhte hain.
+            Sirf production par active hota hai; local dev mein kuch track nahi hota. */}
+        <Analytics />
         <Scripts />
         {/* If module scripts failed to load (old TV), ensure at least first focusable gets focus */}
         <script
