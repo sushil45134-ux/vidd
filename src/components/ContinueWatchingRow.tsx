@@ -86,7 +86,9 @@ function ContinueWatchingRow({
           <button
             onClick={() => scroll("left")}
             aria-label="Scroll row left"
-            className="absolute left-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all opacity-0 group-hover/row:opacity-100 rounded-r"
+            className={`absolute left-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all rounded-r ${
+              isTv ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
+            }`}
           >
             <ChevronLeft size={36} className="text-white" />
           </button>
@@ -115,7 +117,9 @@ function ContinueWatchingRow({
           <button
             onClick={() => scroll("right")}
             aria-label="Scroll row right"
-            className="absolute right-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all opacity-0 group-hover/row:opacity-100 rounded-l"
+            className={`absolute right-0 top-0 bottom-0 z-20 w-12 bg-black/60 hover:bg-black/80 flex items-center justify-center transition-all rounded-l ${
+              isTv ? "opacity-100" : "opacity-0 group-hover/row:opacity-100"
+            }`}
           >
             <ChevronRight size={36} className="text-white" />
           </button>

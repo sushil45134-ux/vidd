@@ -610,8 +610,13 @@ export function EmbedPlayer({
     }
   };
 
+  const isTv = isTvBrowser();
   return (
-    <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center">
+    <div
+      className={`${
+        isTv ? "tv-custom-player " : ""
+      }fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center`}
+    >
       <div ref={containerRef} className="relative w-full h-full bg-black">
         {kind === "iframe" && isDailymotion && dailymotionVideoId ? (
           <div

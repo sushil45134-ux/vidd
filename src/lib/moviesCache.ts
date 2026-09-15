@@ -1,4 +1,5 @@
 import type { Movie } from "../data";
+import { safeLocalStorage } from "./safe-storage";
 
 /**
  * Instant-paint cache for the movie library.
@@ -21,24 +22,21 @@ interface LibraryCache {
 }
 
 function trimForCache(movies: Movie[]): Movie[] {
-  // Rows arrive newest-first from fetchAllMovies; keep the head.
   return movies.length > MAX_CACHED_PER_SOURCE ? movies.slice(0, MAX_CACHED_PER_SOURCE) : movies;
 }
 
 /** Drop legacy (multi-megabyte) cache blobs so old devices stop paying for them. */
 export function purgeLegacyMovieCaches(): void {
-  if (typeof localStorage === "undefined") return;
   try {
-    for (const key of LEGACY_KEYS) localStorage.removeItem(key);
+    for (const key of LEGACY_KEYS) safeLocalStorage.removeItem(key);
   } catch {
     /* storage unavailable — nothing to purge */
   }
 }
 
 export function readMoviesCache(): LibraryCache | null {
-  if (typeof localStorage === "undefined") return null;
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = safeLocalStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LibraryCache>;
     if (Array.isArray(parsed.uploaded) && Array.isArray(parsed.synced)) {
@@ -55,9 +53,8 @@ export function readMoviesCache(): LibraryCache | null {
  * (quota/private mode) — callers treat that as best-effort only.
  */
 export function writeMoviesCache(uploaded: Movie[], synced: Movie[]): boolean {
-  if (typeof localStorage === "undefined") return false;
   try {
-    localStorage.setItem(
+    safeLocalStorage.setItem(
       CACHE_KEY,
       JSON.stringify({
         uploaded: trimForCache(uploaded),

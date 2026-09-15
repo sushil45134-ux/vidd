@@ -299,6 +299,31 @@
   display: none;
 }
 
+/* ── TV row arrows: hover-only arrows are invisible on a D-pad. Make them
+ * always visible on TV so the user knows rows are scrollable. ──────────── */
+.tv-layout .group\/row .absolute.left-0,
+.tv-layout .group\/row .absolute.right-0 {
+  opacity: 1 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+.tv-layout .group\/row .absolute.left-0:hover,
+.tv-layout .group\/row .absolute.right-0:hover {
+  background: rgba(0, 0, 0, 0.85) !important;
+}
+
+/* TV needs larger hit targets for row paging */
+.tv-layout .group\/row .absolute.left-0,
+.tv-layout .group\/row .absolute.right-0 {
+  width: 64px !important;
+}
+
+/* Ensure horizontal rows are always scrollable and focusable on TV */
+.tv-layout .flex.overflow-x-scroll {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto !important;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
  * TV (Samsung Tizen 5.5 / Chromium 69) remote & layout hardening
  * ══════════════════════════════════════════════════════════════════════ */
@@ -802,4 +827,215 @@
   .min-h-svh {
     min-height: 100vh;
   }
+
+  /* ── Explicit --tw-* fallbacks so borders & transforms work even if the
+   * build-time @property unwrapping failed (e.g. older Vercel build). ───── */
+  :root {
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    --tw-translate-z: 0;
+    --tw-scale-x: 1;
+    --tw-scale-y: 1;
+    --tw-scale-z: 1;
+    --tw-rotate-x: initial;
+    --tw-rotate-y: initial;
+    --tw-rotate-z: initial;
+    --tw-skew-x: initial;
+    --tw-skew-y: initial;
+    --tw-space-y-reverse: 0;
+    --tw-space-x-reverse: 0;
+    --tw-border-style: solid;
+    --tw-gradient-from: transparent;
+    --tw-gradient-via: transparent;
+    --tw-gradient-to: transparent;
+    --tw-gradient-from-position: 0%;
+    --tw-gradient-via-position: 50%;
+    --tw-gradient-to-position: 100%;
+    --tw-shadow: 0 0 transparent;
+    --tw-shadow-alpha: 100%;
+    --tw-inset-shadow: 0 0 transparent;
+    --tw-inset-shadow-alpha: 100%;
+    --tw-ring-shadow: 0 0 transparent;
+    --tw-inset-ring-shadow: 0 0 transparent;
+    --tw-ring-offset-width: 0;
+    --tw-ring-offset-color: #fff;
+    --tw-ring-offset-shadow: 0 0 transparent;
+    --tw-outline-style: solid;
+    --tw-blur: initial;
+    --tw-brightness: initial;
+    --tw-contrast: initial;
+    --tw-grayscale: initial;
+    --tw-hue-rotate: initial;
+    --tw-invert: initial;
+    --tw-opacity: initial;
+    --tw-saturate: initial;
+    --tw-sepia: initial;
+    --tw-drop-shadow-alpha: 100%;
+    --tw-content: "";
+    --tw-duration: initial;
+    --tw-ease: initial;
+    --tw-animation-delay: 0s;
+    --tw-animation-direction: normal;
+    --tw-animation-fill-mode: none;
+    --tw-animation-iteration-count: 1;
+    --tw-enter-opacity: 1;
+    --tw-enter-scale: 1;
+    --tw-enter-rotate: 0;
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-exit-opacity: 1;
+    --tw-exit-scale: 1;
+    --tw-exit-rotate: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+  }
+
+  /* space-y-* and space-x-* unwrapped for legacy parsers */
+  .space-y-1 > :not(:last-child) {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+  }
+  .space-y-1\.5 > :not(:last-child) {
+    margin-top: 0;
+    margin-bottom: 0.375rem;
+  }
+  .space-y-2 > :not(:last-child) {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+  .space-y-3 > :not(:last-child) {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+  }
+  .space-y-4 > :not(:last-child) {
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+  .space-y-5 > :not(:last-child) {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+  }
+  .space-x-1 > :not(:last-child) {
+    margin-left: 0;
+    margin-right: 0.25rem;
+  }
+  .space-x-2 > :not(:last-child) {
+    margin-left: 0;
+    margin-right: 0.5rem;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * TV-SPECIFIC HARDENING — always active when .tv-layout is present,
+ * regardless of @supports. This is the final safety net for Samsung Tizen.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* Black background is cheaper to render and hides oklch fallback gaps */
+.tv-layout body {
+  background-color: #000 !important;
+  color: #fff;
+}
+
+/* Ensure all cards have solid borders even without @property */
+.tv-layout * {
+  border-style: solid;
+  border-width: 0;
+}
+
+/* TV hero: cap height and ensure text remains readable */
+.tv-layout .tv-hero {
+  max-height: 80vh;
+}
+
+/* Navbar: ensure it stays fixed and usable with D-pad */
+.tv-layout nav {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 100 !important;
+}
+
+/* Make all buttons at least 44px for 10-foot UI (Apple TV guideline) */
+.tv-layout button,
+.tv-layout a[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure search and category tabs are focusable and scrollable */
+.tv-layout .overflow-x-auto {
+  overflow-x: auto !important;
+}
+
+/* Player: simple embed is primary on TV — make it full-screen friendly */
+.tv-layout .tv-custom-player iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+}
+
+/* Ensure modals are full-screen on TV and have visible close */
+.tv-layout [role="dialog"],
+.tv-layout .fixed.inset-0.z-\[100\] {
+  background: rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Hide hover-only UI on TV */
+.tv-layout .group:hover .opacity-0 {
+  opacity: 0 !important;
+}
+.tv-layout .group:focus .opacity-0,
+.tv-layout .group:focus-within .opacity-0 {
+  opacity: 1 !important;
+}
+
+/* Make focus ring impossible to miss on 10-foot UI */
+.tv-layout .movie-card:focus {
+  outline: 4px solid #fff !important;
+  outline-offset: 4px !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 0 0 8px rgba(255, 255, 255, 0.2),
+    0 0 20px rgba(255, 106, 0, 0.6) !important;
+}
+
+/* Ensure grid and flex gaps work via margins even if gap is ignored */
+.tv-layout .grid {
+  gap: 0 !important;
+}
+.tv-layout .grid > * {
+  margin: 8px;
+}
+
+/* Fix for Tailwind's `divide-y` and `divide-x` which use :where() */
+.tv-layout .divide-y > * + * {
+  border-top-width: 1px !important;
+  border-top-style: solid !important;
+  border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+.tv-layout .divide-x > * + * {
+  border-left-width: 1px !important;
+  border-left-style: solid !important;
+  border-left-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Ensure images never collapse on TV */
+.tv-layout img {
+  max-width: 100%;
+  height: auto;
+}
+.tv-layout .legacy-media > img {
+  height: 100% !important;
+  width: 100% !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+/* Performance: disable expensive filters on TV */
+.tv-layout .blur-\[180px\],
+.tv-layout .blur-\[120px\],
+.tv-layout .blur-\[80px\] {
+  display: none !important;
 }

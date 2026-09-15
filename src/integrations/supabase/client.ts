@@ -10,14 +10,44 @@ const SUPABASE_ANON_KEY =
 // Prefer the new-format publishable key when available; fall back to the JWT anon key.
 const apiKey = SUPABASE_PUBLISHABLE_KEY || SUPABASE_ANON_KEY;
 
+/**
+ * TV-safe fetch wrapper: Tizen 5.5 (Chromium 69) does not support some modern
+ * fetch options like `keepalive`, `priority`, or `AbortSignal.timeout` (we
+ * polyfill the latter in tvBoot, but be defensive). Stripping unknown options
+ * prevents TypeError: "Failed to execute 'fetch'".
+ */
+function tvSafeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof window === "undefined" || typeof window.fetch !== "function") {
+    return fetch(input as any, init as any);
+  }
+  if (!init) return window.fetch(input as any);
+
+  const safeInit: RequestInit & Record<string, unknown> = { ...init };
+  delete (safeInit as any).keepalive;
+  delete (safeInit as any).priority;
+  delete (safeInit as any).duplex;
+
+  try {
+    return window.fetch(input as any, safeInit);
+  } catch (e) {
+    try {
+      const retryInit = { ...safeInit };
+      delete (retryInit as any).signal;
+      return window.fetch(input as any, retryInit);
+    } catch {
+      throw e;
+    }
+  }
+}
+
 export const supabase = createClient(SUPABASE_URL, apiKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    // Smart TV browsers (Tizen) throw on direct localStorage access in
-    // private mode — the safe wrapper falls back to memory storage instead
-    // of crashing the module (and the whole app) at import time.
     storage: typeof window !== "undefined" ? safeLocalStorage : undefined,
+  },
+  global: {
+    fetch: tvSafeFetch,
   },
 });
 

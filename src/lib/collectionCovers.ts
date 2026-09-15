@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { safeLocalStorage } from "./safe-storage";
 
 // NOTE: deliberately NO static supabase import here. A static import pulls the
 // whole @supabase/supabase-js bundle (~200 kB minified) into the eagerly-loaded
@@ -14,7 +15,7 @@ export type CollectionCovers = Record<string, string>;
 export function loadCollectionCovers(): CollectionCovers {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = safeLocalStorage.getItem(KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? (parsed as CollectionCovers) : {};
@@ -26,7 +27,7 @@ export function loadCollectionCovers(): CollectionCovers {
 function writeLocal(covers: CollectionCovers) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(KEY, JSON.stringify(covers));
+    safeLocalStorage.setItem(KEY, JSON.stringify(covers));
   } catch {}
   window.dispatchEvent(new Event(EVENT));
 }
