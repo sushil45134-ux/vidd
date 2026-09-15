@@ -177,15 +177,25 @@ export default defineConfig({
     server: {
       allowedHosts: true,
     },
+    // Vite 8 transpiles with Oxc, and esbuild is only an optional peer
+    // dependency now. `minify: "esbuild"` used to live here; on Vercel/CI
+    // (npm install --legacy-peer-deps / bun — neither auto-installs peers)
+    // esbuild is absent and the build died with
+    //   "Failed to load `transformWithEsbuild` ... requires esbuild to be
+    //    installed separately"
+    // so no deploy could be produced at all. Never reintroduce esbuild here.
+    //
+    // Down-leveling is handled by Oxc instead:
+    //   - oxc.target  → per-module transform, also what `vite dev` uses.
+    //   - build.target → wins for the production bundle and is what keeps
+    //     ES2020+ syntax (#private fields, ?., ??, class fields) out of the
+    //     chunks — Chromium-69-class TVs fail to PARSE those and the page
+    //     stays blank before React ever hydrates.
+    //   - build.cssTarget → matches the TV's CSS engine for Lightning CSS.
+    oxc: { target: "es2019" },
     build: {
-      target: "es2015",
+      target: "es2019",
       cssTarget: "chrome49",
-      // Vite 8 defaults minify to oxc, which IGNORES build.target and emits
-      // ES2022 syntax (#private class fields, numeric separators) that
-      // Chromium-69-class TV browsers cannot PARSE — the entry module dies
-      // before React hydrates and the page never loads its content. esbuild
-      // respects the target and down-levels everything.
-      minify: "esbuild",
     },
   },
 });
