@@ -43,17 +43,42 @@ const SEARCH_QUERY = `query ($search: String) { Page(perPage: 10) { media(search
 const DETAILS_QUERY = `query ($id: Int) { Media(id: $id, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } } }`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
+let lastAnilistCall = 0;
 async function anilist(query, variables) {
-  const res = await fetch(ANILIST_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!res.ok) throw new Error(`AniList ${res.status}`);
-  const json = await res.json();
-  if (json.errors) throw new Error(`AniList: ${JSON.stringify(json.errors).slice(0, 200)}`);
-  return json.data;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const gap = 700 - (Date.now() - lastAnilistCall);
+    if (gap > 0) await sleep(gap);
+    lastAnilistCall = Date.now();
+    const res = await fetch(ANILIST_URL, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query, variables }) });
+    if (res.status === 429) { if (attempt === 3) throw new Error("AniList 429"); await sleep(20000 * (attempt + 1)); continue; }
+    if (!res.ok) throw new Error(`AniList ${res.status}`);
+    const json = await res.json();
+    if (json.errors) throw new Error(`AniList: ${JSON.stringify(json.errors).slice(0, 200)}`);
+    return json.data;
+  }
+}
+async function anilistBatchSearch(titles) {
+  const out = [];
+  for (let start = 0; start < titles.length; start += 10) {
+    const chunk = titles.slice(start, start + 10), vars = {}, fields = [];
+    chunk.forEach((title, i) => { vars[`q${i}`] = title; fields.push(`q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`); });
+    const defs = chunk.map((_, i) => `$q${i}: String`).join(", ");
+    const data = await anilist(`query (${defs}) { ${fields.join(" ")} }`, vars);
+    out.push(...chunk.map((_, i) => data?.[`q${i}`]?.media || []));
+  }
+  return out;
+}
+async function anilistBatchDetails(ids) {
+  const out = Array(ids.length).fill(null);
+  for (let start = 0; start < ids.length; start += 10) {
+    const chunk = ids.slice(start, start + 10), vars = {}, fields = [], positions = [];
+    chunk.forEach((id, i) => { if (id == null) return; vars[`i${i}`] = id; positions.push([i, start + i]); fields.push(`i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`); });
+    if (!fields.length) continue;
+    const defs = positions.map(([i]) => `$i${i}: Int`).join(", ");
+    const data = await anilist(`query (${defs}) { ${fields.join(" ")} }`, vars);
+    positions.forEach(([i, pos]) => { out[pos] = data?.[`i${i}`] || null; });
+  }
+  return out;
 }
 
 const bestTitle = (t) => t.english || t.romaji || t.native || "Unknown";
@@ -265,7 +290,11 @@ async function main() {
   }
 
   console.log(`Found ${collections.size} collection(s). Checking AniList...\n`);
-
+  const collectionList = [...collections.values()];
+  const searchResults = await anilistBatchSearch(collectionList.map((c) => c.title));
+  const picked = searchResults.map((r, i) => pickBest(collectionList[i].title, r));
+  const detailed = await anilistBatchDetails(picked.map((m) => m?.id));
+  const prefetched = new Map(collectionList.map((c, i) => [c, detailed[i] || picked[i]]));
   let totalAdded = 0;
   for (const [playlistId, col] of collections) {
     if (!col.template) {
@@ -274,21 +303,8 @@ async function main() {
     }
 
     let chain = [];
-    try {
-      const s = await anilist(SEARCH_QUERY, { search: col.title });
-      const main = pickBest(col.title, s?.Page?.media || []);
-      if (main) {
-        try {
-          const d = await anilist(DETAILS_QUERY, { id: main.id });
-          chain = buildChain(d?.Media || main);
-        } catch {
-          chain = [main];
-        }
-      }
-    } catch (e) {
-      console.log(`⚠️  ${col.title}: AniList failed (${e.message})`);
-      continue;
-    }
+    const prefetchedMedia = prefetched.get(col);
+    if (prefetchedMedia) chain = buildChain(prefetchedMedia);
     if (!chain.length) {
       console.log(`⏭  ${col.title}: not found on AniList`);
       continue;
