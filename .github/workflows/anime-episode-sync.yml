@@ -1,0 +1,27 @@
+name: Anime Episode Sync
+
+# Naye aired episodes har 6 ghante automatic Supabase me add hote hain.
+# Setup: GitHub repo → Settings → Secrets and variables → Actions → New secret
+#   name:  SUPABASE_SERVICE_ROLE_KEY
+#   value: Supabase Dashboard → Settings → API → service_role (secret) key
+on:
+  schedule:
+    # every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sync new anime episodes
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/anime-sync.mjs
