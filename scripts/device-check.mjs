@@ -28,6 +28,13 @@ if (!url) {
 mkdirSync(outDir, { recursive: true });
 
 const PROFILES = {
+  tv_tizen_5_0: {
+    // User's actual set: Samsung UA32T4410 (2020, HD-ready 1366x768).
+    label: "Samsung T4410 / Tizen 5.0 (Chromium 69-era)",
+    userAgent:
+      "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.0 TV Safari/537.36",
+    viewport: { width: 1366, height: 768 },
+  },
   tv_tizen_5_5: {
     label: "Samsung Tizen 5.5 TV (Chromium 69-era)",
     userAgent:

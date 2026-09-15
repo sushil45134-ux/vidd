@@ -180,6 +180,12 @@ export default defineConfig({
     build: {
       target: "es2015",
       cssTarget: "chrome49",
+      // Vite 8 defaults minify to oxc, which IGNORES build.target and emits
+      // ES2022 syntax (#private class fields, numeric separators) that
+      // Chromium-69-class TV browsers cannot PARSE — the entry module dies
+      // before React hydrates and the page never loads its content. esbuild
+      // respects the target and down-levels everything.
+      minify: "esbuild",
     },
   },
 });
