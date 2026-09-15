@@ -345,6 +345,58 @@ export const TV_BOOT_SCRIPT = String.raw`
     defineProto(String.prototype, "trimEnd", function () { return this.replace(/\s+$/, ""); });
   }
 
+  /* String.replaceAll — Chromium 85+, used by the main bundle on boot. */
+  if (typeof String.prototype.replaceAll !== "function") {
+    defineProto(String.prototype, "replaceAll", function (search, replacement) {
+      var s = String(this);
+      if (search !== null && typeof search === "object" && typeof search.source !== "undefined") {
+        var flags = String(search.flags || "");
+        var re = new RegExp(search.source, flags.indexOf("g") >= 0 ? flags : flags + "g");
+        return s.replace(re, replacement);
+      }
+      var needle = String(search);
+      var parts = s.split(needle);
+      if (typeof replacement === "function") {
+        var out = "";
+        for (var i = 0; i < parts.length; i++) {
+          if (i > 0) out += String(replacement(needle));
+          out += parts[i];
+        }
+        return out;
+      }
+      return parts.join(String(replacement));
+    });
+  }
+
+  /* String.matchAll — Chromium 73+. Returns an iterable of matches. */
+  if (typeof String.prototype.matchAll !== "function") {
+    defineProto(String.prototype, "matchAll", function (regex) {
+      var flags = String(regex && regex.flags ? regex.flags : "g");
+      var re = new RegExp(regex.source, flags.indexOf("g") >= 0 ? flags : flags + "g");
+      var s = String(this);
+      var out = [];
+      var m;
+      while ((m = re.exec(s))) {
+        out.push(m);
+        if (m.index === re.lastIndex) re.lastIndex++;
+      }
+      return out;
+    });
+  }
+
+  /* AbortSignal.timeout — Chromium 103+. Playlist sync uses it. */
+  try {
+    if (typeof g.AbortSignal === "function" && typeof g.AbortSignal.timeout !== "function") {
+      defineValue(g.AbortSignal, "timeout", function (ms) {
+        var controller = new g.AbortController();
+        g.setTimeout(function () {
+          try { controller.abort(); } catch (ignored) {}
+        }, ms);
+        return controller.signal;
+      });
+    }
+  } catch (ignored) {}
+
   /* Array polyfills for Chrome 49 */
   if (typeof Array.prototype.includes !== "function") {
     defineProto(Array.prototype, "includes", function (searchElement, fromIndex) {

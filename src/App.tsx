@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense, type ReactNode } from "react";
+import { getRouteApi } from "@tanstack/react-router";
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
 import SectionHero from "./components/SectionHero";
@@ -24,6 +25,9 @@ const AdminRowsEditor = lazy(() => import("./components/AdminRowsEditor"));
 const ThumbnailEditor = lazy(() => import("./components/ThumbnailEditor"));
 
 import type { Movie, Category } from "./data";
+import type { SsrMovie } from "./lib/ssrLibrary";
+
+const homeRouteApi = getRouteApi("/");
 import { getMovieRef, useSiteConfig, type CustomRow, type RowKey } from "./lib/customization";
 import {
   getSavedProgress,
@@ -183,6 +187,90 @@ function OverlayFallback() {
   );
 }
 
+/**
+ * Plain-HTML poster library rendered straight into the SSR document. This is
+ * what a TV browser that can NEVER execute the ES-module client bundle
+ * (pre-Chromium-61 Tizen 2.4/3.0, old webOS WebKit, …) sees instead of an
+ * eternal loading skeleton — real posters, titles and watch links the remote
+ * can open. It renders identically during hydration and unmounts the moment
+ * the interactive client library arrives, so there is no mismatch.
+ */
+function SsrStaticLibrary({ movies }: { movies: SsrMovie[] }) {
+  const hero = movies[0];
+  const anime = movies.filter((m) => m.genre.some((g) => g.toLowerCase() === "anime"));
+  const rows = [
+    { title: "💥 Trending & Popular Shows", items: movies.slice(0, 8) },
+    { title: "RECENTLY ADDED", items: movies.slice(8, 16) },
+    { title: "Anime & Fantasy", items: anime.slice(0, 8) },
+    { title: "Series & More", items: movies.slice(16, 24) },
+  ].filter((r) => r.items.length > 0);
+
+  return (
+    <div className="relative">
+      {hero && (
+        <div className="relative h-[420px] md:h-[520px] overflow-hidden">
+          {hero.backdrop && (
+            <img
+              src={hero.backdrop}
+              alt={hero.title}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+          <div className="absolute left-4 md:left-12 bottom-10 max-w-xl">
+            <p className="text-xs font-bold tracking-widest text-[#f47521] mb-2">
+              ⭐ FEATURED
+              {hero.rating ? ` • ${hero.rating}` : ""}
+              {hero.year ? ` • ${hero.year}` : ""}
+            </p>
+            <h1 className="text-3xl md:text-5xl font-extrabold drop-shadow">{hero.title}</h1>
+            {hero.watchUrl && (
+              <a
+                href={hero.watchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-5 px-6 py-3 rounded-md bg-white text-black font-bold"
+              >
+                ▶ Play
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="mt-8">
+        {rows.map((row) => (
+          <section key={row.title} className="px-4 md:px-12 mb-8">
+            <h2 className="text-lg md:text-2xl font-bold mb-3">{row.title}</h2>
+            <div className="flex gap-2 overflow-hidden">
+              {row.items.map((m, i) => (
+                <a
+                  key={m.id}
+                  href={m.watchUrl || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-[220px] md:w-[300px] shrink-0"
+                >
+                  <div className="aspect-video rounded-md overflow-hidden bg-white/10">
+                    {m.image && (
+                      <img
+                        src={m.image}
+                        alt={m.title}
+                        loading={i < 4 ? "eager" : "lazy"}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm text-white/80 truncate">{m.title}</p>
+                </a>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   // Read inside the component, never at module scope: on the server this is
   // false, on a TV it flips to true after hydration (see useIsTvBrowser).
@@ -219,6 +307,11 @@ function App() {
     uploadedMovies.length > 0 || syncedMovies.length > 0 || animeEpisodes.length > 0;
   const [libraryFetchSettled, setLibraryFetchSettled] = useState(false);
   const showLibrarySkeleton = !libraryLoaded && !libraryFetchSettled;
+  // Server-rendered poster library (loader in routes/index.tsx): while the
+  // interactive client library is still in flight, this gives no-JS / old-TV
+  // browsers a full page instead of skeletons.
+  const ssrLibrary = homeRouteApi.useLoaderData();
+  const ssrFallbackActive = showLibrarySkeleton && !!ssrLibrary && ssrLibrary.length > 0;
   const cfg = useSiteConfig();
   const heroBannerOverrides = useHeroBanners();
   const collectionCovers = useCollectionCovers();
@@ -238,7 +331,9 @@ function App() {
   const handleLogout = useCallback(async () => {
     try {
       await fetch("/api/auth", { method: "DELETE" });
-    } catch {}
+    } catch {
+      /* logout must succeed even when the network is gone */
+    }
     setIsAdmin(false);
   }, []);
 
@@ -877,277 +972,130 @@ function App() {
       />
 
       <main className="pt-16">
-        {libraryError && (
-          <div className="mx-4 md:mx-12 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-            <span className="text-sm text-red-200">
-              Library network se load nahi ho payi — content isliye nahi dikh raha.
-            </span>
-            <button
-              onClick={retryLibrary}
-              className="ml-auto h-9 px-4 rounded-full bg-red-500/80 hover:bg-red-500 text-white text-sm font-bold transition"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {showNotifications && (
-          <Suspense fallback={null}>
-            <NotificationPanel
-              onClose={closeNotifications}
-              onMovieClick={(movie: Movie) => {
-                setShowNotifications(false);
-                setSelectedMovie(movie);
-              }}
-            />
-          </Suspense>
-        )}
-
-        {showingSearch && (
-          <SearchResults
-            results={searchResults}
-            query={debouncedQuery}
-            onSelectMovie={setSelectedMovie}
-            onPlay={playFirstEpisode}
-            isInMyList={isInMyList}
-            isLiked={isLiked}
-            toggleMyList={toggleMyList}
-            toggleLike={toggleLike}
-          />
-        )}
-
-        {showingDiscover && (
-          <Suspense
-            fallback={
-              <div className="px-4 md:px-12 pt-6">
-                <div className="h-10 w-64 rounded bg-white/10 animate-pulse" />
+        {ssrFallbackActive && <SsrStaticLibrary movies={ssrLibrary} />}
+        {!ssrFallbackActive && (
+          <>
+            {libraryError && (
+              <div className="mx-4 md:mx-12 mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+                <span className="text-sm text-red-200">
+                  Library network se load nahi ho payi — content isliye nahi dikh raha.
+                </span>
+                <button
+                  onClick={retryLibrary}
+                  className="ml-auto h-9 px-4 rounded-full bg-red-500/80 hover:bg-red-500 text-white text-sm font-bold transition"
+                >
+                  Retry
+                </button>
               </div>
-            }
-          >
-            <UnifiedSearch
-              library={displayItems}
-              onSelectMovie={setSelectedMovie}
-              onPlay={handlePlay}
-              onAdd={async (movie: Movie) => {
-                const { insertMovies } = await import("./lib/moviesRepo");
-                const saved = await insertMovies([movie], "uploaded");
-                const toAdd = saved[0] ?? movie;
-                setUploadedMovies((prev) => [toAdd, ...prev]);
-                setMyList((prev) => [toAdd, ...prev]);
-              }}
-            />
-          </Suspense>
-        )}
-
-        {showingCategory && (
-          <div className="pt-6 min-h-screen">
-            {(activeCategory === "movies" ||
-              activeCategory === "anime" ||
-              activeCategory === "cartoon") && (
-              <SectionHero
-                key={activeCategory}
-                movies={sectionHeroMovies}
-                loading={showLibrarySkeleton || (libraryError && sectionHeroMovies.length === 0)}
-                onMoreInfo={setSelectedMovie}
-                onPlay={handlePlay}
-              />
-            )}
-            {activeCategory === "mylist" && (
-              <h1 className="text-white text-2xl md:text-4xl font-bold mb-6 px-4 md:px-12">
-                My List
-              </h1>
             )}
 
-            {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
-            {activeCategory === "anime" && (
-              <Suspense
-                fallback={
-                  <div className="px-4 md:px-12 mb-8">
-                    <div className="h-6 w-56 mb-3 rounded bg-white/10 animate-pulse" />
-                    <div className="flex gap-2 overflow-hidden">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-[220px] md:w-[300px] shrink-0 aspect-video rounded-md bg-white/10 animate-pulse"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                }
-              >
-                <AnimeSection
-                  onSelectMovie={setSelectedMovie}
-                  onPlay={handlePlay}
-                  isInMyList={isInMyList}
-                  isLiked={isLiked}
-                  toggleMyList={toggleMyList}
-                  toggleLike={toggleLike}
-                  onEpisodesLoaded={handleAnimeEpisodesLoaded}
+            {showNotifications && (
+              <Suspense fallback={null}>
+                <NotificationPanel
+                  onClose={closeNotifications}
+                  onMovieClick={(movie: Movie) => {
+                    setShowNotifications(false);
+                    setSelectedMovie(movie);
+                  }}
                 />
               </Suspense>
             )}
 
-            {/* Admin custom rows scoped to this section */}
-            {cfg.customRows?.map((row) => {
-              if (!row.visible) return null;
-              const sec = row.section || "home";
-              if (sec !== "all" && sec !== activeCategory) return null;
-              if (showRowSkeletons) return <RowSkeleton key={row.id} large={row.isLarge} />;
-              const slots = rowSlotsById.get(row.id) || [];
-              if (slots.length === 0) return null;
-              return (
-                <MovieRow
-                  key={row.id}
-                  title={row.title}
-                  titleSize={row.titleSize}
-                  slots={slots}
-                  isLargeRow={row.isLarge}
-                  onSelectMovie={setSelectedMovie}
-                  onPlay={playFirstEpisode}
-                  isInMyList={isInMyList}
-                  isLiked={isLiked}
-                  toggleMyList={toggleMyList}
-                  toggleLike={toggleLike}
-                  canDelete={isAdmin}
-                  onDelete={handleDelete}
-                  canEditThumbnail={isAdmin}
-                  onEditThumbnail={setThumbnailEditMovie}
-                />
-              );
-            })}
+            {showingSearch && (
+              <SearchResults
+                results={searchResults}
+                query={debouncedQuery}
+                onSelectMovie={setSelectedMovie}
+                onPlay={playFirstEpisode}
+                isInMyList={isInMyList}
+                isLiked={isLiked}
+                toggleMyList={toggleMyList}
+                toggleLike={toggleLike}
+              />
+            )}
 
-            <div className="px-4 md:px-12">
-              {showLibrarySkeleton ? (
-                <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <div key={`skeleton-${i}`} className="cv-card animate-pulse">
-                      <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800" />
-                      <div className="h-3 w-2/3 rounded bg-white/10 mt-2" />
-                    </div>
-                  ))}
-                </div>
-              ) : categoryMovies.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <p className="text-gray-400 text-lg">No titles found</p>
-                  <p className="text-gray-600 text-sm mt-2">
-                    {activeCategory === "mylist"
-                      ? 'Add movies and shows to your list by clicking the "+" button'
-                      : isAdmin
-                        ? "Upload a video or sync a playlist to see content here"
-                        : "Ask the admin to add content"}
-                  </p>
-                </div>
-              ) : (
-                <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {categoryMovies.slice(0, gridVisible).map((movie) => (
-                    <div
-                      key={movie.id}
-                      className="tv-category-card cv-card group cursor-pointer"
-                      onClick={() => setSelectedMovie(movie)}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`${movie.title} — open details`}
-                      onKeyDown={(e) => {
-                        if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                          e.preventDefault();
-                          setSelectedMovie(movie);
-                        }
-                      }}
-                    >
-                      <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800">
-                        <SmartImage
-                          src={movieImageSources(movie)}
-                          alt={movie.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                        <div
-                          className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center ${IS_TV ? "hidden" : ""}`}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePlay(movie);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center"
-                          >
-                            <svg
-                              className="w-5 h-5 text-black ml-0.5"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </button>
+            {showingDiscover && (
+              <Suspense
+                fallback={
+                  <div className="px-4 md:px-12 pt-6">
+                    <div className="h-10 w-64 rounded bg-white/10 animate-pulse" />
+                  </div>
+                }
+              >
+                <UnifiedSearch
+                  library={displayItems}
+                  onSelectMovie={setSelectedMovie}
+                  onPlay={handlePlay}
+                  onAdd={async (movie: Movie) => {
+                    const { insertMovies } = await import("./lib/moviesRepo");
+                    const saved = await insertMovies([movie], "uploaded");
+                    const toAdd = saved[0] ?? movie;
+                    setUploadedMovies((prev) => [toAdd, ...prev]);
+                    setMyList((prev) => [toAdd, ...prev]);
+                  }}
+                />
+              </Suspense>
+            )}
+
+            {showingCategory && (
+              <div className="pt-6 min-h-screen">
+                {(activeCategory === "movies" ||
+                  activeCategory === "anime" ||
+                  activeCategory === "cartoon") && (
+                  <SectionHero
+                    key={activeCategory}
+                    movies={sectionHeroMovies}
+                    loading={
+                      showLibrarySkeleton || (libraryError && sectionHeroMovies.length === 0)
+                    }
+                    onMoreInfo={setSelectedMovie}
+                    onPlay={handlePlay}
+                  />
+                )}
+                {activeCategory === "mylist" && (
+                  <h1 className="text-white text-2xl md:text-4xl font-bold mb-6 px-4 md:px-12">
+                    My List
+                  </h1>
+                )}
+
+                {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
+                {activeCategory === "anime" && (
+                  <Suspense
+                    fallback={
+                      <div className="px-4 md:px-12 mb-8">
+                        <div className="h-6 w-56 mb-3 rounded bg-white/10 animate-pulse" />
+                        <div className="flex gap-2 overflow-hidden">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-[220px] md:w-[300px] shrink-0 aspect-video rounded-md bg-white/10 animate-pulse"
+                            />
+                          ))}
                         </div>
                       </div>
-                      <p className="text-gray-300 text-sm mt-2 truncate">{movie.title}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {categoryMovies.length > gridVisible && (
-                <div className="flex flex-col items-center gap-2 py-8">
-                  <p className="text-gray-500 text-xs">
-                    Showing {gridVisible} of {categoryMovies.length}
-                  </p>
-                  <button
-                    onClick={showMoreGrid}
-                    className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+                    }
                   >
-                    Load more
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!showingSearch && !showingCategory && !showingDiscover && (
-          <>
-            <HeroBanner
-              movies={heroMovies}
-              loading={showLibrarySkeleton || (libraryError && heroMovies.length === 0)}
-              onMoreInfo={setSelectedMovie}
-              onPlay={handlePlay}
-              onUploadClick={handleUploadOpen}
-              onSyncClick={handleSyncOpen}
-              isAdmin={isAdmin}
-            />
-
-            <div className="mt-8 relative z-20">
-              {/* Hindi dubbed anime lives ONLY in the "Anime" category tab —
-                never mixed into the home feed. */}
-
-              {/* Synced playlists no longer auto-appear on home.
-                Admin adds them via Custom Rows when desired. */}
-
-              {(() => {
-                const elements: ReactNode[] = [];
-                const pushContinueWatching = () => {
-                  if (continueWatchingItems.length === 0) return;
-                  elements.push(
-                    <ContinueWatchingRow
-                      key="continue-watching"
-                      items={continueWatchingItems}
+                    <AnimeSection
+                      onSelectMovie={setSelectedMovie}
                       onPlay={handlePlay}
-                      onSelectMovie={openResumeDetails}
-                      onRemove={removeContinueWatching}
-                    />,
-                  );
-                };
-                let rowsRendered = false;
-                cfg.customRows?.forEach((row) => {
-                  if (!row.visible) return;
+                      isInMyList={isInMyList}
+                      isLiked={isLiked}
+                      toggleMyList={toggleMyList}
+                      toggleLike={toggleLike}
+                      onEpisodesLoaded={handleAnimeEpisodesLoaded}
+                    />
+                  </Suspense>
+                )}
+
+                {/* Admin custom rows scoped to this section */}
+                {cfg.customRows?.map((row) => {
+                  if (!row.visible) return null;
                   const sec = row.section || "home";
-                  if (sec !== "home" && sec !== "all") return;
-                  if (showRowSkeletons) {
-                    elements.push(<RowSkeleton key={row.id} large={row.isLarge} />);
-                    return;
-                  }
+                  if (sec !== "all" && sec !== activeCategory) return null;
+                  if (showRowSkeletons) return <RowSkeleton key={row.id} large={row.isLarge} />;
                   const slots = rowSlotsById.get(row.id) || [];
-                  if (slots.length === 0) return;
-                  elements.push(
+                  if (slots.length === 0) return null;
+                  return (
                     <MovieRow
                       key={row.id}
                       title={row.title}
@@ -1164,20 +1112,177 @@ function App() {
                       onDelete={handleDelete}
                       canEditThumbnail={isAdmin}
                       onEditThumbnail={setThumbnailEditMovie}
-                    />,
+                    />
                   );
-                  // Continue Watching sits right BELOW the first row
-                  // (Trending & Popular Shows), never above it.
-                  if (!rowsRendered) {
-                    rowsRendered = true;
-                    pushContinueWatching();
-                  }
-                });
-                // No custom rows at all — Continue Watching still shows alone.
-                if (!rowsRendered) pushContinueWatching();
-                return elements;
-              })()}
-            </div>
+                })}
+
+                <div className="px-4 md:px-12">
+                  {showLibrarySkeleton ? (
+                    <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <div key={`skeleton-${i}`} className="cv-card animate-pulse">
+                          <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800" />
+                          <div className="h-3 w-2/3 rounded bg-white/10 mt-2" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : categoryMovies.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <p className="text-gray-400 text-lg">No titles found</p>
+                      <p className="text-gray-600 text-sm mt-2">
+                        {activeCategory === "mylist"
+                          ? 'Add movies and shows to your list by clicking the "+" button'
+                          : isAdmin
+                            ? "Upload a video or sync a playlist to see content here"
+                            : "Ask the admin to add content"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {categoryMovies.slice(0, gridVisible).map((movie) => (
+                        <div
+                          key={movie.id}
+                          className="tv-category-card cv-card group cursor-pointer"
+                          onClick={() => setSelectedMovie(movie)}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`${movie.title} — open details`}
+                          onKeyDown={(e) => {
+                            if (
+                              (e.key === "Enter" || e.key === " ") &&
+                              e.target === e.currentTarget
+                            ) {
+                              e.preventDefault();
+                              setSelectedMovie(movie);
+                            }
+                          }}
+                        >
+                          <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800">
+                            <SmartImage
+                              src={movieImageSources(movie)}
+                              alt={movie.title}
+                              loading="lazy"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                            <div
+                              className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center ${IS_TV ? "hidden" : ""}`}
+                            >
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePlay(movie);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center"
+                              >
+                                <svg
+                                  className="w-5 h-5 text-black ml-0.5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-gray-300 text-sm mt-2 truncate">{movie.title}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {categoryMovies.length > gridVisible && (
+                    <div className="flex flex-col items-center gap-2 py-8">
+                      <p className="text-gray-500 text-xs">
+                        Showing {gridVisible} of {categoryMovies.length}
+                      </p>
+                      <button
+                        onClick={showMoreGrid}
+                        className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+                      >
+                        Load more
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!showingSearch && !showingCategory && !showingDiscover && (
+              <>
+                <HeroBanner
+                  movies={heroMovies}
+                  loading={showLibrarySkeleton || (libraryError && heroMovies.length === 0)}
+                  onMoreInfo={setSelectedMovie}
+                  onPlay={handlePlay}
+                  onUploadClick={handleUploadOpen}
+                  onSyncClick={handleSyncOpen}
+                  isAdmin={isAdmin}
+                />
+
+                <div className="mt-8 relative z-20">
+                  {/* Hindi dubbed anime lives ONLY in the "Anime" category tab —
+                never mixed into the home feed. */}
+
+                  {/* Synced playlists no longer auto-appear on home.
+                Admin adds them via Custom Rows when desired. */}
+
+                  {(() => {
+                    const elements: ReactNode[] = [];
+                    const pushContinueWatching = () => {
+                      if (continueWatchingItems.length === 0) return;
+                      elements.push(
+                        <ContinueWatchingRow
+                          key="continue-watching"
+                          items={continueWatchingItems}
+                          onPlay={handlePlay}
+                          onSelectMovie={openResumeDetails}
+                          onRemove={removeContinueWatching}
+                        />,
+                      );
+                    };
+                    let rowsRendered = false;
+                    cfg.customRows?.forEach((row) => {
+                      if (!row.visible) return;
+                      const sec = row.section || "home";
+                      if (sec !== "home" && sec !== "all") return;
+                      if (showRowSkeletons) {
+                        elements.push(<RowSkeleton key={row.id} large={row.isLarge} />);
+                        return;
+                      }
+                      const slots = rowSlotsById.get(row.id) || [];
+                      if (slots.length === 0) return;
+                      elements.push(
+                        <MovieRow
+                          key={row.id}
+                          title={row.title}
+                          titleSize={row.titleSize}
+                          slots={slots}
+                          isLargeRow={row.isLarge}
+                          onSelectMovie={setSelectedMovie}
+                          onPlay={playFirstEpisode}
+                          isInMyList={isInMyList}
+                          isLiked={isLiked}
+                          toggleMyList={toggleMyList}
+                          toggleLike={toggleLike}
+                          canDelete={isAdmin}
+                          onDelete={handleDelete}
+                          canEditThumbnail={isAdmin}
+                          onEditThumbnail={setThumbnailEditMovie}
+                        />,
+                      );
+                      // Continue Watching sits right BELOW the first row
+                      // (Trending & Popular Shows), never above it.
+                      if (!rowsRendered) {
+                        rowsRendered = true;
+                        pushContinueWatching();
+                      }
+                    });
+                    // No custom rows at all — Continue Watching still shows alone.
+                    if (!rowsRendered) pushContinueWatching();
+                    return elements;
+                  })()}
+                </div>
+              </>
+            )}
           </>
         )}
       </main>
