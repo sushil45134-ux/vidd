@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { isTvBrowser } from "./browser";
+import { useEffect, useState, useRef } from "react";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
 /**
  * Cap long grids/lists: render `initial` items, reveal `step` more per tap.
@@ -15,12 +15,22 @@ export function useVisibleCount(
   initial = 48,
   step = 48,
 ): { visible: number; showMore: () => void } {
-  // Evaluate TV once per call — UA never changes at runtime.
-  const isTv = typeof navigator !== "undefined" && isTvBrowser();
+  // SSR-safe TV flag: false on the server *and* on the hydration render,
+  // so both trees agree (see useIsTvBrowser).
+  const isTv = useIsTvBrowser();
   const tvInitial = isTv ? Math.max(12, Math.floor(initial / 2)) : initial;
   const tvStep = isTv ? Math.max(12, Math.floor(step / 2)) : step;
 
   const [state, setState] = useState({ key: resetKey, visible: tvInitial });
+  // The TV answer lands after hydration, so the count seeded on the first
+  // (server-matching) render is the desktop one. Reseed it once so Tizen
+  // still renders half as many cards for its fast first paint.
+  const seededForTv = useRef(false);
+  useEffect(() => {
+    if (!isTv || seededForTv.current) return;
+    seededForTv.current = true;
+    setState((s) => ({ ...s, visible: tvInitial }));
+  }, [isTv, tvInitial]);
   if (state.key !== resetKey) {
     setState({ key: resetKey, visible: tvInitial });
     return {

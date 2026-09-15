@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { registerTvBackHandler } from "../lib/spatialNav";
-import { isTvBrowser } from "../lib/browser";
+import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import type { YouTubePlayer, YouTubeWindow, YouTubeEvent } from "../lib/youtubePlayer";
 import {
   Play,
@@ -88,7 +88,7 @@ export function VideoPlayer({
   currentQueueIndex,
   onJumpTo,
 }: VideoPlayerProps) {
-  const isTv = isTvBrowser();
+  const isTv = useIsTvBrowser();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(80);
@@ -112,6 +112,16 @@ export function VideoPlayer({
   // TV fallback chain: 0 = youtube.com embed, 1 = youtube-nocookie embed.
   // Default to 1 (nocookie) on TV for best compatibility.
   const [tvStage, setTvStage] = useState(() => (isTv ? 1 : 0));
+  // TV detection lands after hydration (see useIsTvBrowser), so the two
+  // values seeded from it on the first, server-matching render are the
+  // desktop ones. Reseed them once the TV answer arrives.
+  const tvSeeded = useRef(false);
+  useEffect(() => {
+    if (!isTv || tvSeeded.current) return;
+    tvSeeded.current = true;
+    setUseSimpleEmbed(true);
+    setTvStage(1);
+  }, [isTv]);
   // After a grace period, offer remote-focusable recovery actions in case
   // the embed cannot start (network / codec / Error-153 style referrer issues).
   const [showTvFallback, setShowTvFallback] = useState(false);
