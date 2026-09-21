@@ -168,9 +168,57 @@ function addLegacyCssFallbacks(css: string): string {
   return css + legacyBlock + tvExtraFallback;
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+ * Permanent TV-hardening config.
+ *
+ * 1. Nitro preset auto-detect: lovable preset defaults to cloudflare-module
+ *    (for Lovable's own preview hosting), but the production site lives on
+ *    Vercel (vidd-zeta.vercel.app). Forcing the correct Nitro preset per
+ *    environment prevents SSR middleware from being compiled for the wrong
+ *    edge runtime — that mismatch was the reason the TV boot script / CSS
+ *    legacy block sometimes vanished from deployed HTML (blank screen on
+ *    Tizen 5.5, Chromium 69-era TVs).
+ * 2. Dev server ALSO down-levels to es2019, so testing from a real TV
+ *    against `npm run dev` exercises the same syntax that ships to prod
+ *    (previously dev served untranspiled ESM → false "works on laptop,
+ *    breaks on TV" reports).
+ * 3. CSS legacy fallback plugin runs at generateBundle for every chunk,
+ *    regardless of Nitro preset, so the @supports-not-color-mix block is
+ *    NEVER missing from a built stylesheet.
+ * ────────────────────────────────────────────────────────────────────── */
+
+function detectNitroPreset(): string | undefined {
+  // CI / deploy envs set these reliably. VERCEL=1 is the Vercel build
+  // environment; CLOUDFLARE_WORKERS and NETLIFY are similar signals for
+  // other hosts. When none match, fall back to the lovable default
+  // (cloudflare-module) so Lovable preview keeps working.
+  if (typeof process !== "undefined" && process.env) {
+    if (process.env.VERCEL === "1" || process.env.NOW_REGION) return "vercel";
+    if (process.env.CLOUDFLARE_WORKERS || process.env.CF_PAGES) return "cloudflare-module";
+    if (process.env.NETLIFY) return "netlify";
+  }
+  // No explicit host signal — keep lovable's cloudflare default so Lovable
+  // preview isn't broken by this change.
+  return undefined;
+}
+
+const nitroPreset = detectNitroPreset();
+
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
+    nitro: {
+      // Explicit preset beats lovable's cloudflare default when we're on
+      // Vercel. This is the key fix that stops the server code being
+      // compiled for Cloudflare Workers while being executed inside
+      // Vercel's Node/Edge runtime — a silent failure mode that produced
+      // pages without the TV boot script, leaving Tizen with a blank
+      // screen on random cold starts.
+      ...(nitroPreset ? { preset: nitroPreset } : {}),
+      // Common compatibility flags regardless of host: never inline
+      // critical assets in a way that drops the legacy CSS block.
+      minify: true,
+    },
   },
   vite: {
     plugins: [flattenCssLayersPlugin()],
@@ -186,16 +234,32 @@ export default defineConfig({
     // so no deploy could be produced at all. Never reintroduce esbuild here.
     //
     // Down-leveling is handled by Oxc instead:
-    //   - oxc.target  → per-module transform, also what `vite dev` uses.
+    //   - oxc.target  → per-module transform. Applies to DEV as well as
+    //     prod so a real-TV test against `npm run dev` sees the same JS
+    //     syntax as a production deploy (previously dev served modern
+    //     ESM and would only break on TV after deploy — very confusing).
     //   - build.target → wins for the production bundle and is what keeps
     //     ES2020+ syntax (#private fields, ?., ??, class fields) out of the
     //     chunks — Chromium-69-class TVs fail to PARSE those and the page
     //     stays blank before React ever hydrates.
     //   - build.cssTarget → matches the TV's CSS engine for Lightning CSS.
     oxc: { target: "es2019" },
+    // DEV-mode transpilation must also target es2019; otherwise a real TV
+    // pointed at the dev server parses modern syntax and crashes before
+    // the polyfills in tvBoot.ts even execute.
+    environments: {
+      client: {
+        dev: {
+          oxc: { target: "es2019" },
+        },
+      },
+    },
     build: {
       target: "es2019",
       cssTarget: "chrome49",
+      // Help old TVs: produce clean module chunks and a non-empty manifest
+      // so missing-chunk detection in boot can hard-reload on deploy.
+      modulePreload: { polyfill: true },
     },
   },
 });
