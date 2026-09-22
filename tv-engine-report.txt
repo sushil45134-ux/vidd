@@ -1,0 +1,48 @@
+# TV engine check — 2026-09-22T06:17:08Z
+
+Commit: 9ba0db8186c70f5c87a5d4e7d11927964ad9f6ff
+
+```
+=========== A. Chromium-69 API diet (real engine, TV API set) ===========
+page title: vid — Streaming Library
+html class: tv-layout
+visible text bytes: 1914 | imgs: 9/102
+links: 0 buttons: 28 focusables: 129
+text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED PG-13 2025 99% Match Chainsaw Man - The Movie: Reze Arc A direct sequel to the first season of the series \"Chainsaw Man\""
+polyfill restore: {"globalThis":true,"ObjectHasOwn":true,"ArrayAt":true,"PromiseAllSettled":true,"replaceAll":true,"randomUUID":true,"abortTimeout":true}
+error overlay present: false
+after Enter -> text bytes: 1914 | overlay: false | active: "vid"
+after Play  -> iframes: ["https://filesforever.link/embed/o9ni4z4"] | video tag: false
+page errors: 22
+   ! Uncaught SyntaxError: Unexpected token 'export'
+   ! Uncaught TypeError: Cannot read properties of undefined (reading 'trustedTypes')
+   ! Uncaught TypeError: Cannot read properties of undefined (reading 'trustedTypes')
+   ! TypeError: Cannot read properties of undefined (reading 'PerformanceObserver')
+   ! TypeError: queueMicrotask is not a function
+   ! TypeError: queueMicrotask is not a function
+   ! TypeError: queueMicrotask is not a function
+   ! TypeError: queueMicrotask is not a function
+console errors: 1
+   ! Failed to load resource: the server responded with a status of 404 ()
+failed requests: 2
+   ! GET http://127.0.0.1:4173/_vercel/insights/script.js — net::ERR_ABORTED
+   ! HEAD https://hanerix.com/stream/c0tQ7zX8pWuo_Vcwr_XM0w/kjhhiuahiuhgihdf/1790101016/65977779/master.m3u8 — net::ERR_ABORTED
+
+=========== B. module bundle blocked (pre-module TV) ===========
+visible text bytes: 1300 | imgs: 28/28
+links: 28 focusables: 37
+text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED • TV-14 • 2024 365 Days to the Wedding - Episode 1 ▶ Play 💥 Trending & Popular Shows 365 Days to the Wedding - Episode "
+
+=========== C. static ES2019 parse of what the TV downloads ===========
+inline scripts checked: 5, assets checked: 25
+violations: 7
+   ! inline script #2 (no id): Unexpected token (1:94) :: (function(a,f){let l;try{l=JSON.parse(sessionStorage.getItem(a)||"{}")}catch{return}const 
+   ! asset /assets/index-D1_chXxO.js: Unexpected token (1098:12065)
+   ! asset /assets/index-D1_chXxO.js: class private field (Chrome 74+)
+   ! asset /assets/routes-Cc85bhmZ.js: Unexpected token (2:29115)
+   ! asset /assets/Logo-CcNFOPrU.js: Unexpected token (2:4017)
+   ! asset /assets/Logo-CcNFOPrU.js: numeric separator (Chrome 75+)
+   ! asset /assets/continueWatching-a50amaAR.js: Unexpected token (2:1928)
+
+raw results: /home/runner/work/vidd/vidd/tv-engine-out/tv-engine-results.json
+```
