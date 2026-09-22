@@ -1,6 +1,6 @@
-# TV engine check — 2026-09-22T06:22:27Z
+# TV engine check — 2026-09-22T07:11:00Z
 
-Commit: 25426107c8020d4a5eb731a1e6aafebd2fc81d23
+Commit: 3c2bfff916aa3251c9a930844c1b2f502c99e155
 
 ```
 =========== A. Chromium-69 API diet (real engine, TV API set) ===========
@@ -13,20 +13,13 @@ polyfill restore: {"globalThis":true,"ObjectHasOwn":true,"ArrayAt":true,"Promise
 error overlay present: false
 after Enter -> text bytes: 1914 | overlay: false | active: "vid"
 after Play  -> iframes: ["https://filesforever.link/embed/o9ni4z4"] | video tag: false
-page errors: 18
+page errors: 1
    ! Uncaught SyntaxError: Unexpected token 'export'
-   ! Uncaught TypeError: Cannot read properties of undefined (reading 'trustedTypes')
-   ! Uncaught TypeError: Cannot read properties of undefined (reading 'trustedTypes')
-   ! TypeError: Cannot read properties of undefined (reading 'PerformanceObserver')
-   ! TypeError: queueMicrotask is not a function
-   ! TypeError: queueMicrotask is not a function
-   ! TypeError: queueMicrotask is not a function
-   ! TypeError: queueMicrotask is not a function
 console errors: 1
    ! Failed to load resource: the server responded with a status of 404 ()
 failed requests: 2
    ! GET http://127.0.0.1:4173/_vercel/insights/script.js — net::ERR_ABORTED
-   ! HEAD https://hanerix.com/stream/_h61mzElwz9ouPfhLL1bbw/kjhhiuahiuhgihdf/1790101328/65977779/master.m3u8 — net::ERR_ABORTED
+   ! HEAD https://hanerix.com/stream/lvLDuaTGkuURhjSWCCWcnQ/kjhhiuahiuhgihdf/1790104240/65977779/master.m3u8 — net::ERR_ABORTED
 
 =========== B. module bundle blocked (pre-module TV) ===========
 visible text bytes: 1300 | imgs: 28/28
