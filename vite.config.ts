@@ -243,17 +243,14 @@ export default defineConfig({
     //     chunks — Chromium-69-class TVs fail to PARSE those and the page
     //     stays blank before React ever hydrates.
     //   - build.cssTarget → matches the TV's CSS engine for Lightning CSS.
+    //
+    // NOTE: `environments.client.dev.oxc` was tried here in a previous fix.
+    // It is not part of Vite's API (`DevEnvironmentOptions` has no `oxc`), so
+    // it failed `tsc --noEmit` — which is what stopped the TV smoke workflow
+    // from running at all — and was silently ignored by Vite at runtime.
+    // The top-level `oxc.target` above already covers dev transforms (verified:
+    // `?.[]` / `??` are down-levelled in dev-server output), so nothing is lost.
     oxc: { target: "es2019" },
-    // DEV-mode transpilation must also target es2019; otherwise a real TV
-    // pointed at the dev server parses modern syntax and crashes before
-    // the polyfills in tvBoot.ts even execute.
-    environments: {
-      client: {
-        dev: {
-          oxc: { target: "es2019" },
-        },
-      },
-    },
     build: {
       target: "es2019",
       cssTarget: "chrome49",

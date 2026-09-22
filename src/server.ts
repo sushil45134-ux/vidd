@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { renderTvBootScriptTag, TV_BOOT_MARKER } from "./lib/tvBoot";
+import { applyTvDocumentTweaks } from "./lib/tvDocument";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -29,12 +30,22 @@ const TV_BOOT_TAG_PATTERN = new RegExp(
 );
 
 /**
- * Put the legacy-browser boot payload in every SSR HTML response. The root
- * shell also renders the tag, so the marker check is intentional: it keeps
- * this server wrapper safe when both paths participate in rendering and when
- * a response is passed through more than once.
+ * Put the legacy-browser boot payload in every SSR HTML response and apply the
+ * TV document fixes (see src/lib/tvDocument.ts).
+ *
+ * The boot tag is normally rendered by the root shell, so the two concerns are
+ * deliberately separate here:
+ *
+ *   • the boot tag is only injected when it is missing (that marker check is
+ *     what makes this wrapper safe for retried/streamed responses), while
+ *   • the TV tweaks are always evaluated, because the shell-rendered document
+ *     is exactly the one a Tizen TV receives.
+ *
+ * Returning the original response untouched when nothing changed keeps the
+ * desktop/mobile body byte-for-byte identical (no re-encoding, no dropped
+ * headers).
  */
-export async function injectTvBootScript(response: Response): Promise<Response> {
+export async function injectTvBootScript(response: Response, request?: Request): Promise<Response> {
   const contentType = response.headers.get("content-type") ?? "";
   const isHtmlContentType = /text\/html|application\/xhtml\+xml/i.test(contentType);
   // Read a clone so an already-correct response can be returned unchanged.
@@ -43,22 +54,29 @@ export async function injectTvBootScript(response: Response): Promise<Response> 
   const html = await response.clone().text();
   const looksLikeHtml = /^\s*(?:<!doctype\s+html\b|<html\b|<body\b)/i.test(html);
   if (!isHtmlContentType && !looksLikeHtml) return response;
-  if (TV_BOOT_TAG_PATTERN.test(html)) return response;
 
-  const scriptTag = renderTvBootScriptTag();
-  const bodyTag = /<body\b[^>]*>/i.exec(html);
-  let injectedHtml: string;
-  if (bodyTag) {
-    const bodyEnd = bodyTag.index + bodyTag[0].length;
-    injectedHtml = `${html.slice(0, bodyEnd)}\n${scriptTag}\n${html.slice(bodyEnd)}`;
-  } else {
-    // SSR routes normally have a body. A fragment/error response still gets
-    // the polyfill before any markup so it remains boot-safe.
-    injectedHtml = `${scriptTag}\n${html}`;
+  const userAgent = request?.headers.get("user-agent") ?? "";
+  const forceStatic = request ? new URL(request.url).searchParams.get("tv") === "1" : false;
+
+  let injectedHtml = html;
+  if (!TV_BOOT_TAG_PATTERN.test(html)) {
+    const scriptTag = renderTvBootScriptTag();
+    const bodyTag = /<body\b[^>]*>/i.exec(html);
+    if (bodyTag) {
+      const bodyEnd = bodyTag.index + bodyTag[0].length;
+      injectedHtml = `${html.slice(0, bodyEnd)}\n${scriptTag}\n${html.slice(bodyEnd)}`;
+    } else {
+      // SSR routes normally have a body. A fragment/error response still gets
+      // the polyfill before any markup so it remains boot-safe.
+      injectedHtml = `${scriptTag}\n${html}`;
+    }
   }
 
+  injectedHtml = applyTvDocumentTweaks(injectedHtml, { userAgent, forceStatic });
+  if (injectedHtml === html) return response;
+
   const headers = new Headers(response.headers);
-  // The body grew and is no longer the original encoded representation.
+  // The body changed and is no longer the original encoded representation.
   headers.delete("content-length");
   headers.delete("content-encoding");
   if (!isHtmlContentType) headers.set("content-type", "text/html; charset=utf-8");
@@ -102,7 +120,7 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
-      return await injectTvBootScript(normalized);
+      return await injectTvBootScript(normalized, request);
     } catch (error) {
       console.error(error);
       return await injectTvBootScript(
@@ -110,6 +128,7 @@ export default {
           status: 500,
           headers: { "content-type": "text/html; charset=utf-8" },
         }),
+        request,
       );
     }
   },
