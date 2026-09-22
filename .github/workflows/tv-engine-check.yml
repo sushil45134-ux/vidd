@@ -1,0 +1,71 @@
+name: TV engine check
+
+# Runs scripts/tv-engine-check.mjs: real Chromium with the API surface of
+# Chromium 69 (Tizen 5.5) removed before page scripts run, a second pass with
+# the module bundle blocked, and a static ES2019 parse of the served HTML +
+# JS assets. The report is committed to tv-engine-report.txt on this branch
+# (GitHub's log/artifact blob hosts are not reachable from every environment).
+on:
+  push:
+    paths:
+      - ".github/workflows/tv-engine-check.yml"
+      - "scripts/tv-engine-check.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-package-lock --no-audit --no-fund --legacy-peer-deps
+
+      - name: Install Playwright + Chromium + acorn (test-only)
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund --legacy-peer-deps playwright acorn
+          npx playwright install --with-deps chromium
+
+      - name: Build production bundle (node-server preset) and serve it
+        run: |
+          set -euo pipefail
+          NITRO_PRESET=node-server npm run build 2>&1 | tail -5
+          PORT=4173 node .output/server/index.mjs > /tmp/server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:4173/ && break
+            sleep 1
+          done
+          curl -s -o /dev/null -w "local build: HTTP %{http_code}\n" http://127.0.0.1:4173/
+
+      - name: TV engine check against the local production build
+        run: |
+          set +e
+          node scripts/tv-engine-check.mjs http://127.0.0.1:4173/ --out tv-engine-out --wait 12000 2>&1 | tee /tmp/report-01-engine.txt
+          echo "exit=$?"
+          exit 0
+
+      - name: Commit the report to this branch
+        if: always()
+        run: |
+          {
+            echo "# TV engine check — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo "Commit: ${GITHUB_SHA}"
+            echo
+            echo '```'
+            cat /tmp/report-01-engine.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } > tv-engine-report.txt
+          git config user.name "arena-agent"
+          git config user.email "arena-agent@users.noreply.github.com"
+          git add tv-engine-report.txt
+          git commit -m "chore(tv): engine check report [skip ci]" || echo "nothing to commit"
+          git push origin HEAD:arena/01a0c7ae-vidd || echo "push skipped"
