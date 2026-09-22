@@ -1,0 +1,93 @@
+name: Live TV probe
+
+# Answers the question the browser tests cannot: what does the REAL deployed
+# site answer to a Samsung Tizen 5.5 TV request? Records the TLS chain, the
+# exact response (status/headers/body head) for a SMART-TV User-Agent, and the
+# markers the TV fix depends on (boot script, legacy CSS block, asset hashes).
+#
+# Triggered by pushing changes to this file or its script, plus manual dispatch.
+on:
+  push:
+    paths:
+      - ".github/workflows/live-tv-probe.yml"
+      - "scripts/live-tv-probe.mjs"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "URL to probe"
+        required: false
+        default: "https://vidd-zeta.vercel.app"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: TLS + HTTP diagnostics for the TV User-Agent
+        run: |
+          URL="${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}"
+          HOST=$(echo "$URL" | sed -E 's#https?://([^/]+).*#\1#')
+          echo "### DNS"
+          getent ahosts "$HOST" | head -10 || true
+          echo
+          echo "### TLS handshake (what the TV has to trust)"
+          echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" -showcerts 2>&1 \
+            | sed -n '1,40p' || true
+          echo
+          echo "### Certificate chain details"
+          echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" 2>/dev/null \
+            | openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>&1 || true
+          echo
+          echo "### Leaf public key algorithm + signature"
+          echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" 2>/dev/null \
+            | openssl x509 -noout -text 2>/dev/null | grep -E "Public Key Algorithm|Signature Algorithm|CA Issuers|OCSP" | head -10 || true
+          echo
+          echo "### TLS protocol versions accepted"
+          for v in tls1_2 tls1_3; do
+            printf "%s: " "$v"
+            echo | timeout 15 openssl s_client -"$v" -connect "$HOST:443" -servername "$HOST" 2>&1 | grep -m1 "Protocol\|error" || echo "failed"
+          done
+          echo
+          echo "### Plain HTTP request with a Tizen UA (curl -i)"
+          curl -sS -i --max-time 30 -A "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.5) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.5 TV Safari/537.36" "$URL" | head -40
+
+      - name: Response body + TV markers
+        run: node scripts/live-tv-probe.mjs "${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}"
+
+      - name: Chromium load of the live site (Tizen UA) — errors + screenshot
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund --legacy-peer-deps playwright
+          npx playwright install --with-deps chromium
+          mkdir -p probe-out
+          node scripts/device-check.mjs "${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}" --out probe-out --wait 15000 || true
+          node -e "
+            const fs=require('fs');
+            try{
+              const r=JSON.parse(fs.readFileSync('probe-out/results.json','utf8'));
+              for(const [n,p] of Object.entries(r.profiles)){
+                console.log('--- '+n+': '+p.verdict);
+                console.log('  textLength '+(p.renderSignals?.textLength ?? '?')+' imgs '+(p.renderSignals?.imgLoadedCount ?? '?')+'/'+(p.renderSignals?.imgCount ?? '?'));
+                console.log('  bodyStart '+JSON.stringify((p.renderSignals?.bodyStart||'').slice(0,160)));
+                (p.pageErrors||[]).slice(0,4).forEach(e=>console.log('  PAGE ERROR: '+String(e).split('\n')[0]));
+                (p.consoleErrors||[]).slice(0,6).forEach(e=>console.log('  CONSOLE ERROR: '+String(e).split('\n')[0].slice(0,300)));
+                (p.failedRequests||[]).slice(0,8).forEach(e=>console.log('  FAILED REQ: '+String(e).slice(0,200)));
+              }
+            }catch(e){ console.log('no results: '+e.message); }
+          "
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-probe
+          path: probe-out/
+          if-no-files-found: warn
