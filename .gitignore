@@ -31,3 +31,6 @@ dist-ssr
 *.sln
 *.sw?
 .device-check/
+
+# Vercel / Nitro build output
+.vercel/
