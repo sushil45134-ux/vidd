@@ -1,17 +1,17 @@
-# Live TV probe — 2026-09-22T06:12:28Z
+# Live TV probe — 2026-09-22T06:39:30Z
 
 Target: https://vidd-zeta.vercel.app
-Commit: 9f4a61fa19eb67a7f26f97466f2cacd6fa3b4f84
+Commit: 0fd79c468f7a0aa732b3b3e58915389a75a3a1d1
 
 ## report-01-tls.txt
 ```
 ### DNS
-216.198.79.3    STREAM vidd-zeta.vercel.app
-216.198.79.3    DGRAM  
-216.198.79.3    RAW    
-64.29.17.3      STREAM 
-64.29.17.3      DGRAM  
-64.29.17.3      RAW    
+64.29.17.195    STREAM vidd-zeta.vercel.app
+64.29.17.195    DGRAM  
+64.29.17.195    RAW    
+216.198.79.195  STREAM 
+216.198.79.195  DGRAM  
+216.198.79.195  RAW    
 
 ### TLS handshake (what the TV has to trust)
 depth=2 C = US, O = Google Trust Services LLC, CN = GTS Root R1
@@ -84,11 +84,11 @@ HTTP/2 200
 age: 0
 cache-control: public, max-age=0, must-revalidate
 content-type: text/html; charset=utf-8
-date: Tue, 22 Sep 2026 06:09:42 GMT
+date: Tue, 22 Sep 2026 06:36:51 GMT
 server: Vercel
 strict-transport-security: max-age=63072000; includeSubDomains; preload
 x-vercel-cache: MISS
-x-vercel-id: sfo1::iad1::qhk9n-1790057382500-e6a6438635ec
+x-vercel-id: sfo1::iad1::xvpmt-1790059010595-bda529613edb
 
 <!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" as="image" href="https://s4.anilist.co/file/anilistcdn/media/anime/banner/165790-Ght1ChketFbS.jpg"/><link rel="preload" as="image" href="https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx165790-OwIZI9ArGR4Q.jpg"/><link rel="preload" as="image" href="https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx143338-zhyDVYgEzsm5.png"/><link rel="preload" as="image" href="https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/b123901-SE2GQngZ22fy.png"/><link rel="preload" as="image" href="https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1735-kGfVm0YqCPcu.png"/><link rel="stylesheet" href="/assets/styles-DzxOj9g5.css" data-precedence="default"/><title>vid — Streaming Library</title><meta name="author" content="Lovable"/><meta name="twitter:site" content="@Lovable"/><meta name="theme-color" content="#0b0b0f"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/><meta name="apple-mobile-web-app-title" content="vid"/><meta name="description" content="Watch and organize your uploaded videos, synced playlists, and custom streaming rows in vid."/><meta property="og:title" content="vid — Streaming Library"/><meta property="og:description" content="Watch and organize your uploaded videos, synced playlists, and custom streaming rows in vid."/><meta property="og:type" content="website"/><meta property="og:image" content="https://id-preview--064af4ad-946f-41f8-807e-2d2af0d045c3.lovable.app/__l5e/assets-v1/a073e4a2-70da-4a31-9d0f-4d6996515ae5/vid-og-thumbnail.jpg"/><meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:image" content="https://id-preview--064af4ad-946f-41f8-807e-2d2af0d045c3.lovable.app/__l5e/assets-v1/a073e4a2-70da-4a31-9d0f-4d6996515ae5/vid-og-thumbnail.jpg"/><link rel="modulepreload" href="/assets/index-BC8sAdDP.js"/><link rel="modulepreload" href="/assets/routes-D0mCyR5_.js"/><link rel="modulepreload" href="/assets/Logo-BDspmT5E.js"/><link rel="modulepreload" href="/assets/bookmark-Bj2UhP8p.js"/><link rel="modulepreload" href="/assets/check-nxStYgU9.js"/><link rel="modulepreload" href="/assets/chevron-down-DK93xK2H.js"/><link rel="modulepreload" href="/assets/chevron-right-D2EsMI1j.js"/><link rel="modulepreload" href="/assets/MovieRow-wgtWyYYV.js"/><link rel="modulepreload" href="/assets/download-BnP2AGq2.js"/><link rel="modulepreload" href="/assets/plannedRows-BlFGFJtG.js"/><link rel="modulepreload" href="/assets/play-By4ACzYi.js"/><link rel="modulepreload" href="/assets/plus-ChgZFMQO.js"/><link rel="modulepreload" href="/assets/refresh-cw-CGKXQGch.js"/><link rel="modulepreload" href="/assets/rotate-ccw-DO5hUJf7.js"/><link rel="modulepreload" href="/assets/search-mBvarZ5p.js"/><link rel="modulepreload" href="/assets/settings-BM0jxHjQ.js"/><link rel="modulepreload" href="/assets/sparkles-mgSop5LT.js"/><link rel="modulepreload" href="/assets/upload-m9InTRgV.js"/><link rel="modulepreload" href="/assets/x-BmFyizy0.js"/><link rel="modulepreload" href="/assets/SmartImage-BirfTAC4.js"/><link rel="modulepreload" href="/assets/useIsTvBrowser-fbClhIkQ.js"/><link rel="modulepreload" href="/assets/continueWatching-BkudUnMR.js"/><link rel="modulepreload" href="/assets/media-B5Ms5-4I.js"/><link rel="modulepreload" href="/assets/safe-storage-Da5esb5U.js"/><link rel="modulepreload" href="/assets/useVisibleCount-Bo5G9K3N.js"/><link rel="preconnect" href="https://img.youtube.com"/><link rel="preconnect" href="https://i.ytimg.com"/><link rel="preconnect" href="https://image.tmdb.org"/><link rel="preconnect" href="https://yjakihgnxntjfjvarxmt.supabase.co"/><link rel="dns-prefetch" href="https://s4.anilist.co"/><link rel="dns-prefetch" href="https://m.media-amazon.com"/><link rel="dns-prefetch" href="https://static.tvmaze.com"/><link rel="icon" href="/favicon.ico" type="image/x-icon"/><link rel="manifest" href="/manifest.webmanifest"/><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180"/></head><body><script data-tv-boot="1">
 (function () {
@@ -126,12 +126,12 @@ header age: 0
 header cache-control: public, max-age=0, must-revalidate
 header content-encoding: br
 header content-type: text/html; charset=utf-8
-header date: Tue, 22 Sep 2026 06:09:43 GMT
+header date: Tue, 22 Sep 2026 06:36:51 GMT
 header server: Vercel
 header strict-transport-security: max-age=63072000; includeSubDomains; preload
 header transfer-encoding: chunked
 header x-vercel-cache: MISS
-header x-vercel-id: sfo1::iad1::hqf5x-1790057382950-73a031d90828
+header x-vercel-id: sfo1::iad1::7p5xb-1790059011739-537586cce54b
 html bytes: 79885
 
 == HTML markers
@@ -150,6 +150,11 @@ leftover @layer: 0
 @keyframes: 8
 :where( rules: 102
 color-mix( usages: 267
+
+== alternate hostnames
+https://vidd.vercel.app -> HTTP 307 (location: /signin) | title: "" | is vidd app: false | bytes: 15
+https://vidd-oppp1.vercel.app -> HTTP 302 (location: https://vercel.com/sso-api?url=https%3A%2F%2Fvidd-oppp1.vercel.app%2F&nonce=4028f75ddcdb40a22711e04cd9da671bca0bc5bdc958e4f5efdc98016a7b0196) | title: "" | is vidd app: false | bytes: 15
+https://vidd-git-main-oppp1.vercel.app -> HTTP 302 (location: https://vercel.com/sso-api?url=https%3A%2F%2Fvidd-git-main-oppp1.vercel.app%2F&nonce=e04323e202660549c90d3819075384da96df4ccd1061fb01df0d3741e22b0c65) | title: "" | is vidd app: false | bytes: 15
 
 == referenced assets (26)
 /assets/styles-DzxOj9g5.css
@@ -186,18 +191,18 @@ npm warn deprecated tsconfck@3.1.6: unmaintained
 npm warn deprecated recharts@2.15.4: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
 npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
 
-added 434 packages in 29s
+added 434 packages in 23s
 Installing dependencies...
 Switching to root user to install dependencies...
 Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
-Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
 Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
 Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
 Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
 Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
-Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
-Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [480 kB]
-Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [430 kB]
+Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [480 kB]
+Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [430 kB]
+Get:9 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
 Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1284 kB]
 Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [295 kB]
 Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [181 kB]
@@ -224,7 +229,7 @@ Get:32 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Pa
 Get:33 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [343 kB]
 Get:34 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse Translation-en [11.3 kB]
 Get:35 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1411 B]
-Fetched 12.3 MB in 1s (8932 kB/s)
+Fetched 12.3 MB in 1s (12.6 MB/s)
 Reading package lists...
 Reading package lists...
 Building dependency tree...
@@ -306,7 +311,7 @@ Get:11 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings 
 Get:12 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
 Get:13 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
 Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
-Fetched 23.0 MB in 1s (19.0 MB/s)
+Fetched 23.0 MB in 2s (11.7 MB/s)
 Selecting previously unselected package fonts-ipafont-gothic.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 201818 files and directories currently installed.)
 Preparing to unpack .../00-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
@@ -425,16 +430,7 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "Uncaught SyntaxError: Unexpected token 'export'"
   ],
   "failedRequests": [
-    "GET https://hanerix.com/player/jw8/jwplayer.controls.tizen.js?v=42 — net::ERR_ABORTED",
-    "GET https://hanerix.com/stream/uRUF2U0tidvQV2puGSwhHA/kjhhiuahiuhgihdf/1790100655/65977779/master.m3u8 — net::ERR_ABORTED",
-    "HEAD https://hanerix.com/stream/uRUF2U0tidvQV2puGSwhHA/kjhhiuahiuhgihdf/1790100655/65977779/master.m3u8 — net::ERR_ABORTED",
-    "GET https://hanerix.com/assets/jquery/hg-p1.js?type=main&u=40&v=20260807213908 — net::ERR_ABORTED",
-    "GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED",
-    "GET https://kxbg0h85dae8.premilkyway.com/vtt/01/13195/6akqb4bsfb8g_eng.vtt — net::ERR_ABORTED",
-    "GET https://huntrexus.com/6akqb4bsfb8g_xt.jpg — net::ERR_ABORTED",
-    "GET https://jzddkefw9oeu0.premilkyway.com/hls2/01/13195/6akqb4bsfb8g_,l,n,h,.urlset/master.m3u8?t=4AP7wRo4jswhHi2oWDloG1dISTuVqbGqoQPKWC4eSo4&s=1790057454&e=129600&f=65977779&srv=kxbg0h85dae8&i=0.4&sp=500&p1=kxbg0h85dae8&p2=kxbg0h85dae8&asn=8075 — net::ERR_ABORTED",
-    "GET https://www.googletagmanager.com/gtag/js?id=G-E2BG6CPV2J&is_td=1&v=3&t=t&pid=108710277&gtm=45je69i2v9219645237za200zd9219645237xf1&seq=2&exp=115616985~115938465~115938469~118012009~118897920~118897930~120213116~120385422~120469145~120469153&dl=hanerix.com%2Fe%2F6akqb4bsfb8g&tdp=G-E2BG6CPV2J;219645237;0;0;0&mde=G-2TL7NH453R;0_1~G-E2BG6CPV2J;61_1&fin=1&z=0 — net::ERR_ABORTED",
-    "POST https://www.googletagmanager.com/td?id=G-E2BG6CPV2J&v=3&t=t&pid=108710277&gtm=45je69i2v9219645237za200zd9219645237xf1&seq=2&exp=115616985~115938465~115938469~118012009~118897920~118897930~120213116~120385422~120469145~120469153&dl=hanerix.com%2Fe%2F6akqb4bsfb8g&tdp=G-E2BG6CPV2J;219645237;0;0;0&mde=G-2TL7NH453R;0_1~G-E2BG6CPV2J;61_1&fin=1&z=0 — net::ERR_ABORTED"
+    "GET https://hanerix.com/e/6akqb4bsfb8g — net::ERR_ABORTED"
   ],
   "renderSignals": {
     "title": "vid — Streaming Library",
@@ -458,8 +454,8 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "viewport": "1366x768"
   },
   "timings": {
-    "domContentLoadedMs": 240,
-    "settledMs": 17060
+    "domContentLoadedMs": 319,
+    "settledMs": 20745
   },
   "cssSignals": {
     "found": true,
@@ -487,7 +483,9 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "Uncaught SyntaxError: Unexpected token 'export'"
   ],
   "failedRequests": [
-    "HEAD https://hanerix.com/stream/1SAq0g1wVCqf9IBSJVFkXg/kjhhiuahiuhgihdf/1790100675/65977779/master.m3u8 — net::ERR_ABORTED"
+    "GET https://hanerix.com/player/jw8/jwplayer.core.js?v=42 — net::ERR_ABORTED",
+    "GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED",
+    "GET https://hanerix.com/assets/jquery/hg-p1.js?type=main&u=40&v=20260807213908 — net::ERR_ABORTED"
   ],
   "renderSignals": {
     "title": "vid — Streaming Library",
@@ -511,8 +509,8 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "viewport": "1280x720"
   },
   "timings": {
-    "domContentLoadedMs": 361,
-    "settledMs": 16343
+    "domContentLoadedMs": 353,
+    "settledMs": 16242
   },
   "cssSignals": {
     "found": true,
@@ -540,7 +538,14 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "Uncaught SyntaxError: Unexpected token 'export'"
   ],
   "failedRequests": [
-    "HEAD https://hanerix.com/stream/zASFbg2Wg7kG2UpS3IGspQ/kjhhiuahiuhgihdf/1790100696/65977779/master.m3u8 — net::ERR_ABORTED"
+    "HEAD https://hanerix.com/stream/-tndI-YsbznPqfHRVvq1Og/kjhhiuahiuhgihdf/1790102320/65977779/master.m3u8 — net::ERR_ABORTED",
+    "GET https://hanerix.com/assets/jquery/hg-p1.js?type=main&u=40&v=20260807213908 — net::ERR_ABORTED",
+    "GET https://kxbg0h85dae8.premilkyway.com/vtt/01/13195/6akqb4bsfb8g_eng.vtt — net::ERR_ABORTED",
+    "GET https://hanerix.com/stream/-tndI-YsbznPqfHRVvq1Og/kjhhiuahiuhgihdf/1790102320/65977779/master.m3u8 — net::ERR_ABORTED",
+    "GET https://hanerix.com/player/jw8/jwplayer.controls.tizen.js?v=42 — net::ERR_ABORTED",
+    "GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED",
+    "GET https://hanerix.com/player/jw8/polyfills.webvtt.js?v=42 — net::ERR_ABORTED",
+    "GET https://huntrexus.com/6akqb4bsfb8g_xt.jpg — net::ERR_ABORTED"
   ],
   "renderSignals": {
     "title": "vid — Streaming Library",
@@ -564,8 +569,8 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "viewport": "1280x720"
   },
   "timings": {
-    "domContentLoadedMs": 235,
-    "settledMs": 16664
+    "domContentLoadedMs": 331,
+    "settledMs": 16781
   },
   "cssSignals": {
     "found": true,
@@ -601,7 +606,7 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "bodyChildCount": 5,
     "textLength": 2693,
     "imgCount": 125,
-    "imgLoadedCount": 17,
+    "imgLoadedCount": 15,
     "buttons": 25,
     "headingCount": 12,
     "firstHeadings": [
@@ -617,8 +622,8 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "viewport": "412x915"
   },
   "timings": {
-    "domContentLoadedMs": 298,
-    "settledMs": 19986
+    "domContentLoadedMs": 409,
+    "settledMs": 20363
   },
   "cssSignals": {
     "found": true,
@@ -646,10 +651,7 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "Uncaught SyntaxError: Unexpected token 'export'"
   ],
   "failedRequests": [
-    "GET https://www.googletagmanager.com/gtag/js?id=G-2TL7NH453R — net::ERR_ABORTED",
-    "GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED",
-    "GET https://www.googletagmanager.com/gtag/js?id=G-E2BG6CPV2J — net::ERR_ABORTED",
-    "GET https://huntrexus.com/idai5wak9cv0_xt.jpg — net::ERR_ABORTED"
+    "GET https://hanerix.com/e/idai5wak9cv0 — net::ERR_ABORTED"
   ],
   "renderSignals": {
     "title": "vid — Streaming Library",
@@ -673,8 +675,8 @@ Chrome Headless Shell 153.0.8010.12 (playwright chromium-headless-shell v1243) d
     "viewport": "375x812"
   },
   "timings": {
-    "domContentLoadedMs": 229,
-    "settledMs": 20433
+    "domContentLoadedMs": 304,
+    "settledMs": 19215
   },
   "cssSignals": {
     "found": true,
@@ -698,26 +700,28 @@ FINAL: 5 PROBLEM PROFILE(S)
   textLength 1976 imgs 11/102
   bodyStart "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2025 | 99% Match | Chainsaw Man - The Movie: Reze Arc | A direct sequel to the first season of the series \"Chainsa"
   PAGE ERROR: Uncaught SyntaxError: Unexpected token 'export'
-  FAILED REQ: GET https://hanerix.com/player/jw8/jwplayer.controls.tizen.js?v=42 — net::ERR_ABORTED
-  FAILED REQ: GET https://hanerix.com/stream/uRUF2U0tidvQV2puGSwhHA/kjhhiuahiuhgihdf/1790100655/65977779/master.m3u8 — net::ERR_ABORTED
-  FAILED REQ: HEAD https://hanerix.com/stream/uRUF2U0tidvQV2puGSwhHA/kjhhiuahiuhgihdf/1790100655/65977779/master.m3u8 — net::ERR_ABORTED
-  FAILED REQ: GET https://hanerix.com/assets/jquery/hg-p1.js?type=main&u=40&v=20260807213908 — net::ERR_ABORTED
-  FAILED REQ: GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED
-  FAILED REQ: GET https://kxbg0h85dae8.premilkyway.com/vtt/01/13195/6akqb4bsfb8g_eng.vtt — net::ERR_ABORTED
-  FAILED REQ: GET https://huntrexus.com/6akqb4bsfb8g_xt.jpg — net::ERR_ABORTED
-  FAILED REQ: GET https://jzddkefw9oeu0.premilkyway.com/hls2/01/13195/6akqb4bsfb8g_,l,n,h,.urlset/master.m3u8?t=4AP7wRo4jswhHi2oWDloG1dISTuVqbGqoQPKWC4eSo4&s=1790057454&e=129600&f=65977779&srv=kxbg0h85dae8&i=0.4&sp
+  FAILED REQ: GET https://hanerix.com/e/6akqb4bsfb8g — net::ERR_ABORTED
 --- tv_tizen_5_5: PROBLEM
   textLength 1976 imgs 9/102
   bodyStart "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2025 | 99% Match | Chainsaw Man - The Movie: Reze Arc | A direct sequel to the first season of the series \"Chainsa"
   PAGE ERROR: Uncaught SyntaxError: Unexpected token 'export'
-  FAILED REQ: HEAD https://hanerix.com/stream/1SAq0g1wVCqf9IBSJVFkXg/kjhhiuahiuhgihdf/1790100675/65977779/master.m3u8 — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/player/jw8/jwplayer.core.js?v=42 — net::ERR_ABORTED
+  FAILED REQ: GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/assets/jquery/hg-p1.js?type=main&u=40&v=20260807213908 — net::ERR_ABORTED
 --- tv_tizen_old: PROBLEM
   textLength 1976 imgs 9/102
   bodyStart "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2025 | 99% Match | Chainsaw Man - The Movie: Reze Arc | A direct sequel to the first season of the series \"Chainsa"
   PAGE ERROR: Uncaught SyntaxError: Unexpected token 'export'
-  FAILED REQ: HEAD https://hanerix.com/stream/zASFbg2Wg7kG2UpS3IGspQ/kjhhiuahiuhgihdf/1790100696/65977779/master.m3u8 — net::ERR_ABORTED
+  FAILED REQ: HEAD https://hanerix.com/stream/-tndI-YsbznPqfHRVvq1Og/kjhhiuahiuhgihdf/1790102320/65977779/master.m3u8 — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/assets/jquery/hg-p1.js?type=main&u=40&v=20260807213908 — net::ERR_ABORTED
+  FAILED REQ: GET https://kxbg0h85dae8.premilkyway.com/vtt/01/13195/6akqb4bsfb8g_eng.vtt — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/stream/-tndI-YsbznPqfHRVvq1Og/kjhhiuahiuhgihdf/1790102320/65977779/master.m3u8 — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/player/jw8/jwplayer.controls.tizen.js?v=42 — net::ERR_ABORTED
+  FAILED REQ: GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/player/jw8/polyfills.webvtt.js?v=42 — net::ERR_ABORTED
+  FAILED REQ: GET https://huntrexus.com/6akqb4bsfb8g_xt.jpg — net::ERR_ABORTED
 --- phone_android: PROBLEM
-  textLength 2693 imgs 17/125
+  textLength 2693 imgs 15/125
   bodyStart "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2025 | 99% Match | Demon Slayer: Kimetsu No Yaiba Infinity Castle | The Demon Slayer Corps are drawn into the Infi"
   PAGE ERROR: Uncaught SyntaxError: Unexpected token 'export'
   FAILED REQ: GET https://hanerix.com/e/idai5wak9cv0 — net::ERR_ABORTED
@@ -725,9 +729,6 @@ FINAL: 5 PROBLEM PROFILE(S)
   textLength 2525 imgs 13/125
   bodyStart "vid | U | Home | Discover | My List | Movies | Anime | Cartoon | ⭐ FEATURED | PG-13 | 2025 | 99% Match | Demon Slayer: Kimetsu No Yaiba Infinity Castle | The Demon Slayer Corps are drawn into the Infi"
   PAGE ERROR: Uncaught SyntaxError: Unexpected token 'export'
-  FAILED REQ: GET https://www.googletagmanager.com/gtag/js?id=G-2TL7NH453R — net::ERR_ABORTED
-  FAILED REQ: GET https://mc.yandex.ru/metrika/tag.js — net::ERR_ABORTED
-  FAILED REQ: GET https://www.googletagmanager.com/gtag/js?id=G-E2BG6CPV2J — net::ERR_ABORTED
-  FAILED REQ: GET https://huntrexus.com/idai5wak9cv0_xt.jpg — net::ERR_ABORTED
+  FAILED REQ: GET https://hanerix.com/e/idai5wak9cv0 — net::ERR_ABORTED
 ```
 
