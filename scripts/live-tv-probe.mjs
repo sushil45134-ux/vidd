@@ -36,7 +36,10 @@ console.log("\n== HTML markers");
 console.log("data-tv-boot occurrences:", count(/data-tv-boot/g));
 console.log("tv-layout in html class:", /<html[^>]*class="[^"]*tv-layout/.test(html));
 console.log("script src list:", JSON.stringify(html.match(/<script[^>]*\bsrc="[^"]+"/g) ?? []));
-console.log("stylesheet hrefs:", JSON.stringify(html.match(/<link[^>]*rel="stylesheet"[^>]*>/g) ?? []));
+console.log(
+  "stylesheet hrefs:",
+  JSON.stringify(html.match(/<link[^>]*rel="stylesheet"[^>]*>/g) ?? []),
+);
 console.log("modulepreload count:", count(/rel="modulepreload"/g));
 console.log("inline <script> tags:", count(/<script(?![^>]*\bsrc=)[^>]*>/g));
 console.log("ssr rows (h2):", count(/<h2/g), "imgs:", count(/<img/g));
@@ -69,6 +72,29 @@ if (cssHref) {
   console.log("@keyframes:", (css.match(/@keyframes/g) || []).length);
   console.log(":where( rules:", (css.match(/:where\(/g) || []).length);
   console.log("color-mix( usages:", (css.match(/color-mix\(/g) || []).length);
+}
+
+// Optional extra hostnames (--also a,b): a TV that cached a dead DNS answer
+// for one hostname can often still open the same deployment under another one,
+// so it is worth knowing which aliases really serve this app.
+const alsoIndex = process.argv.indexOf("--also");
+const also = alsoIndex > -1 ? (process.argv[alsoIndex + 1] ?? "").split(",").filter(Boolean) : [];
+if (also.length) {
+  console.log("\n== alternate hostnames");
+  for (const candidate of also) {
+    try {
+      const r = await fetch(candidate, { headers: { "user-agent": TV_UA }, redirect: "manual" });
+      const body = await r.text();
+      const title = /<title[^>]*>([^<]*)<\/title>/i.exec(body)?.[1] ?? "";
+      const ours = body.includes("data-tv-boot") || /vid — Streaming Library/i.test(title);
+      console.log(
+        `${candidate} -> HTTP ${r.status}${r.headers.get("location") ? " (location: " + r.headers.get("location") + ")" : ""}` +
+          ` | title: ${JSON.stringify(title)} | is vidd app: ${ours} | bytes: ${Buffer.byteLength(body)}`,
+      );
+    } catch (e) {
+      console.log(`${candidate} -> ERROR ${String(e).slice(0, 160)}`);
+    }
+  }
 }
 
 // Which assets does the document reference? Printed so a stale deploy is

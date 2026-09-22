@@ -69,7 +69,9 @@ jobs:
       - name: Response body + TV markers
         run: |
           set +e
-          node scripts/live-tv-probe.mjs "${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}" 2>&1 | tee /tmp/report-02-body.txt
+          node scripts/live-tv-probe.mjs "${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}" \
+            --also "https://vidd.vercel.app,https://vidd-oppp1.vercel.app,https://vidd-git-main-oppp1.vercel.app" \
+            2>&1 | tee /tmp/report-02-body.txt
           exit 0
 
       - name: Chromium load of the live site (Tizen UA) — errors + screenshot
