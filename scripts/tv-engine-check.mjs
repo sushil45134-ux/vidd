@@ -115,6 +115,50 @@ async function newPage(browser, { blockModule = false } = {}) {
   if (blockModule) {
     await page.route(/\/assets\/index-[^/]+\.js$/, (route) => route.abort("failed"));
   }
+  await page.addInitScript(() => {
+    // Record every uncaught error with its source location + stack: on a TV
+    // these are the only clue about which library died and where.
+    const bag = [];
+    window.__TV_ERRORS__ = bag;
+    const push = (entry) => {
+      try {
+        bag.push(entry);
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    window.addEventListener(
+      "error",
+      (event) => {
+        const err = event.error;
+        push({
+          kind: "error",
+          message: String((err && err.message) || event.message || "").slice(0, 400),
+          source: String(event.filename || "").slice(0, 200),
+          line: event.lineno,
+          col: event.colno,
+          stack: String((err && err.stack) || "")
+            .split("\n")
+            .slice(0, 5)
+            .join(" | ")
+            .slice(0, 900),
+        });
+      },
+      true,
+    );
+    window.addEventListener("unhandledrejection", (event) => {
+      const reason = event.reason;
+      push({
+        kind: "rejection",
+        message: String((reason && reason.message) || reason || "").slice(0, 400),
+        stack: String((reason && reason.stack) || "")
+          .split("\n")
+          .slice(0, 5)
+          .join(" | ")
+          .slice(0, 900),
+      });
+    });
+  });
   await page.addInitScript(
     ([cfg]) => {
       const __MISSING__ = cfg;
@@ -267,6 +311,48 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
   await context.close();
 }
 
+/* ── Scenario D: ?tv=1 static mode, D-pad driven ──────────────────────── */
+{
+  const { page, errors, consoleErrors, context } = await newPage(browser);
+  const result = { name: "tv1-static-dpad" };
+  const scriptRequests = [];
+  page.on("request", (r) => {
+    if (/\/assets\/.*\.js$/.test(r.url())) scriptRequests.push(r.url().split("/").pop());
+  });
+  try {
+    await page.goto(new URL("?tv=1", url).href, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.waitForTimeout(6000);
+    result.afterLoad = await signals(page);
+    result.moduleScriptsDownloaded = scriptRequests.length;
+    result.htmlClass = await page.evaluate(() => document.documentElement.className);
+    await page.screenshot({ path: join(outDir, "d1-tv1-static.png") });
+
+    // D-pad: the remote's right/down arrows must move focus.
+    const before = await page.evaluate(() => {
+      const a = document.activeElement;
+      return a ? (a.textContent || a.tagName).trim().slice(0, 60) : "";
+    });
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(400);
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => {
+      const a = document.activeElement;
+      return a ? (a.textContent || a.tagName).trim().slice(0, 60) : "";
+    });
+    result.focusBefore = before;
+    result.focusAfter = after;
+    result.dpadMovedFocus = before !== after;
+    result.noticeVisible = await page.evaluate(() => !!document.getElementById("tv-simple-notice"));
+  } catch (e) {
+    result.fatalError = String(e).slice(0, 400);
+  }
+  result.pageErrors = errors.slice(0, 6);
+  result.consoleErrors = consoleErrors.slice(0, 4);
+  scenarios.D_tv1_static = result;
+  await context.close();
+}
+
 /* ── Scenario C: static parse check of served HTML + assets ────────────── */
 {
   const result = { name: "static-parse-es2019", inlineScripts: [], assets: [], violations: [] };
@@ -281,18 +367,21 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
     }
     const parse = (code, sourceType) => {
       if (!acorn) return "no-acorn";
-      for (const v of [2019]) {
-        try {
-          acorn.parse(code, {
-            ecmaVersion: v,
-            sourceType,
-            allowReturnOutsideFunction: true,
-            allowAwaitOutsideFunction: false,
-          });
-          return "ok";
-        } catch (e) {
-          return e.message;
+      try {
+        acorn.parse(code, { ecmaVersion: 2019, sourceType, allowReturnOutsideFunction: true });
+        return "ok";
+      } catch (e) {
+        // `import()` is ES2020 *grammar* but has been supported since Chrome
+        // 63 — a Chromium 69 TV handles it fine, so it is not a violation.
+        if (/\bimport\s*\(/.test(code)) {
+          try {
+            acorn.parse(code, { ecmaVersion: 2020, sourceType, allowReturnOutsideFunction: true });
+            return "ok (dynamic import only; Chrome 63+)";
+          } catch (e2) {
+            return e2.message;
+          }
         }
+        return e.message;
       }
     };
     const inline = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
@@ -323,15 +412,31 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
       const verdict = parse(code, "module");
       result.assets.push({ asset: a, bytes: code.length, es2019: verdict });
       // A top-level `await` is ES2022: Chromium 69 fails the whole module.
-      if (verdict !== "ok") result.violations.push(`asset ${a}: ${verdict}`);
+      if (verdict !== "ok" && !verdict.startsWith("ok "))
+        result.violations.push(`asset ${a}: ${verdict}`);
+      // Scan with string/regex literals blanked out: `drop-shadow-[0_0_24px_…]`
+      // (numeric separator look-alike) and `color:#fff;` (private-field
+      // look-alike) live inside strings and are not syntax.
+      const bare = code
+        .replace(/`(?:\\.|[^`\\])*`/g, "``")
+        .replace(/"(?:\\.|[^"\\])*"/g, '""')
+        .replace(/'(?:\\.|[^'\\])*'/g, "''");
       for (const [label, re] of [
         ["numeric separator (Chrome 75+)", /\b\d[\d_]*_\d/],
-        ["class private field (Chrome 74+)", /[^\w.$#]#[A-Za-z_]\w*\s*[=(;]/],
+        ["class private field (Chrome 74+)", /[{\s;=,(]#[A-Za-z_]\w*\s*[=(;]/],
       ]) {
-        if (re.test(code)) result.violations.push(`asset ${a}: ${label}`);
+        if (re.test(bare)) result.violations.push(`asset ${a}: ${label}`);
       }
     }
     result.checkedInline = result.inlineScripts.length;
+    result.tvLayoutPresent = /<html[^>]*class="[^"]*tv-layout/.test(html);
+    result.tvFallbackPresent = html.includes("data-tv-fallback=");
+    const staticHtml = await fetch(new URL("?tv=1", url).href, {
+      headers: { "user-agent": TIZEN_UA },
+    }).then((r) => r.text());
+    result.tv1ModuleScripts = (staticHtml.match(/<script[^>]*type="module"/g) || []).length;
+    result.tv1ModulePreloads = (staticHtml.match(/rel="modulepreload"/g) || []).length;
+    result.tv1FallbackPresent = staticHtml.includes("data-tv-fallback=");
     result.checkedAssets = result.assets.length;
   } catch (e) {
     result.fatalError = String(e).slice(0, 400);
@@ -396,6 +501,10 @@ if (A.afterPlay)
   );
 console.log("page errors:", A.pageErrors.length);
 A.pageErrors.slice(0, 8).forEach((e) => console.log("   ! " + e.split("\n")[0]));
+if (A.afterLoad?.recordedErrors?.length) {
+  console.log("recorded with location:");
+  A.afterLoad.recordedErrors.slice(0, 10).forEach((e) => console.log("   ! " + e));
+}
 console.log("console errors:", A.consoleErrors.length);
 A.consoleErrors.slice(0, 8).forEach((e) => console.log("   ! " + e.slice(0, 220)));
 console.log("failed requests:", A.failedRequests.length);
@@ -413,11 +522,37 @@ console.log("links:", B.afterLoad?.links, "focusables:", B.afterLoad?.focusables
 console.log("text:", JSON.stringify(B.afterLoad?.textStart ?? ""));
 B.pageErrors.slice(0, 4).forEach((e) => console.log("   ! " + e.split("\n")[0]));
 
+console.log("\n=========== D. ?tv=1 static mode + D-pad ===========");
+const D = scenarios.D_tv1_static;
+if (D.fatalError) console.log("FATAL:", D.fatalError);
+console.log("html class:", D.htmlClass, "| module scripts downloaded:", D.moduleScriptsDownloaded);
+console.log(
+  "visible text bytes:",
+  D.afterLoad?.textLength,
+  "| imgs:",
+  `${D.afterLoad?.imgLoaded}/${D.afterLoad?.imgCount}`,
+  "| links:",
+  D.afterLoad?.links,
+);
+console.log(
+  "notice bar:",
+  D.noticeVisible,
+  "| D-pad moved focus:",
+  D.dpadMovedFocus,
+  JSON.stringify([D.focusBefore, D.focusAfter]),
+);
+console.log("text:", JSON.stringify(D.afterLoad?.textStart ?? ""));
+D.pageErrors.slice(0, 4).forEach((e) => console.log("   ! " + e.split("\n")[0]));
+
 console.log("\n=========== C. static ES2019 parse of what the TV downloads ===========");
 console.log(
   `inline scripts checked: ${C.checkedInline ?? "?"}, assets checked: ${C.checkedAssets ?? "?"}`,
 );
 if (C.skipped) console.log("SKIPPED:", C.skipped);
+console.log(`TV document: tv-layout ${C.tvLayoutPresent}, fallback script ${C.tvFallbackPresent}`);
+console.log(
+  `?tv=1 document: module scripts ${C.tv1ModuleScripts}, modulepreload ${C.tv1ModulePreloads}, fallback ${C.tv1FallbackPresent}`,
+);
 console.log("violations:", C.violations.length);
 C.violations.slice(0, 20).forEach((v) => console.log("   ! " + v));
 console.log(`\nraw results: ${join(outDir, "tv-engine-results.json")}`);
