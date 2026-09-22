@@ -1,0 +1,123 @@
+name: Live TV probe
+
+# Answers the question the browser tests cannot: what does the REAL deployed
+# site answer to a Samsung Tizen 5.5 TV request? Records the TLS chain, the
+# exact response (status/headers/body head) for a SMART-TV User-Agent, and the
+# markers the TV fix depends on (boot script, legacy CSS block, asset hashes).
+#
+# RESULTS ARE COMMITTED to tv-probe-report.txt on this branch: GitHub's log and
+# artifact blob hosts are not reachable from every environment, and the repo
+# files are readable from a plain clone.
+on:
+  push:
+    paths:
+      - ".github/workflows/live-tv-probe.yml"
+      - "scripts/live-tv-probe.mjs"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "URL to probe"
+        required: false
+        default: "https://vidd-zeta.vercel.app"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: TLS + HTTP diagnostics for the TV User-Agent
+        run: |
+          set +e
+          URL="${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}"
+          HOST=$(echo "$URL" | sed -E 's#https?://([^/]+).*#\1#')
+          {
+            echo "### DNS"
+            getent ahosts "$HOST" | head -10
+            echo
+            echo "### TLS handshake (what the TV has to trust)"
+            echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" -showcerts 2>&1 | sed -n '1,45p'
+            echo
+            echo "### Certificate chain details"
+            echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>&1
+            echo
+            echo "### Leaf key/signature algorithm (older TV browsers reject some of these)"
+            echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" 2>/dev/null | openssl x509 -noout -text 2>/dev/null | grep -E "Public Key Algorithm|Signature Algorithm|Subject Alternative" | head -8
+            echo
+            echo "### Intermediate chain (how many certs are sent)"
+            echo | timeout 25 openssl s_client -connect "$HOST:443" -servername "$HOST" -showcerts 2>/dev/null | grep -c "BEGIN CERTIFICATE"
+            echo
+            echo "### TLS versions"
+            for v in tls1_2 tls1_3; do
+              printf "%s: " "$v"
+              echo | timeout 15 openssl s_client -"$v" -connect "$HOST:443" -servername "$HOST" 2>&1 | grep -m1 -E "Protocol|error|alert" || echo "no output"
+            done
+            echo
+            echo "### Headers seen by a Tizen UA (curl -i)"
+            curl -sS -i --max-time 40 -A "Mozilla/5.0 (SMART-TV; Linux; Tizen 5.5) AppleWebKit/537.36 (KHTML, like Gecko) Version/5.5 TV Safari/537.36" "$URL" | head -35
+          } 2>&1 | tee /tmp/report-01-tls.txt
+          exit 0
+
+      - name: Response body + TV markers
+        run: |
+          set +e
+          node scripts/live-tv-probe.mjs "${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}" \
+            --also "https://vidd.vercel.app,https://vidd-oppp1.vercel.app,https://vidd-git-main-oppp1.vercel.app" \
+            2>&1 | tee /tmp/report-02-body.txt
+          exit 0
+
+      - name: Chromium load of the live site (Tizen UA) — errors + screenshot
+        run: |
+          set +e
+          {
+            npm install --no-save --no-package-lock --no-audit --no-fund --legacy-peer-deps playwright
+            npx playwright install --with-deps chromium
+            mkdir -p probe-out
+            node scripts/device-check.mjs "${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}" --out probe-out --wait 15000
+            node -e "
+              const fs=require('fs');
+              try{
+                const r=JSON.parse(fs.readFileSync('probe-out/results.json','utf8'));
+                for(const [n,p] of Object.entries(r.profiles)){
+                  console.log('--- '+n+': '+p.verdict);
+                  console.log('  textLength '+(p.renderSignals?.textLength ?? '?')+' imgs '+(p.renderSignals?.imgLoadedCount ?? '?')+'/'+(p.renderSignals?.imgCount ?? '?'));
+                  console.log('  bodyStart '+JSON.stringify((p.renderSignals?.bodyStart||'').slice(0,200)));
+                  (p.pageErrors||[]).slice(0,4).forEach(e=>console.log('  PAGE ERROR: '+String(e).split('\n')[0]));
+                  (p.consoleErrors||[]).slice(0,6).forEach(e=>console.log('  CONSOLE ERROR: '+String(e).split('\n')[0].slice(0,300)));
+                  (p.failedRequests||[]).slice(0,8).forEach(e=>console.log('  FAILED REQ: '+String(e).slice(0,200)));
+                }
+              }catch(e){ console.log('no results: '+e.message); }
+            "
+          } 2>&1 | tee /tmp/report-03-chromium.txt
+          exit 0
+
+      - name: Commit the report to this branch
+        if: always()
+        run: |
+          {
+            echo "# Live TV probe — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo "Target: ${{ github.event.inputs.url || 'https://vidd-zeta.vercel.app' }}"
+            echo "Commit: ${GITHUB_SHA}"
+            echo
+            for f in /tmp/report-01-tls.txt /tmp/report-02-body.txt /tmp/report-03-chromium.txt; do
+              echo "## $(basename "$f")"
+              echo '```'
+              cat "$f" 2>/dev/null || echo "(no output)"
+              echo '```'
+              echo
+            done
+          } > tv-probe-report.txt
+          git config user.name "arena-agent"
+          git config user.email "arena-agent@users.noreply.github.com"
+          git add tv-probe-report.txt
+          git commit -m "chore(tv): live probe report [skip ci]" || echo "nothing to commit"
+          git push origin HEAD:arena/01a0c7ae-vidd || echo "push skipped"

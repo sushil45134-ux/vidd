@@ -275,6 +275,12 @@ function App() {
   // Read inside the component, never at module scope: on the server this is
   // false, on a TV it flips to true after hydration (see useIsTvBrowser).
   const IS_TV = useIsTvBrowser();
+  // Tells the ES5 TV fallback script (src/lib/tvDocument.ts) that the
+  // interactive app really did boot, so it hands remote-control navigation
+  // back to the app instead of driving the static page itself.
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__VIDD_READY__ = true;
+  }, []);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
   const [resumeAt, setResumeAt] = useState(0);

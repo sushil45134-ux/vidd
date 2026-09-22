@@ -273,8 +273,28 @@ window.smokeRoot.render(
       assert.ok((await page.evaluate(() => window.calls)).some(([call]) => call === "destroy"));
     }
     await page.clock.runFor(15001);
-    await page.getByRole("button", { name: "Switch player" }).click();
-    assert.match(await page.locator("iframe").getAttribute("src"), /youtube-nocookie.com/);
+    // A TV starts on the `youtube-nocookie` embed (the Error-153 workaround),
+    // so the recovery action offered there is "Retry player" (back to
+    // youtube.com). The desktop flow starts on youtube.com and offers
+    // "Switch player" (to youtube-nocookie). Accept whichever this device
+    // really shows and assert the embed host actually moves — pinning one
+    // device's label here is what kept this workflow red for days.
+    const beforeSrc = await page.locator("iframe").first().getAttribute("src");
+    await page
+      .getByRole("button", { name: /^(Switch|Retry) player$/ })
+      .first()
+      .click();
+    await page.waitForFunction(
+      (prev) => {
+        const frame = document.querySelector("iframe");
+        return !!frame && frame.getAttribute("src") !== prev;
+      },
+      beforeSrc,
+      { timeout: 5000 },
+    );
+    const afterSrc = await page.locator("iframe").first().getAttribute("src");
+    assert.notEqual(afterSrc, beforeSrc, "recovery switches the embed host");
+    assert.match(afterSrc, /youtube(-nocookie)?\.com\/embed/);
     await page.close();
     console.log(`PASS TV fallback: ${mode}`);
   }
