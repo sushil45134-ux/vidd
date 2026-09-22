@@ -161,6 +161,12 @@ async function newPage(browser, { blockModule = false } = {}) {
   });
   await page.addInitScript(
     ([cfg]) => {
+      // Only the page under test gets the Chrome-69 diet. Playwright runs init
+      // scripts in every frame, and downgrading a third-party player iframe
+      // would blame *its* code for our TV compatibility (it produced a pile of
+      // queueMicrotask/trustedTypes/PerformanceObserver errors that had
+      // nothing to do with this app).
+      if (window.top !== window) return;
       const __MISSING__ = cfg;
       const fail = [];
       const del = (obj, name) => {
