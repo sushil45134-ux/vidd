@@ -6,7 +6,13 @@ name: TV engine check
 # JS assets. The report is committed to tv-engine-report.txt on this branch
 # (GitHub's log/artifact blob hosts are not reachable from every environment).
 on:
+  # Every change that can reach the TV must go through this gate: the whole
+  # reason the TV broke again and again was that nothing could fail when
+  # modern syntax/APIs slipped into the SSR document or the bundles.
+  pull_request:
+    branches: [main]
   push:
+    branches: [main]
     paths:
       - ".github/workflows/tv-engine-check.yml"
       - "scripts/tv-engine-check.mjs"
@@ -52,8 +58,8 @@ jobs:
           echo "exit=$?"
           exit 0
 
-      - name: Commit the report to this branch
-        if: always()
+      - name: Commit the report to this branch (push runs only)
+        if: always() && github.event_name == 'push'
         run: |
           {
             echo "# TV engine check — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -68,4 +74,4 @@ jobs:
           git config user.email "arena-agent@users.noreply.github.com"
           git add tv-engine-report.txt
           git commit -m "chore(tv): engine check report [skip ci]" || echo "nothing to commit"
-          git push origin HEAD:arena/01a0c7ae-vidd || echo "push skipped"
+          git push origin "HEAD:${GITHUB_REF_NAME}" || echo "push skipped"
