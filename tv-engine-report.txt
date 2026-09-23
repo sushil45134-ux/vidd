@@ -1,6 +1,6 @@
-# TV engine check — 2026-09-22T07:11:00Z
+# TV engine check — 2026-09-23T10:13:39Z
 
-Commit: 3c2bfff916aa3251c9a930844c1b2f502c99e155
+Commit: 3d684557219d2a091ac100bcf74b2e65d0edc962
 
 ```
 =========== A. Chromium-69 API diet (real engine, TV API set) ===========
@@ -15,11 +15,9 @@ after Enter -> text bytes: 1914 | overlay: false | active: "vid"
 after Play  -> iframes: ["https://filesforever.link/embed/o9ni4z4"] | video tag: false
 page errors: 1
    ! Uncaught SyntaxError: Unexpected token 'export'
-console errors: 1
-   ! Failed to load resource: the server responded with a status of 404 ()
-failed requests: 2
-   ! GET http://127.0.0.1:4173/_vercel/insights/script.js — net::ERR_ABORTED
-   ! HEAD https://hanerix.com/stream/lvLDuaTGkuURhjSWCCWcnQ/kjhhiuahiuhgihdf/1790104240/65977779/master.m3u8 — net::ERR_ABORTED
+console errors: 0
+failed requests: 1
+   ! HEAD https://hanerix.com/stream/taIAo5YGNz5rMFAtkqRgRA/kjhhiuahiuhgihdf/1790201599/65977779/master.m3u8 — net::ERR_ABORTED
 
 =========== B. module bundle blocked (pre-module TV) ===========
 visible text bytes: 1300 | imgs: 28/28
@@ -27,15 +25,15 @@ links: 28 focusables: 37
 text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED • TV-14 • 2024 365 Days to the Wedding - Episode 1 ▶ Play 💥 Trending & Popular Shows 365 Days to the Wedding - Episode "
 
 =========== D. normal TV URL repeat launch + D-pad ===========
-html class: tv-layout | module scripts downloaded: 0
-visible text bytes: 1387 | imgs: 28/28 | links: 29
-notice bar: true | D-pad moved focus: true ["vid","BUTTON"]
-text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED • TV-14 • 2024 365 Days to the Wedding - Episode 1 ▶ Play 💥 Trending & Popular Shows 365 Days to the Wedding - Episode "
+html class: tv-layout | module scripts downloaded: 32
+visible text bytes: 1914 | imgs: 9/102 | links: 0
+notice bar: false | D-pad moved focus: true ["vid","Discover"]
+text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED PG-13 2025 99% Match Chainsaw Man - The Movie: Reze Arc A direct sequel to the first season of the series \"Chainsaw Man\""
 
 =========== C. static ES2019 parse of what the TV downloads ===========
-inline scripts checked: 5, assets checked: 25
+inline scripts checked: 4, assets checked: 25
 TV document: tv-layout true, fallback script true
-normal document: module scripts retained for module-capable TV, fallback true
+normal document: module scripts 1, modulepreload 25, fallback true
 violations: 0
 
 raw results: /home/runner/work/vidd/vidd/tv-engine-out/tv-engine-results.json
