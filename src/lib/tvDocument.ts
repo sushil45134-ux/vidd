@@ -15,11 +15,12 @@
  * 2. **A TV whose JS engine cannot run the bundle must still be usable.** The
  *    `tv-layout` class is added server-side (no first-frame desktop flash, and
  *    it stays correct when JS never boots), `<script type="module">` is dropped
- *    for engines that predate ES modules, and an ES5 remote-control helper
+ *    only for engines that predate ES modules, and an ES5 remote-control helper
  *    wires up D-pad navigation for the server-rendered poster library.
  *
- * `?tv=1` forces the static variant from any device — handy for diagnosing a
- * real TV ("does even the JS-free page open?").
+ * A TV with module support keeps the normal interactive client; only an
+ * engine that cannot execute modules uses the dependency-free document, with
+ * no special URL or redirect required for viewers.
  */
 
 export const TV_UA_PATTERN =
@@ -99,8 +100,8 @@ export function stripModernInlineScripts(html: string): string {
  * TanStack emits two slightly different script shapes depending on the
  * adapter: production SSR uses a normal `<script ...></script>` pair, while
  * the Vite dev client can emit a start tag with no closing tag. The old
- * implementation only removed the first shape, which meant `?tv=1` could
- * still hand a Chromium 49 TV a module whose first token was `export`.
+ * implementation only removed the first shape, which could still hand a
+ * Chromium 49 TV a module whose first token was `export`.
  */
 export function stripModuleScripts(html: string): string {
   return html
@@ -202,15 +203,8 @@ export function renderTvFallbackScript(options: { static: boolean }): string {
       "position:fixed;left:0;right:0;bottom:0;z-index:2147483645;background:#111;color:#eee;" +
       "border-top:2px solid #f47521;padding:10px 16px;font:14px/1.4 Arial,sans-serif;text-align:center;";
     var text = doc.createElement("span");
-    text.textContent = STATIC
-      ? "Simple TV mode — remote ke arrows se chalein, OK/Enter se kholein. "
-      : "App load nahi ho paya — remote se library browse karein. ";
+    text.textContent = "TV library — remote ke arrows se chalein, OK/Enter se kholein.";
     bar.appendChild(text);
-    var link = doc.createElement("a");
-    link.href = STATIC ? "/" : "/?tv=1";
-    link.textContent = STATIC ? "Full app try karein" : "Simple mode";
-    link.style.cssText = "color:#f47521;font-weight:bold;text-decoration:underline;margin-left:6px;";
-    bar.appendChild(link);
     doc.body.appendChild(bar);
   }
 
@@ -240,16 +234,129 @@ export function renderTvFallbackScript(options: { static: boolean }): string {
     }
   }
 
+  function requestJson(url, done, failed) {
+    if (typeof win.fetch === "function") {
+      try {
+        win.fetch(url).then(function (response) {
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          return response.json();
+        }).then(done).catch(function () {
+          if (failed) failed();
+        });
+        return;
+      } catch (e) {}
+    }
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", url, true);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { done(JSON.parse(xhr.responseText || "{}")); } catch (e2) { if (failed) failed(); }
+        } else if (failed) failed();
+      };
+      xhr.send(null);
+    } catch (e3) {
+      if (failed) failed();
+    }
+  }
+
+  function liveWatchUrl(row) {
+    if (row && row.youtube_id) return "https://www.youtube.com/watch?v=" + encodeURIComponent(row.youtube_id);
+    return String((row && (row.embed_url || row.video_url)) || "");
+  }
+
+  function renderLiveLibrary(rows) {
+    if (!rows || !rows.length || !doc.body) return;
+    var existing = doc.getElementById("tv-live-library");
+    var section = existing || doc.createElement("section");
+    var heading;
+    var shelf;
+    var i;
+    if (!existing) {
+      section.id = "tv-live-library";
+      section.setAttribute("data-tv-skip", "1");
+      section.style.cssText = "padding:18px 16px 70px;background:#000;color:#fff;font:16px Arial,sans-serif;";
+      heading = doc.createElement("h2");
+      heading.textContent = "Full library";
+      heading.style.cssText = "font-size:22px;margin:0 0 12px;font-weight:bold;";
+      section.appendChild(heading);
+      shelf = doc.createElement("div");
+      shelf.setAttribute("data-tv-live-shelf", "1");
+      shelf.style.cssText = "display:flex;flex-wrap:wrap;gap:12px;";
+      section.appendChild(shelf);
+      doc.body.appendChild(section);
+    } else {
+      shelf = section.querySelector('[data-tv-live-shelf="1"]');
+    }
+    if (!shelf) return;
+    for (i = 0; i < rows.length; i++) {
+      var row = rows[i] || {};
+      var href = liveWatchUrl(row);
+      var title = String(row.title || "Untitled");
+      var image = String(row.image || row.thumbnail_url || row.backdrop || "");
+      if (!href || !image) continue;
+      var card = doc.createElement("a");
+      card.href = href;
+      card.target = "_blank";
+      card.rel = "noopener noreferrer";
+      card.style.cssText = "display:block;width:220px;color:#eee;text-decoration:none;";
+      var picture = doc.createElement("img");
+      picture.src = image;
+      picture.alt = title;
+      picture.setAttribute("loading", "lazy");
+      picture.style.cssText = "display:block;width:220px;height:124px;object-fit:cover;background:#181818;border-radius:5px;";
+      var label = doc.createElement("div");
+      label.textContent = title;
+      label.style.cssText = "padding-top:6px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      card.appendChild(picture);
+      card.appendChild(label);
+      shelf.appendChild(card);
+    }
+  }
+
+  function loadLiveLibrary() {
+    if (!STATIC) return;
+    var columns = "id,title,image,thumbnail_url,backdrop,embed_url,video_url,youtube_id";
+    var pageSize = 1000;
+    var maxPages = 100;
+    var all = [];
+    function page(from, pageNumber) {
+      var count = pageNumber === 0 ? "&count=1" : "";
+      var url = "/api/movies?from=" + from + "&limit=" + pageSize + count + "&columns=" + encodeURIComponent(columns);
+      requestJson(url, function (payload) {
+        var rows = payload && payload.data;
+        var total = payload && typeof payload.count === "number" ? payload.count : NaN;
+        if (!rows || !rows.length) {
+          renderLiveLibrary(all);
+          return;
+        }
+        all = all.concat(rows);
+        var hasMoreByCount = isFinite(total) && total > all.length;
+        var hasMoreByPage = rows.length >= pageSize && pageNumber + 1 < maxPages;
+        if (hasMoreByCount || (!isFinite(total) && hasMoreByPage)) {
+          page(from + rows.length, pageNumber + 1);
+        } else {
+          renderLiveLibrary(all);
+        }
+      }, function () {
+        renderLiveLibrary(all);
+      });
+    }
+    page(0, 0);
+  }
+
   function boot() {
     if (appReady()) return;
     if (STATIC) {
       notice();
+      loadLiveLibrary();
       var list = focusables();
       if (list.length && (!doc.activeElement || doc.activeElement === doc.body)) giveFocus(list[0]);
     }
     doc.addEventListener("keydown", keydown, true);
     win.setTimeout(function () {
-      if (appReady()) return;
+      if (appReady() || !STATIC) return;
       notice();
       var list = focusables();
       if (list.length && (!doc.activeElement || doc.activeElement === doc.body)) giveFocus(list[0]);

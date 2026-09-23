@@ -56,17 +56,7 @@ export async function injectTvBootScript(response: Response, request?: Request):
   if (!isHtmlContentType && !looksLikeHtml) return response;
 
   const userAgent = request?.headers.get("user-agent") ?? "";
-  const forceStatic = request ? new URL(request.url).searchParams.get("tv") === "1" : false;
-  const tvRecovery = wantsTvRecovery(request);
-
-  // TanStack Start's middleware can return the friendly 500 HTML directly,
-  // rather than throwing for the outer normalizer to catch. On a TV that page
-  // must still offer the static recovery path instead of trapping the user in
-  // the same white error screen.
-  let injectedHtml =
-    response.status >= 500 && tvRecovery && /This page didn't load/i.test(html)
-      ? renderErrorPage({ tv: true })
-      : html;
+  let injectedHtml = html;
   if (!TV_BOOT_TAG_PATTERN.test(html)) {
     const scriptTag = renderTvBootScriptTag();
     const bodyTag = /<body\b[^>]*>/i.exec(html);
@@ -80,13 +70,35 @@ export async function injectTvBootScript(response: Response, request?: Request):
     }
   }
 
-  injectedHtml = applyTvDocumentTweaks(injectedHtml, { userAgent, forceStatic });
-  if (injectedHtml === html) return response;
+  injectedHtml = applyTvDocumentTweaks(injectedHtml, { userAgent, forceStatic: false });
+  if (injectedHtml === html) {
+    // The document differs by user agent (TVs get layout/fallback markup), so
+    // a CDN must not reuse a desktop HTML response for a TV request or vice
+    // versa. Add the variant key even when no body rewrite was necessary.
+    const headers = new Headers(response.headers);
+    const vary = headers.get("vary") || "";
+    if (vary !== "*" && !/(^|,)\s*user-agent\s*(,|$)/i.test(vary)) {
+      headers.set("vary", vary ? `${vary}, User-Agent` : "User-Agent");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+    return response;
+  }
 
   const headers = new Headers(response.headers);
   // The body changed and is no longer the original encoded representation.
   headers.delete("content-length");
   headers.delete("content-encoding");
+  headers.delete("etag");
+  headers.delete("last-modified");
+  const vary = headers.get("vary") || "";
+  if (vary !== "*" && !/(^|,)\s*user-agent\s*(,|$)/i.test(vary)) {
+    headers.set("vary", vary ? `${vary}, User-Agent` : "User-Agent");
+  }
+  if (isTvUserAgent(userAgent)) headers.set("cache-control", "no-store, max-age=0");
   if (!isHtmlContentType) headers.set("content-type", "text/html; charset=utf-8");
 
   return new Response(injectedHtml, {
@@ -98,20 +110,7 @@ export async function injectTvBootScript(response: Response, request?: Request):
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
-function wantsTvRecovery(request?: Request): boolean {
-  if (!request) return false;
-  if (isTvUserAgent(request.headers.get("user-agent"))) return true;
-  try {
-    return new URL(request.url).searchParams.get("tv") === "1";
-  } catch {
-    return false;
-  }
-}
-
-async function normalizeCatastrophicSsrResponse(
-  response: Response,
-  request?: Request,
-): Promise<Response> {
+async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
   if (response.status < 500) return response;
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return response;
@@ -120,7 +119,7 @@ async function normalizeCatastrophicSsrResponse(
   if (!isH3SwallowedErrorBody(body)) return response;
 
   console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
-  return new Response(renderErrorPage({ tv: wantsTvRecovery(request) }), {
+  return new Response(renderErrorPage(), {
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
@@ -140,12 +139,12 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      const normalized = await normalizeCatastrophicSsrResponse(response, request);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
       return await injectTvBootScript(normalized, request);
     } catch (error) {
       console.error(error);
       return await injectTvBootScript(
-        new Response(renderErrorPage({ tv: wantsTvRecovery(request) }), {
+        new Response(renderErrorPage(), {
           status: 500,
           headers: { "content-type": "text/html; charset=utf-8" },
         }),

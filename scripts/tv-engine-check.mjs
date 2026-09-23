@@ -317,16 +317,16 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
   await context.close();
 }
 
-/* ── Scenario D: ?tv=1 static mode, D-pad driven ──────────────────────── */
+/* ── Scenario D: normal TV URL on a repeat launch, D-pad driven ────────── */
 {
   const { page, errors, consoleErrors, context } = await newPage(browser);
-  const result = { name: "tv1-static-dpad" };
+  const result = { name: "tv-normal-repeat-dpad" };
   const scriptRequests = [];
   page.on("request", (r) => {
     if (/\/assets\/.*\.js$/.test(r.url())) scriptRequests.push(r.url().split("/").pop());
   });
   try {
-    await page.goto(new URL("?tv=1", url).href, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForTimeout(6000);
     result.afterLoad = await signals(page);
     result.moduleScriptsDownloaded = scriptRequests.length;
@@ -355,7 +355,7 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
   }
   result.pageErrors = errors.slice(0, 6);
   result.consoleErrors = consoleErrors.slice(0, 4);
-  scenarios.D_tv1_static = result;
+  scenarios.D_tv_normal_repeat = result;
   await context.close();
 }
 
@@ -437,12 +437,8 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
     result.checkedInline = result.inlineScripts.length;
     result.tvLayoutPresent = /<html[^>]*class="[^"]*tv-layout/.test(html);
     result.tvFallbackPresent = html.includes("data-tv-fallback=");
-    const staticHtml = await fetch(new URL("?tv=1", url).href, {
-      headers: { "user-agent": TIZEN_UA },
-    }).then((r) => r.text());
-    result.tv1ModuleScripts = (staticHtml.match(/<script[^>]*type="module"/g) || []).length;
-    result.tv1ModulePreloads = (staticHtml.match(/rel="modulepreload"/g) || []).length;
-    result.tv1FallbackPresent = staticHtml.includes("data-tv-fallback=");
+    result.normalModuleScripts = (html.match(/<script[^>]*type="module"/g) || []).length;
+    result.normalModulePreloads = (html.match(/rel="modulepreload"/g) || []).length;
     result.checkedAssets = result.assets.length;
   } catch (e) {
     result.fatalError = String(e).slice(0, 400);
@@ -528,8 +524,8 @@ console.log("links:", B.afterLoad?.links, "focusables:", B.afterLoad?.focusables
 console.log("text:", JSON.stringify(B.afterLoad?.textStart ?? ""));
 B.pageErrors.slice(0, 4).forEach((e) => console.log("   ! " + e.split("\n")[0]));
 
-console.log("\n=========== D. ?tv=1 static mode + D-pad ===========");
-const D = scenarios.D_tv1_static;
+console.log("\n=========== D. normal TV URL repeat launch + D-pad ===========");
+const D = scenarios.D_tv_normal_repeat;
 if (D.fatalError) console.log("FATAL:", D.fatalError);
 console.log("html class:", D.htmlClass, "| module scripts downloaded:", D.moduleScriptsDownloaded);
 console.log(
@@ -557,7 +553,7 @@ console.log(
 if (C.skipped) console.log("SKIPPED:", C.skipped);
 console.log(`TV document: tv-layout ${C.tvLayoutPresent}, fallback script ${C.tvFallbackPresent}`);
 console.log(
-  `?tv=1 document: module scripts ${C.tv1ModuleScripts}, modulepreload ${C.tv1ModulePreloads}, fallback ${C.tv1FallbackPresent}`,
+  `normal document: module scripts ${C.normalModuleScripts}, modulepreload ${C.normalModulePreloads}, fallback ${C.tvFallbackPresent}`,
 );
 console.log("violations:", C.violations.length);
 C.violations.slice(0, 20).forEach((v) => console.log("   ! " + v));

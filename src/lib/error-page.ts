@@ -1,17 +1,4 @@
-export function renderErrorPage(options: { tv?: boolean } = {}): string {
-  const tv = options.tv === true;
-  const homeHref = tv ? "/?tv=1" : "/";
-  const homeLabel = tv ? "Open simple TV mode" : "Go home";
-  const message = tv
-    ? "The TV browser could not start the full app. Open simple TV mode to browse the library with the remote."
-    : "Something went wrong on our end. You can try refreshing or head back home.";
-  // Keep this recovery path ES5-only: it is used precisely when the TV cannot
-  // run the normal application bundle. It is guarded against ?tv=1 so a
-  // failing static response cannot redirect forever.
-  const tvRecoveryScript = tv
-    ? `<script>(function(){try{if(location.search.indexOf("tv=1")===-1){location.replace("/?tv=1");}}catch(e){}})();</script>`
-    : "";
-
+export function renderErrorPage(): string {
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -32,13 +19,12 @@ export function renderErrorPage(options: { tv?: boolean } = {}): string {
   <body>
     <div class="card">
       <h1>This page didn't load</h1>
-      <p>${message}</p>
+      <p>Something went wrong on our end. You can try refreshing or head back home.</p>
       <div class="actions">
         <button class="primary" onclick="location.reload()">Try again</button>
-        <a class="secondary" href="${homeHref}">${homeLabel}</a>
+        <a class="secondary" href="/">Go home</a>
       </div>
     </div>
-    ${tvRecoveryScript}
   </body>
 </html>`;
 }
