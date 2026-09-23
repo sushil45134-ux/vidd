@@ -8,14 +8,13 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { isTvBrowser } from "../lib/browser";
 import { TV_BOOT_SCRIPT } from "../lib/tvBoot";
 import { initSpatialNavigation } from "../lib/spatialNav";
-import { Analytics } from "@vercel/analytics/react";
 
 function NotFoundComponent() {
   return (
@@ -39,9 +38,32 @@ function NotFoundComponent() {
   );
 }
 
+function BrowserAnalytics() {
+  const [AnalyticsView, setAnalyticsView] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    // Keep the analytics package out of the TV's eager module graph. It is a
+    // desktop-only enhancement and some TV engines choke while evaluating
+    // third-party analytics code even when the component is not rendered.
+    if (isTvBrowser() || document.documentElement.classList.contains("tv-layout")) return;
+    let alive = true;
+    import("@vercel/analytics/react")
+      .then(({ Analytics }) => {
+        if (alive) setAnalyticsView(() => Analytics);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return AnalyticsView ? <AnalyticsView /> : null;
+}
+
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
@@ -133,27 +155,16 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Run before HeadContent emits modulepreload links. This gives the TV
+            one synchronous chance to remove an old PWA worker/cache before a
+            stale interactive chunk can be requested. */}
+        <script data-tv-boot="1" dangerouslySetInnerHTML={{ __html: TV_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
-        {/* Must run BEFORE the app bundle: an inline classic script executes
-            before any deferred module script, so globalThis & friends exist
-            on Chromium 69 (Tizen 5.5) before the Supabase client evaluates.
-            src/server.ts also injects this tag for SSR responses that do not
-            come through this shell; the marker keeps those paths idempotent. */}
-        <script data-tv-boot="1" dangerouslySetInnerHTML={{ __html: TV_BOOT_SCRIPT }} />
-        {/* Fallback for very old TVs (Chrome <61) that don't support type=module.
-            The SSR HTML will still be visible, but we show a helpful banner
-            and keep D-pad focus working via the boot script's early polyfills. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var ua=navigator.userAgent||"";var isTv=/SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(ua);if(!isTv)return;var supportsModule='noModule' in document.createElement('script');if(!supportsModule){document.addEventListener('DOMContentLoaded',function(){try{var b=document.createElement('div');b.setAttribute('data-tv-old-banner','1');b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:2147483646;background:#ff6a00;color:#000;padding:14px 18px;text-align:center;font:600 14px/1.4 Arial,sans-serif;';b.textContent='Aapka TV browser purana hai — library neeche dikhegi. Best experience ke liye TV software update karein ya Fire TV Stick / Chromecast use karein.';document.body.appendChild(b);}catch(e){}});}}catch(e){}})();`,
-          }}
-        />
         {children}
-        {/* Vercel Analytics — page views + Web Vitals dashboard par dikhte hain.
-            Sirf production par active hota hai; local dev mein kuch track nahi hota. */}
-        <Analytics />
+        {/* Web Analytics runs only after the browser is confirmed non-TV. */}
+        <BrowserAnalytics />
         <Scripts />
         {/* If module scripts failed to load (old TV), ensure at least first focusable gets focus */}
         <script

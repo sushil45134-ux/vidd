@@ -26,7 +26,7 @@ visible text bytes: 1300 | imgs: 28/28
 links: 28 focusables: 37
 text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED • TV-14 • 2024 365 Days to the Wedding - Episode 1 ▶ Play 💥 Trending & Popular Shows 365 Days to the Wedding - Episode "
 
-=========== D. ?tv=1 static mode + D-pad ===========
+=========== D. normal TV URL repeat launch + D-pad ===========
 html class: tv-layout | module scripts downloaded: 0
 visible text bytes: 1387 | imgs: 28/28 | links: 29
 notice bar: true | D-pad moved focus: true ["vid","BUTTON"]
@@ -35,7 +35,7 @@ text: "vid U Home Discover My List Movies Anime Cartoon ⭐ FEATURED • TV-14 �
 =========== C. static ES2019 parse of what the TV downloads ===========
 inline scripts checked: 5, assets checked: 25
 TV document: tv-layout true, fallback script true
-?tv=1 document: module scripts 0, modulepreload 0, fallback true
+normal document: module scripts retained for module-capable TV, fallback true
 violations: 0
 
 raw results: /home/runner/work/vidd/vidd/tv-engine-out/tv-engine-results.json

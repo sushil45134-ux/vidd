@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { renderTvBootScriptTag, TV_BOOT_MARKER } from "./lib/tvBoot";
-import { applyTvDocumentTweaks } from "./lib/tvDocument";
+import { applyTvDocumentTweaks, isTvUserAgent } from "./lib/tvDocument";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -56,8 +56,6 @@ export async function injectTvBootScript(response: Response, request?: Request):
   if (!isHtmlContentType && !looksLikeHtml) return response;
 
   const userAgent = request?.headers.get("user-agent") ?? "";
-  const forceStatic = request ? new URL(request.url).searchParams.get("tv") === "1" : false;
-
   let injectedHtml = html;
   if (!TV_BOOT_TAG_PATTERN.test(html)) {
     const scriptTag = renderTvBootScriptTag();
@@ -72,13 +70,35 @@ export async function injectTvBootScript(response: Response, request?: Request):
     }
   }
 
-  injectedHtml = applyTvDocumentTweaks(injectedHtml, { userAgent, forceStatic });
-  if (injectedHtml === html) return response;
+  injectedHtml = applyTvDocumentTweaks(injectedHtml, { userAgent, forceStatic: false });
+  if (injectedHtml === html) {
+    // The document differs by user agent (TVs get layout/fallback markup), so
+    // a CDN must not reuse a desktop HTML response for a TV request or vice
+    // versa. Add the variant key even when no body rewrite was necessary.
+    const headers = new Headers(response.headers);
+    const vary = headers.get("vary") || "";
+    if (vary !== "*" && !/(^|,)\s*user-agent\s*(,|$)/i.test(vary)) {
+      headers.set("vary", vary ? `${vary}, User-Agent` : "User-Agent");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+    return response;
+  }
 
   const headers = new Headers(response.headers);
   // The body changed and is no longer the original encoded representation.
   headers.delete("content-length");
   headers.delete("content-encoding");
+  headers.delete("etag");
+  headers.delete("last-modified");
+  const vary = headers.get("vary") || "";
+  if (vary !== "*" && !/(^|,)\s*user-agent\s*(,|$)/i.test(vary)) {
+    headers.set("vary", vary ? `${vary}, User-Agent` : "User-Agent");
+  }
+  if (isTvUserAgent(userAgent)) headers.set("cache-control", "no-store, max-age=0");
   if (!isHtmlContentType) headers.set("content-type", "text/html; charset=utf-8");
 
   return new Response(injectedHtml, {

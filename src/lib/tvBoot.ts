@@ -61,13 +61,68 @@ export const TV_BOOT_SCRIPT = String.raw`
           if (currentContent.indexOf("width=1280") === -1) {
             viewportMeta.setAttribute("content", "width=1280, initial-scale=1");
           }
-        } else {
-          /* If no viewport meta yet, create one — SSR should have it but be safe. */
-          var meta = doc.createElement("meta");
-          meta.name = "viewport";
-          meta.content = "width=1280, initial-scale=1";
-          if (doc.head) doc.head.appendChild(meta);
         }
+        /* HeadContent may not have emitted the viewport tag yet. Pin it after
+           parsing as well so a no-module TV gets the same 1280px layout. */
+        else if (doc && typeof doc.addEventListener === "function") {
+          doc.addEventListener("DOMContentLoaded", function () {
+            try {
+              var lateViewport = doc.querySelector('meta[name="viewport"]');
+              if (lateViewport) lateViewport.setAttribute("content", "width=1280, initial-scale=1");
+            } catch (ignored) {}
+          }, false);
+        }
+      }
+    } catch (ignored) {}
+
+    /*
+     * Older builds accidentally registered the PWA service worker on TVs.
+     * Its cache-first asset path can keep serving a broken JS shell even after
+     * the deployment is fixed. Remove that registration/cache once, then
+     * reload so this request is guaranteed to use the current SSR document.
+     * Keep this ES5-only and never touch localStorage/user data.
+     */
+    try {
+      var sw = g.navigator && g.navigator.serviceWorker;
+      var getRegistrations = sw && sw.getRegistrations;
+      var cacheApi = g.caches;
+      var resetKey = "vid:tv-sw-reset-v1";
+      var resetAllowed = false;
+      if (g.sessionStorage) {
+        resetAllowed = g.sessionStorage.getItem(resetKey) !== "1";
+        if (resetAllowed) g.sessionStorage.setItem(resetKey, "1");
+      }
+      if (typeof getRegistrations === "function") {
+        getRegistrations.call(sw).then(function (registrations) {
+          var jobs = [];
+          var changed = registrations && registrations.length > 0;
+          var i;
+          for (i = 0; registrations && i < registrations.length; i++) {
+            try { jobs.push(registrations[i].unregister()); } catch (ignored) {}
+          }
+          if (cacheApi && typeof cacheApi.keys === "function") {
+            jobs.push(cacheApi.keys().then(function (keys) {
+              var deletes = [];
+              var k;
+              for (k = 0; k < keys.length; k++) {
+                if (String(keys[k]).indexOf("vid-") === 0) {
+                  changed = true;
+                  deletes.push(cacheApi.delete(keys[k]));
+                }
+              }
+              return g.Promise && typeof g.Promise.all === "function"
+                ? g.Promise.all(deletes)
+                : null;
+            }));
+          }
+          return g.Promise && typeof g.Promise.all === "function"
+            ? g.Promise.all(jobs).then(function () { return changed; })
+            : changed;
+        }).then(function (changed) {
+          if (resetAllowed && changed && g.location && typeof g.location.reload === "function") {
+            g.setTimeout(function () { try { g.location.reload(); } catch (ignored) {} }, 50);
+          }
+        }).catch(function () {});
       }
     } catch (ignored) {}
   }
@@ -1087,6 +1142,15 @@ export const TV_BOOT_SCRIPT = String.raw`
     }
 
     g.addEventListener("error", function (event) {
+      // Errors from an embedded provider or another third-party script must
+      // not replace the whole catalogue with the red TV diagnostic panel.
+      // They are outside this app's origin and the player owns its own
+      // recovery UI. Keep reporting errors from our document/bundle.
+      var filename = "";
+      var origin = "";
+      try { filename = String((event && event.filename) || ""); } catch (ignored) {}
+      try { origin = String((g.location && g.location.origin) || ""); } catch (ignored) {}
+      if (filename && origin && origin !== "null" && filename.indexOf(origin) !== 0) return;
       if (event && event.target && event.target !== g && !event.error && !event.message) return;
       showRuntimeError(event && (event.error || event.message) || event, event);
     }, false);
