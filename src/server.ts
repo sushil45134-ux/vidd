@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { renderTvBootScriptTag, TV_BOOT_MARKER } from "./lib/tvBoot";
-import { applyTvDocumentTweaks } from "./lib/tvDocument";
+import { applyTvDocumentTweaks, isTvUserAgent } from "./lib/tvDocument";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -57,8 +57,16 @@ export async function injectTvBootScript(response: Response, request?: Request):
 
   const userAgent = request?.headers.get("user-agent") ?? "";
   const forceStatic = request ? new URL(request.url).searchParams.get("tv") === "1" : false;
+  const tvRecovery = wantsTvRecovery(request);
 
-  let injectedHtml = html;
+  // TanStack Start's middleware can return the friendly 500 HTML directly,
+  // rather than throwing for the outer normalizer to catch. On a TV that page
+  // must still offer the static recovery path instead of trapping the user in
+  // the same white error screen.
+  let injectedHtml =
+    response.status >= 500 && tvRecovery && /This page didn't load/i.test(html)
+      ? renderErrorPage({ tv: true })
+      : html;
   if (!TV_BOOT_TAG_PATTERN.test(html)) {
     const scriptTag = renderTvBootScriptTag();
     const bodyTag = /<body\b[^>]*>/i.exec(html);
@@ -90,7 +98,20 @@ export async function injectTvBootScript(response: Response, request?: Request):
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+function wantsTvRecovery(request?: Request): boolean {
+  if (!request) return false;
+  if (isTvUserAgent(request.headers.get("user-agent"))) return true;
+  try {
+    return new URL(request.url).searchParams.get("tv") === "1";
+  } catch {
+    return false;
+  }
+}
+
+async function normalizeCatastrophicSsrResponse(
+  response: Response,
+  request?: Request,
+): Promise<Response> {
   if (response.status < 500) return response;
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return response;
@@ -99,7 +120,7 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   if (!isH3SwallowedErrorBody(body)) return response;
 
   console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
-  return new Response(renderErrorPage(), {
+  return new Response(renderErrorPage({ tv: wantsTvRecovery(request) }), {
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
@@ -119,12 +140,12 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      const normalized = await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response, request);
       return await injectTvBootScript(normalized, request);
     } catch (error) {
       console.error(error);
       return await injectTvBootScript(
-        new Response(renderErrorPage(), {
+        new Response(renderErrorPage({ tv: wantsTvRecovery(request) }), {
           status: 500,
           headers: { "content-type": "text/html; charset=utf-8" },
         }),

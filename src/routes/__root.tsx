@@ -56,9 +56,33 @@ function BrowserAnalytics() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  const [tvRecovery, setTvRecovery] = useState(false);
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  useEffect(() => {
+    // A TV can reach this boundary when a deferred chunk or a provider-side
+    // script fails after SSR has already painted the catalogue. Retrying the
+    // same modern bundle just recreates the white error page, so hand the TV
+    // to the dependency-free SSR mode instead. Keep the first render stable
+    // for SSR/hydration, then redirect only after the client has identified a
+    // TV. Desktop/mobile error handling stays exactly as before.
+    const isTv = isTvBrowser() || document.documentElement.classList.contains("tv-layout");
+    if (!isTv) return;
+    setTvRecovery(true);
+
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("tv") === "1") return;
+      url.searchParams.set("tv", "1");
+      window.location.replace(url.toString());
+    } catch {
+      // The visible Simple TV mode link below remains available if navigation
+      // is blocked by the TV shell.
+    }
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -67,7 +91,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {tvRecovery
+            ? "The TV browser is opening the simple mode so the library stays usable."
+            : "Something went wrong on our end. You can try refreshing or head back home."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -85,6 +111,14 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           >
             Go home
           </a>
+          {tvRecovery && (
+            <a
+              href="/?tv=1"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Open simple TV mode
+            </a>
+          )}
         </div>
       </div>
     </div>
