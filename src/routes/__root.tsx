@@ -8,7 +8,7 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -37,6 +37,20 @@ function NotFoundComponent() {
       </div>
     </div>
   );
+}
+
+function BrowserAnalytics() {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    // TV browsers do not need Web Analytics. Avoid adding another third-party
+    // classic script to an already fragile legacy engine; a failed or modern
+    // response can surface as `Unexpected token 'export'` on the TV.
+    if (isTvBrowser() || document.documentElement.classList.contains("tv-layout")) return;
+    setEnabled(true);
+  }, []);
+
+  return enabled ? <Analytics /> : null;
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
@@ -151,9 +165,8 @@ function RootShell({ children }: { children: ReactNode }) {
           }}
         />
         {children}
-        {/* Vercel Analytics — page views + Web Vitals dashboard par dikhte hain.
-            Sirf production par active hota hai; local dev mein kuch track nahi hota. */}
-        <Analytics />
+        {/* Web Analytics runs only after the browser is confirmed non-TV. */}
+        <BrowserAnalytics />
         <Scripts />
         {/* If module scripts failed to load (old TV), ensure at least first focusable gets focus */}
         <script

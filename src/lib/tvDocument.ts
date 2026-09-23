@@ -93,11 +93,32 @@ export function stripModernInlineScripts(html: string): string {
   return out;
 }
 
-/** Drops the ES-module entry + preload hints for engines that cannot use them. */
+/**
+ * Drops ES-module entries + preload hints for engines that cannot use them.
+ *
+ * TanStack emits two slightly different script shapes depending on the
+ * adapter: production SSR uses a normal `<script ...></script>` pair, while
+ * the Vite dev client can emit a start tag with no closing tag. The old
+ * implementation only removed the first shape, which meant `?tv=1` could
+ * still hand a Chromium 49 TV a module whose first token was `export`.
+ */
 export function stripModuleScripts(html: string): string {
   return html
-    .replace(/<link\b[^>]*\brel="modulepreload"[^>]*>\s*/gi, "")
-    .replace(/<script\b[^>]*\btype="module"[^>]*>(?:(?!<\/script>)[\s\S])*?<\/script>\s*/gi, "");
+    .replace(
+      /<link\b[^>]*\brel\s*=\s*["']modulepreload["'][^>]*\/?>(?:\s*)/gi,
+      "",
+    )
+    // Remove paired module scripts first, including inline module bodies.
+    .replace(
+      /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
+      "",
+    )
+    // Vite's dev client may omit the closing tag entirely. Do not leave the
+    // start tag behind: a legacy browser treats it as a classic script.
+    .replace(
+      /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*\/?>\s*/gi,
+      "",
+    );
 }
 
 /**

@@ -1087,6 +1087,15 @@ export const TV_BOOT_SCRIPT = String.raw`
     }
 
     g.addEventListener("error", function (event) {
+      // Errors from an embedded provider or another third-party script must
+      // not replace the whole catalogue with the red TV diagnostic panel.
+      // They are outside this app's origin and the player owns its own
+      // recovery UI. Keep reporting errors from our document/bundle.
+      var filename = "";
+      var origin = "";
+      try { filename = String((event && event.filename) || ""); } catch (ignored) {}
+      try { origin = String((g.location && g.location.origin) || ""); } catch (ignored) {}
+      if (filename && origin && origin !== "null" && filename.indexOf(origin) !== 0) return;
       if (event && event.target && event.target !== g && !event.error && !event.message) return;
       showRuntimeError(event && (event.error || event.message) || event, event);
     }, false);
