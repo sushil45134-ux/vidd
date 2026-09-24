@@ -1039,3 +1039,86 @@
 .tv-layout .blur-\[80px\] {
   display: none !important;
 }
+
+/* ── Crunchyroll-style iframe/player chrome ────────────────────────────────
+ * Nxsha is cross-origin, so its document cannot be restyled from Vidd. These
+ * classes style the safe shell around it: identity bar, episode navigation,
+ * orange accent and the slide-in episode list. The iframe remains clickable
+ * everywhere the shell has `pointer-events: none` so provider playback stays
+ * intact. */
+.cr-player-shell {
+  --cr-orange: #f47521;
+  --cr-orange-hover: #ff8534;
+  isolation: isolate;
+}
+
+.cr-player-surface {
+  min-height: 240px;
+}
+
+.cr-player-control {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cr-player-control:focus-visible,
+.cr-drawer button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(244, 117, 33, 0.85);
+}
+
+.cr-drawer {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.5);
+  animation: cr-drawer-in 180ms ease-out both;
+}
+
+.cr-drawer-scroll {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-width: thin;
+}
+
+.cr-drawer-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cr-drawer-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cr-drawer-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+}
+
+@keyframes cr-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .cr-player-surface {
+    min-height: 180px;
+  }
+
+  .cr-drawer {
+    max-width: 100%;
+  }
+}
+
+/* Samsung Tizen's focus ring needs a larger target than desktop web. */
+.tv-custom-player .cr-player-control,
+.tv-custom-player .cr-drawer button {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.tv-custom-player .cr-drawer {
+  background: #0b0b0f;
+}

@@ -1,7 +1,18 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { X, Maximize, Minimize, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  ListVideo,
+  LoaderCircle,
+  Maximize,
+  Minimize,
+} from "lucide-react";
+import type { Movie } from "../data";
+import EpisodeDrawer from "./EpisodeDrawer";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { episodeTagLabel } from "../lib/playerChrome";
 
 interface EmbedPlayerProps {
   src: string;
@@ -19,6 +30,16 @@ interface EmbedPlayerProps {
   onProgress?: (currentSec: number, durationSec: number) => void;
   /** Fired when a direct video file ends (Continue Watching cleanup). */
   onEnded?: () => void;
+  /** Same-playlistId queue for the Crunchyroll-style Episodes drawer. */
+  episodes?: Movie[];
+  /** Index of the episode currently rendered in `episodes`. */
+  currentIndex?: number;
+  /** Called by the drawer when a queue row is selected. */
+  onSelectEpisode?: (index: number) => void;
+  /** Series/collection label shown in the player top bar and drawer. */
+  seriesTitle?: string;
+  /** Title for a standalone movie/upload, or the current episode title. */
+  title?: string;
 }
 
 /**
@@ -251,6 +272,11 @@ export function EmbedPlayer({
   startAt = 0,
   onProgress,
   onEnded,
+  episodes,
+  currentIndex = 0,
+  onSelectEpisode,
+  seriesTitle,
+  title,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
@@ -271,13 +297,40 @@ export function EmbedPlayer({
   const dailymotionPlayerRef = useRef<any>(null);
   const dailymotionStoppedRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showEpisodes, setShowEpisodes] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => kind === "iframe");
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
+
+  const hasEpisodeQueue = !!episodes && episodes.length > 1;
+  const safeCurrentIndex = hasEpisodeQueue
+    ? Math.min(Math.max(currentIndex, 0), (episodes?.length ?? 1) - 1)
+    : 0;
+  const currentEpisode = hasEpisodeQueue ? episodes?.[safeCurrentIndex] : undefined;
+  const episodeTag = currentEpisode ? episodeTagLabel(currentEpisode) : null;
+  const chromeTitle =
+    seriesTitle || currentEpisode?.playlistTitle || title || currentEpisode?.title || "Now playing";
+  const chromeSubtitle = currentEpisode
+    ? `${episodeTag ? `${episodeTag} · ` : ""}${currentEpisode.title}`
+    : kind === "iframe"
+      ? "Embedded player"
+      : "Video";
+  const canOpenEpisodes = hasEpisodeQueue && !!onSelectEpisode;
 
   useEffect(() => {
     setPlayerSrc(iframeSrc);
     setIsDailymotionStopped(false);
   }, [iframeSrc]);
+
+  // The provider owns the cross-origin document, so the shell cannot observe
+  // its actual buffering state. Show the Crunchyroll-style loader until the
+  // iframe reports load (or a slow provider gets a ten-second grace period).
+  useEffect(() => {
+    setIsLoading(kind === "iframe");
+    if (kind !== "iframe") return;
+    const timeout = window.setTimeout(() => setIsLoading(false), 10000);
+    return () => window.clearTimeout(timeout);
+  }, [kind, src]);
 
   // Continue Watching clock bookkeeping (direct <video> + Dailymotion SDK).
   // The unmount flush keeps the row fresh when the player is closed.
@@ -343,7 +396,9 @@ export function EmbedPlayer({
       }
 
       if (e.key === "Escape") {
-        if (document.fullscreenElement) {
+        if (showEpisodes) {
+          setShowEpisodes(false);
+        } else if (document.fullscreenElement) {
           document.exitFullscreen();
           setIsFullscreen(false);
         } else onClose();
@@ -504,6 +559,7 @@ export function EmbedPlayer({
       })
       .then((player: any) => {
         if (!player || cancelled) return;
+        setIsLoading(false);
         dailymotionPlayerRef.current = player;
 
         // Best-effort resume via the Dailymotion JS API — silently ignored
@@ -614,11 +670,13 @@ export function EmbedPlayer({
   const isTv = useIsTvBrowser();
   return (
     <div
-      className={`${
-        isTv ? "tv-custom-player " : ""
-      }fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center`}
+      data-tv-player-scope
+      className={`${isTv ? "tv-custom-player " : ""}cr-player-shell fixed inset-0 z-[100] flex items-center justify-center bg-black animate-fadeIn`}
     >
-      <div ref={containerRef} className="relative w-full h-full bg-black">
+      <div
+        ref={containerRef}
+        className="cr-player-surface relative h-full w-full overflow-hidden bg-black"
+      >
         {kind === "iframe" && isDailymotion && dailymotionVideoId ? (
           <div
             ref={dailymotionRootRef}
@@ -629,19 +687,22 @@ export function EmbedPlayer({
           <iframe
             ref={iframeRef}
             src={playerSrc}
-            className="absolute inset-0 w-full h-full"
+            className="absolute inset-0 h-full w-full border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
             title="Video player"
             referrerPolicy="no-referrer-when-downgrade"
+            onLoad={() => setIsLoading(false)}
           />
         ) : (
           <video
             src={src}
             controls
             autoPlay
-            className="absolute inset-0 w-full h-full bg-black"
+            playsInline
+            className="absolute inset-0 h-full w-full bg-black"
             onLoadedMetadata={(e) => {
+              setIsLoading(false);
               const v = e.currentTarget;
               if ((startAt ?? 0) > 0 && v.duration > 0) {
                 try {
@@ -682,25 +743,43 @@ export function EmbedPlayer({
                 /* Progress listeners must never break playback. */
               }
             }}
+            onError={() => setIsLoading(false)}
           />
         )}
 
         {isDailymotionStopped && <div className="absolute inset-0 z-20 bg-black" />}
 
-        {/* Dailymotion top title/logo bar cover */}
-        {isDailymotion && (
-          <div className="absolute top-0 left-0 right-0 h-16 z-20 bg-black pointer-events-auto" />
+        {isLoading && !isDailymotionStopped && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[25] flex items-center justify-center"
+            role="status"
+            aria-label="Loading episode"
+          >
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-black/35 px-5 py-4 backdrop-blur-sm">
+              <LoaderCircle size={34} className="animate-spin text-[#f47521]" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
+                Loading episode
+              </span>
+            </div>
+          </div>
         )}
 
-        {/* Dailymotion click blockers for side next/queue, center next, and video-change/menu controls */}
+        {/* Dailymotion still exposes a provider-owned title bar. Cover it so
+            the Vidd/Crunchyroll chrome is the only top-level identity. */}
+        {isDailymotion && (
+          <div className="absolute left-0 right-0 top-0 z-20 h-16 bg-black pointer-events-auto" />
+        )}
+
+        {/* Dailymotion click blockers for side next/queue, center next, and
+            provider menu controls. Other iframe providers keep their native
+            controls reachable because their document is cross-origin. */}
         {isDailymotion && (
           <>
-            <div className="absolute right-0 top-1/4 h-1/2 w-24 sm:w-32 z-20 pointer-events-auto bg-transparent" />
-            <div className="absolute bottom-0 left-0 h-24 w-36 sm:w-44 z-20 pointer-events-auto bg-transparent" />
-            <div className="absolute bottom-0 right-0 h-24 w-44 sm:w-56 z-20 pointer-events-auto bg-transparent" />
-            {/* Center-right next arrow blocker (next to play button) */}
+            <div className="absolute right-0 top-1/4 z-20 h-1/2 w-24 bg-transparent pointer-events-auto sm:w-32" />
+            <div className="absolute bottom-0 left-0 z-20 h-24 w-36 bg-transparent pointer-events-auto sm:w-44" />
+            <div className="absolute bottom-0 right-0 z-20 h-24 w-44 bg-transparent pointer-events-auto sm:w-56" />
             <div
-              className="absolute z-20 pointer-events-auto bg-transparent"
+              className="absolute z-20 bg-transparent pointer-events-auto"
               style={{
                 top: "50%",
                 left: "55%",
@@ -712,55 +791,110 @@ export function EmbedPlayer({
           </>
         )}
 
-        {/* Top gradient */}
+        {/* Crunchyroll-style cinematic gradients. They do not intercept clicks,
+            so Nxsha's own play bar remains usable underneath the shell. */}
         <div
-          className="absolute top-0 left-0 right-0 h-24 z-20 pointer-events-none"
+          className="pointer-events-none absolute left-0 right-0 top-0 z-20 h-32"
           style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,.88) 0%, rgba(0,0,0,.48) 42%, transparent 100%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-36"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,.28) 52%, transparent 100%)",
           }}
         />
 
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 left-4 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-          title="Close (Esc)"
-        >
-          <X size={22} className="text-white" />
-        </button>
+        {/* Top bar: orange accent + episode identity, close to Crunchyroll's
+            desktop/web player layout rather than a generic modal close button. */}
+        <div className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-start justify-between gap-4 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="pointer-events-auto flex min-w-0 items-center gap-3">
+            <button
+              onClick={onClose}
+              aria-label="Close player"
+              className="cr-player-control flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/85"
+              title="Close (Esc)"
+            >
+              <ArrowLeft size={21} />
+            </button>
+            <div className="min-w-0 max-w-[min(60vw,32rem)]">
+              <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-[#f47521]">
+                {currentEpisode ? "Now watching" : "Playing"}
+              </p>
+              <p className="truncate text-sm font-semibold text-white sm:text-base">
+                {chromeTitle}
+              </p>
+              <p className="truncate text-xs text-white/60">{chromeSubtitle}</p>
+            </div>
+          </div>
 
-        {/* Prev / Next (series queue) + Fullscreen — top-right */}
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
-          {hasPrev && (
-            <button
-              onClick={onPrev}
-              className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Previous episode (←)"
-            >
-              <ChevronLeft size={22} className="text-white" />
-            </button>
-          )}
-          {hasNext && (
-            <button
-              onClick={onNext}
-              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Next episode (→)"
-            >
-              <ChevronRight size={22} className="text-white" />
-            </button>
-          )}
-          <button
-            onClick={toggleFullscreen}
-            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-            title="Fullscreen (f)"
-          >
-            {isFullscreen ? (
-              <Minimize size={20} className="text-white" />
-            ) : (
-              <Maximize size={20} className="text-white" />
+          <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {canOpenEpisodes && (
+              <button
+                onClick={() => setShowEpisodes((open) => !open)}
+                aria-label={showEpisodes ? "Close episode list" : "Open episode list"}
+                aria-expanded={showEpisodes}
+                className={`cr-player-control flex h-10 items-center gap-2 rounded-full px-3 text-xs font-bold text-white backdrop-blur-md transition-colors sm:px-4 ${
+                  showEpisodes
+                    ? "bg-[#f47521] text-black hover:bg-[#ff8534]"
+                    : "bg-black/55 hover:bg-black/85"
+                }`}
+                title="Episodes"
+              >
+                <ListVideo size={17} />
+                <span className="hidden sm:inline">Episodes</span>
+                <span className="tabular-nums">{episodes?.length}</span>
+              </button>
             )}
-          </button>
+            {hasPrev && (
+              <button
+                onClick={onPrev}
+                aria-label="Previous episode"
+                className="cr-player-control flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/85"
+                title="Previous episode (←)"
+              >
+                <ChevronLeft size={21} />
+              </button>
+            )}
+            {hasNext && (
+              <button
+                onClick={onNext}
+                aria-label="Next episode"
+                className="cr-player-control flex h-10 w-10 items-center justify-center rounded-full bg-[#f47521] text-black backdrop-blur-md transition-colors hover:bg-[#ff8534]"
+                title="Next episode (→)"
+              >
+                <ChevronRight size={21} />
+              </button>
+            )}
+            <button
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              className="cr-player-control flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/85"
+              title="Fullscreen (f)"
+            >
+              {isFullscreen ? <Minimize size={19} /> : <Maximize size={19} />}
+            </button>
+          </div>
         </div>
+
+        {/* The drawer intentionally sits above the chrome and the cross-origin
+            iframe. Selecting an episode swaps the iframe through PlayerOverlay. */}
+        {showEpisodes && canOpenEpisodes && episodes && (
+          <EpisodeDrawer
+            episodes={episodes}
+            currentIndex={safeCurrentIndex}
+            onSelectIndex={onSelectEpisode!}
+            onClose={() => setShowEpisodes(false)}
+            onPrev={onPrev}
+            onNext={onNext}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            seriesTitle={seriesTitle || currentEpisode?.playlistTitle}
+          />
+        )}
       </div>
     </div>
   );

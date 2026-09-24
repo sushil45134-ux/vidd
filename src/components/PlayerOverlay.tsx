@@ -71,6 +71,11 @@ export default function PlayerOverlay({
         startAt={effectiveStartAt}
         onProgress={handleProgress}
         onEnded={handleEnded}
+        episodes={queue.length > 1 ? queue : undefined}
+        currentIndex={idx}
+        onSelectEpisode={(nextIdx) => setIdx(nextIdx)}
+        seriesTitle={current.playlistTitle || movie.playlistTitle}
+        title={current.title}
       />
     );
   }
@@ -90,6 +95,11 @@ export default function PlayerOverlay({
         startAt={effectiveStartAt}
         onProgress={handleProgress}
         onEnded={handleEnded}
+        episodes={queue.length > 1 ? queue : undefined}
+        currentIndex={idx}
+        onSelectEpisode={(nextIdx) => setIdx(nextIdx)}
+        seriesTitle={current.playlistTitle || movie.playlistTitle}
+        title={current.title}
       />
     );
   }
