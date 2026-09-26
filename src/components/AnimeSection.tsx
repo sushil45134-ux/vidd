@@ -30,29 +30,42 @@ function AnimeSection({
   onEpisodesLoaded,
 }: AnimeSectionProps) {
   const [series, setSeries] = useState<Movie[]>([]);
+  const [latestSeries, setLatestSeries] = useState<Movie[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "empty">("loading");
   const playFirst = useCallback((m: Movie) => onPlay(m.episodes?.[0] || m), [onPlay]);
 
   useEffect(() => {
     let active = true;
 
-    fetch("/api/anime")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad status"))))
-      .then((data: { episodes?: AnimeEpisode[] }) => {
-        if (!active) return;
-        const list = Array.isArray(data.episodes) ? data.episodes : [];
-        const { series, episodes } = episodesToMovies(list);
-        setSeries(series);
-        onEpisodesLoaded?.(episodes);
-        setState(series.length > 0 ? "ready" : "empty");
-      })
-      .catch(() => {
-        if (!active) return;
-        setState("empty");
-      });
+    const refresh = () => {
+      fetch("/api/anime")
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad status"))))
+        .then((data: { episodes?: AnimeEpisode[] }) => {
+          if (!active) return;
+          const list = Array.isArray(data.episodes) ? data.episodes : [];
+          const { series, latestSeries, episodes } = episodesToMovies(list);
+          setSeries(series);
+          // A feed normally contains many old episodes. Freshness ordering makes
+          // a newly discovered anime visible immediately even when it has only
+          // one episode. Cap the daily shelf so it stays quick on TV browsers.
+          setLatestSeries(latestSeries.slice(0, 10));
+          onEpisodesLoaded?.(episodes);
+          setState(series.length > 0 ? "ready" : "empty");
+        })
+        .catch(() => {
+          if (!active) return;
+          // Keep already loaded cards during a temporary refresh failure.
+          setState((current) => (current === "ready" ? current : "empty"));
+        });
+    };
 
+    refresh();
+    // A TV/browser left open on the Anime page also receives newly published
+    // shows without needing a reload. The API itself caches feeds for 10 min.
+    const timer = window.setInterval(refresh, 6 * 60 * 60 * 1000);
     return () => {
       active = false;
+      window.clearInterval(timer);
     };
   }, [onEpisodesLoaded]);
 
@@ -76,8 +89,20 @@ function AnimeSection({
 
   return (
     <div className="mt-2">
+      {latestSeries.length > 0 && (
+        <MovieRow
+          title="🆕 Daily New Anime"
+          movies={latestSeries}
+          onSelectMovie={onSelectMovie}
+          onPlay={playFirst}
+          isInMyList={isInMyList}
+          isLiked={isLiked}
+          toggleMyList={toggleMyList}
+          toggleLike={toggleLike}
+        />
+      )}
       <MovieRow
-        title="Hindi Dubbed Anime"
+        title="Hindi Dubbed Anime Library"
         movies={series}
         onSelectMovie={onSelectMovie}
         onPlay={playFirst}

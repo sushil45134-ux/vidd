@@ -295,6 +295,12 @@ function episodeToMovie(ep: AnimeEpisode, playlistId: string, seriesName: string
  */
 export function episodesToMovies(episodes: AnimeEpisode[]): {
   series: Movie[];
+  /**
+   * Series ordered by their most recently published episode. The UI uses this
+   * for the auto-updating "Daily New Anime" shelf, so a brand-new show with
+   * only one episode never gets buried below older shows with large seasons.
+   */
+  latestSeries: Movie[];
   episodes: Movie[];
 } {
   const bySeries = new Map<string, AnimeEpisode[]>();
@@ -359,6 +365,22 @@ export function episodesToMovies(episodes: AnimeEpisode[]): {
     });
   }
 
+  // Keep the full-library shelf stable (largest seasons first), but also
+  // expose a freshness-sorted copy for the daily shelf. Publication data is
+  // intentionally kept outside Movie: it is feed metadata, not movie data.
+  const latestPublishedByPlaylist = new Map<string, string>();
+  for (const [key, eps] of bySeries) {
+    let latest = "";
+    for (const ep of eps) {
+      if (ep.published && ep.published > latest) latest = ep.published;
+    }
+    latestPublishedByPlaylist.set(`anime:${key}`, latest);
+  }
+  const latestSeries = [...series].sort((a, b) => {
+    const aDate = latestPublishedByPlaylist.get(a.playlistId || "") || "";
+    const bDate = latestPublishedByPlaylist.get(b.playlistId || "") || "";
+    return bDate.localeCompare(aDate) || a.title.localeCompare(b.title);
+  });
   series.sort((a, b) => (b.episodes?.length || 0) - (a.episodes?.length || 0));
   flatEpisodes.sort(
     (a, b) =>
@@ -366,7 +388,7 @@ export function episodesToMovies(episodes: AnimeEpisode[]): {
       (a.episodeNumber || 0) - (b.episodeNumber || 0),
   );
 
-  return { series, episodes: flatEpisodes };
+  return { series, latestSeries, episodes: flatEpisodes };
 }
 
 /* ── Static seed ─────────────────────────────────────────────────
