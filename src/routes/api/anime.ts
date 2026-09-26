@@ -61,10 +61,15 @@ function startRefresh(): Promise<AnimeEpisode[]> {
   return refreshing;
 }
 
-function serve(episodes: AnimeEpisode[], source: string, maxAge: number): Response {
+function serve(episodes: AnimeEpisode[], source: string, maxAge: number, limit = 500): Response {
   return Response.json(
-    { source, total: episodes.length, episodes: episodes.slice(0, 500) },
-    { headers: { "cache-control": `public, max-age=${maxAge}` } },
+    {
+      source,
+      total: episodes.length,
+      checkedAt: new Date().toISOString(),
+      episodes: episodes.slice(0, limit),
+    },
+    { headers: { "cache-control": `public, max-age=${maxAge}, stale-while-revalidate=300` } },
   );
 }
 
@@ -124,7 +129,7 @@ export const Route = createFileRoute("/api/anime")({
 
         try {
           if (cache && Date.now() - cache.ts <= CACHE_TTL_MS) {
-            return serve(cache.episodes, "live", 600);
+            return serve(cache.episodes, "live", 600, limit);
           }
 
           if (cache) {
@@ -133,7 +138,7 @@ export const Route = createFileRoute("/api/anime")({
             // serverless cold start that awaits a dozen YouTube Atom feeds
             // used to leave the Anime tab hanging for many seconds.
             void startRefresh();
-            return serve(cache.episodes, "stale", 300);
+            return serve(cache.episodes, "stale", 300, limit);
           }
 
           // Cold cache: bounded live fetch — the request itself becomes the
@@ -145,11 +150,11 @@ export const Route = createFileRoute("/api/anime")({
             ),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
           ]);
-          if (winner && winner.length > 0) return serve(winner, "live", 600);
-          if (winner) return serve(winner, "seed", 120);
+          if (winner && winner.length > 0) return serve(winner, "live", 600, limit);
+          if (winner) return serve(winner, "seed", 120, limit);
           // Timed out — serve the bundled snapshot now; the background
           // refresh keeps going and later requests get the real catalog.
-          return serve(dedupeEpisodes(ANIME_SEED), "seed", 120);
+          return serve(dedupeEpisodes(ANIME_SEED), "seed", 120, limit);
         } catch {
           const seed = dedupeEpisodes(ANIME_SEED);
           return Response.json(
