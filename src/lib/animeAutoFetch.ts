@@ -1,6 +1,6 @@
 /**
  * Anime Auto-Fetch via AniList + Jikan (no API key needed)
- * 
+ *
  * Flow:
  * 1. User enters anime name + optional IMDb ID (tt...)
  * 2. Client calls /api/anime-auto?title=...
@@ -59,6 +59,7 @@ export interface AutoFetchResult {
   totalEpisodes: number;
   seasons: AutoFetchSeason[];
   source: "anilist+jikan" | "anilist" | "jikan" | "static-fallback";
+  topologySource?: "nxsha";
 }
 
 export interface FetchAnimeOptions {
@@ -73,7 +74,7 @@ export interface FetchAnimeOptions {
  */
 export function autoFetchToMovies(
   result: AutoFetchResult,
-  opts: { imdbId: string; providerId: string; customTemplate?: string }
+  opts: { imdbId: string; providerId: string; customTemplate?: string },
 ): Movie[] {
   const { imdbId, providerId, customTemplate } = opts;
   const provider = getProvider(providerId);
@@ -82,7 +83,12 @@ export function autoFetchToMovies(
   if (!template || !imdbId) return [];
 
   // Deterministic playlistId based on mainTitle slug + imdbId, so S1 and S2 fetched separately still merge into same collection
-  const slug = result.mainTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "anime";
+  const slug =
+    result.mainTitle
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 40) || "anime";
   const playlistId = `anime-auto-${slug}-${imdbId}`;
   const playlistTitle = result.mainTitle;
 
@@ -173,12 +179,20 @@ export function autoFetchToMovies(
 
   // If no seasons built (edge), try simple generation from total episodes
   if (movies.length === 0 && result.totalEpisodes > 0) {
-    const built = buildImdbSeries(template, imdbId, result.totalSeasons || 1, Math.ceil(result.totalEpisodes / (result.totalSeasons || 1)));
+    const built = buildImdbSeries(
+      template,
+      imdbId,
+      result.totalSeasons || 1,
+      Math.ceil(result.totalEpisodes / (result.totalSeasons || 1)),
+    );
     if (built.ok && built.episodes) {
       for (const gen of built.episodes) {
-        const season = result.seasons.find((s) => s.seasonNumber === gen.season) || result.seasons[0];
+        const season =
+          result.seasons.find((s) => s.seasonNumber === gen.season) || result.seasons[0];
         const cover = season?.coverImage || result.mainCover || fallbackImg;
-        const fallbackGenres = season ? Array.from(new Set(["Anime", ...season.genres])) : ["Anime", ...result.genres];
+        const fallbackGenres = season
+          ? Array.from(new Set(["Anime", ...season.genres]))
+          : ["Anime", ...result.genres];
         movies.push({
           id: globalId++,
           title: `${result.mainTitle} Episode ${gen.episode}`,

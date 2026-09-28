@@ -43,6 +43,11 @@ import { useIsTvBrowser } from "./hooks/useIsTvBrowser";
 import { bannerSection, useHeroBanners, type HeroSection } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
 import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
+import {
+  extractNxshaMediaId,
+  reconcileMoviesWithNxsha,
+  type NxshaCatalog,
+} from "./lib/nxshaCatalog";
 
 // Start downloading the data layer (moviesRepo + the Supabase SDK chunk it
 // depends on) at module-eval time — i.e. the moment the entry script runs,
@@ -83,28 +88,13 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
     emitted.add(m.playlistId);
     const eps = groups.get(m.playlistId)!;
     const seasonMap = new Map<number, Movie[]>();
-    const isAnime = m.genre.some((g) => g.toLowerCase() === "anime");
-    const isNxsha = eps.some(
-      (e) =>
-        e.embedPlatform?.toLowerCase().includes("nxsha") ||
-        e.embedUrl?.toLowerCase().includes("nxsha"),
-    );
-    // AniList relations can include specials/side stories as fake seasons.
-    // Nxsha's anime catalogue uses its own season sequence (starting at 0),
-    // so for the over-expanded legacy collections keep the first two real TV
-    // seasons and renumber them to Nxsha's S0/S1 convention.
-    const seasonNumbers = Array.from(
-      new Set(eps.map((e) => e.seasonNumber || 1)),
-    ).sort((a, b) => a - b);
-    const nxshaSeasonMap =
-      isAnime && isNxsha && seasonNumbers.length > 2
-        ? new Map(seasonNumbers.slice(0, 2).map((s, i) => [s, i]))
-        : undefined;
+    // Nxsha anime rows have already been reconciled against the provider's
+    // title response. Never renumber or trim them here: the exact provider
+    // season (including S0 specials) is the website season.
     eps.forEach((e) => {
-      const sourceSeason = e.seasonNumber || 1;
-      const s = nxshaSeasonMap?.get(sourceSeason) ?? sourceSeason;
-      if (!seasonMap.has(s)) seasonMap.set(s, []);
-      seasonMap.get(s)!.push({ ...e, seasonNumber: s });
+      const seasonNumber = e.seasonNumber ?? 1;
+      if (!seasonMap.has(seasonNumber)) seasonMap.set(seasonNumber, []);
+      seasonMap.get(seasonNumber)!.push(e);
     });
     const coverOverride = covers[m.playlistId];
     const paintCover = (episode: Movie): Movie => {
@@ -451,20 +441,86 @@ function App() {
     loadLibrary();
   }, [loadLibrary]);
 
-  const allMovies = useMemo(
-    () => [...uploadedMovies, ...syncedMovies],
+  const nxshaIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          [...uploadedMovies, ...syncedMovies]
+            .filter((movie) => movie.genre.some((genre) => genre.toLowerCase() === "anime"))
+            .map((movie) => extractNxshaMediaId(movie.embedUrl))
+            .filter((id): id is string => !!id),
+        ),
+      ].sort(),
     [uploadedMovies, syncedMovies],
+  );
+  const [nxshaCatalogs, setNxshaCatalogs] = useState<
+    Record<string, NxshaCatalog | null | undefined>
+  >({});
+  const nxshaIdsKey = nxshaIds.join(",");
+  useEffect(() => {
+    if (nxshaIds.length === 0) return;
+    let alive = true;
+    // Clear stale authority for the current IDs. Until Nxsha answers, those
+    // collections stay hidden rather than briefly showing fake DB seasons.
+    setNxshaCatalogs((previous) => Object.fromEntries(nxshaIds.map((id) => [id, previous[id]])));
+    const batches = Array.from({ length: Math.ceil(nxshaIds.length / 25) }, (_, index) =>
+      nxshaIds.slice(index * 25, index * 25 + 25),
+    );
+    Promise.all(
+      batches.map((ids) =>
+        fetch("/api/nxsha-catalog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        }).then((response) => {
+          if (!response.ok) throw new Error(`Nxsha catalogue HTTP ${response.status}`);
+          return response.json();
+        }),
+      ),
+    )
+      .then((responses) => {
+        if (!alive) return;
+        const catalogs = Object.assign({}, ...responses.map((body) => body?.catalogs || {}));
+        const next: Record<string, NxshaCatalog | null> = {};
+        nxshaIds.forEach((id) => {
+          const value = catalogs[id];
+          next[id] = value && Array.isArray(value.seasons) ? value : null;
+        });
+        setNxshaCatalogs(next);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setNxshaCatalogs(Object.fromEntries(nxshaIds.map((id) => [id, null])));
+      });
+    return () => {
+      alive = false;
+    };
+    // The sorted key is stable even when movie objects are rehydrated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nxshaIdsKey]);
+
+  const verifiedUploadedMovies = useMemo(
+    () => reconcileMoviesWithNxsha(uploadedMovies, nxshaCatalogs),
+    [uploadedMovies, nxshaCatalogs],
+  );
+  const verifiedSyncedMovies = useMemo(
+    () => reconcileMoviesWithNxsha(syncedMovies, nxshaCatalogs),
+    [syncedMovies, nxshaCatalogs],
+  );
+  const allMovies = useMemo(
+    () => [...verifiedUploadedMovies, ...verifiedSyncedMovies],
+    [verifiedUploadedMovies, verifiedSyncedMovies],
   );
 
   // Group episodes (synced playlists AND user-uploaded series) into
   // playlist collections (Crunchyroll-style)
   const syncedCollections = useMemo(
-    () => buildCollections(syncedMovies, collectionCovers),
-    [syncedMovies, collectionCovers],
+    () => buildCollections(verifiedSyncedMovies, collectionCovers),
+    [verifiedSyncedMovies, collectionCovers],
   );
   const uploadedCollections = useMemo(
-    () => buildCollections(uploadedMovies, collectionCovers),
-    [uploadedMovies, collectionCovers],
+    () => buildCollections(verifiedUploadedMovies, collectionCovers),
+    [verifiedUploadedMovies, collectionCovers],
   );
 
   // What we show in rows / categories (collections instead of individual episodes)
@@ -560,7 +616,7 @@ function App() {
         title: m.playlistTitle || "Series",
         seasons: new Map<number, number>(),
       };
-      const s = m.seasonNumber || 1;
+      const s = m.seasonNumber ?? 1;
       entry.seasons.set(s, (entry.seasons.get(s) || 0) + 1);
       map.set(m.playlistId, entry);
     });
@@ -907,14 +963,14 @@ function App() {
     const pid = playingMovie?.playlistId;
     if (!playingMovie || !pid) return undefined;
     const sortByEp = (a: Movie, b: Movie) =>
-      (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
-      (a.episodeNumber || 0) - (b.episodeNumber || 0);
+      (a.seasonNumber ?? 1) - (b.seasonNumber ?? 1) ||
+      (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0);
     const pick = (list: Movie[]) => {
       const siblings = list.filter((m) => m.playlistId === pid).sort(sortByEp);
       return siblings.length > 1 ? siblings : undefined;
     };
-    return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
-  }, [playingMovie, syncedMovies, uploadedMovies, animeEpisodes]);
+    return pick(verifiedSyncedMovies) ?? pick(verifiedUploadedMovies) ?? pick(animeEpisodes);
+  }, [playingMovie, verifiedSyncedMovies, verifiedUploadedMovies, animeEpisodes]);
 
   // Admin banners split by page — the home hero only ever shows "home"
   // banners; Movies/Anime/Cartoon banners live on their own pages.
