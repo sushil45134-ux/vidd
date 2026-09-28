@@ -37,8 +37,8 @@ export const IMDB_PROVIDERS: ImdbProvider[] = [
 export const VIDSYNC_PROVIDER: ImdbProvider = {
   id: "vidsync",
   name: "VidSync",
-  template: "https://vidsync.pro/embed/anime/{id}/{e}",
-  hint: "vidsync.pro — AniList numeric ID required",
+  template: "https://vidsync.pro/embed/anime/{id}/{e}?lang=hi",
+  hint: "vidsync.pro — AniList ID • Hindi auto-select",
 };
 
 export const CUSTOM_PROVIDER_ID = "custom";
