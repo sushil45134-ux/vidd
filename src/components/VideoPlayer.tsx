@@ -1022,6 +1022,7 @@ export function VideoPlayer({
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
+              sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
             />
           ) : (
             <div className="w-full h-full relative" style={{ overflow: "hidden" }}>

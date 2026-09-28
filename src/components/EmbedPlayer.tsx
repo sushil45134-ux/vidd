@@ -66,6 +66,30 @@ function normalizeDailymotionUrl(url: string): string {
   }
 }
 
+/**
+ * Ensure Nxsha embeds carry the ad-blocking query flag.
+ */
+function normalizeNxshaUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname.toLowerCase().includes("nxsha")) {
+      if (!u.searchParams.has("disable_app_ad")) {
+        u.searchParams.set("disable_app_ad", "true");
+      }
+      return u.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+function normalizeEmbedUrl(url: string): string {
+  let normalized = normalizeDailymotionUrl(url);
+  normalized = normalizeNxshaUrl(normalized);
+  return normalized;
+}
+
 function getDailymotionVideoId(url: string): string | null {
   const match = url.match(
     /(?:dailymotion\.com\/video\/|dai\.ly\/|dailymotion\.com\/embed\/video\/)([A-Za-z0-9]+)/,
@@ -252,7 +276,7 @@ export function EmbedPlayer({
   onProgress,
   onEnded,
 }: EmbedPlayerProps) {
-  const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;
+  const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
@@ -634,6 +658,7 @@ export function EmbedPlayer({
             allowFullScreen
             title="Video player"
             referrerPolicy="no-referrer-when-downgrade"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
           />
         ) : (
           <video

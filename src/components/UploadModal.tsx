@@ -1310,6 +1310,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                           allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                           title="Preview"
+                          sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
                         />
                       </div>
                     </div>
@@ -1503,7 +1504,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   )}
                   <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
                     💡 NHD (nhdapi.com) default player hai. Nxsha (nxsha.space / web.nxsha.app) —
-                    Hindi audio verified by user; popup risk accepted. IMDb ya numeric TMDB ID se
+                    Hindi audio verified by user; popup ads blocked. IMDb ya numeric TMDB ID se
                     har episode ka link khud banta hai. Test ID:{" "}
                     <span className="font-mono">tt15765670</span> → NHD{" "}
                     <span className="font-mono">https://nhdapi.com/tv/tt15765670/1/1</span>, Nxsha{" "}

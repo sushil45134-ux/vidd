@@ -105,7 +105,7 @@ class MainActivity : AppCompatActivity() {
             allowContentAccess = true
             loadsImagesAutomatically = true
             mediaPlaybackRequiresUserGesture = false   // video autoplay chale
-            javaScriptCanOpenWindowsAutomatically = true
+            javaScriptCanOpenWindowsAutomatically = false // popup ads block
             setSupportMultipleWindows(false)
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             cacheMode = WebSettings.LOAD_DEFAULT
@@ -263,7 +263,8 @@ class MainActivity : AppCompatActivity() {
             "youtube.com", "youtu.be", "ytimg.com", "googlevideo.com",
             "vimeo.com", "vimeocdn.com", "dailymotion.com", "dmcdn.net",
             "bitchute.com", "odysee.com", "odycdn.com", "streamable.com",
-            "twitch.tv", "facebook.com", "fbcdn.net", "supabase.co"
+            "twitch.tv", "facebook.com", "fbcdn.net", "supabase.co",
+            "nxsha.space", "web.nxsha.app", "nhdapi.com"
         )
         return mediaHosts.any { host == it || host.endsWith(".$it") }
     }
