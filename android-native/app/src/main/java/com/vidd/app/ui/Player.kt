@@ -374,6 +374,8 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.mediaPlaybackRequiresUserGesture = false
+                    settings.javaScriptCanOpenWindowsAutomatically = false
+                    settings.setSupportMultipleWindows(false)
                     webChromeClient = WebChromeClient()
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(
@@ -385,9 +387,7 @@ private fun EmbedScreen(movie: Movie, modifier: Modifier) {
                                 (host.equals(allowedHost, ignoreCase = true) ||
                                     host.endsWith(".$allowedHost", ignoreCase = true))
                             if (internal) return false
-                            runCatching {
-                                ctx.startActivity(Intent(Intent.ACTION_VIEW, request.url))
-                            }
+                            // Embed popup ads / external redirects ko block karo
                             return true
                         }
 

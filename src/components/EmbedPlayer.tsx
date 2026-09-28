@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { X, Maximize, Minimize, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
@@ -64,6 +64,30 @@ function normalizeDailymotionUrl(url: string): string {
   } catch {
     return url;
   }
+}
+
+/**
+ * Ensure Nxsha embeds carry the ad-blocking query flag.
+ */
+function normalizeNxshaUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname.toLowerCase().includes("nxsha")) {
+      if (!u.searchParams.has("disable_app_ad")) {
+        u.searchParams.set("disable_app_ad", "true");
+      }
+      return u.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+function normalizeEmbedUrl(url: string): string {
+  let normalized = normalizeDailymotionUrl(url);
+  normalized = normalizeNxshaUrl(normalized);
+  return normalized;
 }
 
 function getDailymotionVideoId(url: string): string | null {
@@ -252,7 +276,7 @@ export function EmbedPlayer({
   onProgress,
   onEnded,
 }: EmbedPlayerProps) {
-  const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;
+  const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
@@ -634,6 +658,7 @@ export function EmbedPlayer({
             allowFullScreen
             title="Video player"
             referrerPolicy="no-referrer-when-downgrade"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
           />
         ) : (
           <video
@@ -712,55 +737,31 @@ export function EmbedPlayer({
           </>
         )}
 
-        {/* Top gradient */}
-        <div
-          className="absolute top-0 left-0 right-0 h-24 z-20 pointer-events-none"
-          style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
-          }}
-        />
-
-        {/* Close */}
+        {/* Close (Esc) */}
         <button
           onClick={onClose}
-          className="absolute top-4 left-4 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+          className="absolute top-3 left-3 z-30 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
           title="Close (Esc)"
         >
-          <X size={22} className="text-white" />
+          <X size={20} className="text-white" />
         </button>
 
-        {/* Prev / Next (series queue) + Fullscreen — top-right */}
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
-          {hasPrev && (
+        {/* Video files only: Fullscreen button */}
+        {kind === "video" && (
+          <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
             <button
-              onClick={onPrev}
-              className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Previous episode (←)"
+              onClick={toggleFullscreen}
+              className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+              title="Fullscreen (f)"
             >
-              <ChevronLeft size={22} className="text-white" />
+              {isFullscreen ? (
+                <Minimize size={18} className="text-white" />
+              ) : (
+                <Maximize size={18} className="text-white" />
+              )}
             </button>
-          )}
-          {hasNext && (
-            <button
-              onClick={onNext}
-              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Next episode (→)"
-            >
-              <ChevronRight size={22} className="text-white" />
-            </button>
-          )}
-          <button
-            onClick={toggleFullscreen}
-            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-            title="Fullscreen (f)"
-          >
-            {isFullscreen ? (
-              <Minimize size={20} className="text-white" />
-            ) : (
-              <Maximize size={20} className="text-white" />
-            )}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

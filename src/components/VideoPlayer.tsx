@@ -1022,6 +1022,7 @@ export function VideoPlayer({
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
+              sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
             />
           ) : (
             <div className="w-full h-full relative" style={{ overflow: "hidden" }}>
@@ -1192,22 +1193,6 @@ export function VideoPlayer({
                 </button>
               )}
 
-              {/* ═══ QUEUE BUTTON ═══ */}
-              {queueItems && queueItems.length > 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowQueue((q) => !q);
-                    setShowSettings(false);
-                    setShowSubtitlesMenu(false);
-                  }}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${showQueue ? "bg-netflix-red/80 hover:bg-netflix-red" : "bg-black/50 hover:bg-black/80"}`}
-                  title="Queue"
-                >
-                  <ListVideo size={18} className="text-white" />
-                </button>
-              )}
-
               {/* ═══ SUBTITLES BUTTON ═══ */}
               <div ref={subtitlesRef} className="relative">
                 <button
@@ -1215,6 +1200,7 @@ export function VideoPlayer({
                     e.stopPropagation();
                     setShowSubtitlesMenu(!showSubtitlesMenu);
                     setShowSettings(false);
+                    setShowQueue(false);
                   }}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${activeSubtitle ? "bg-netflix-red/80 hover:bg-netflix-red" : "bg-black/50 hover:bg-black/80"}`}
                   title="Subtitles / CC"
@@ -1270,6 +1256,23 @@ export function VideoPlayer({
                 )}
               </div>
 
+              {/* ═══ QUEUE / EPISODES BUTTON (Next to Settings / Speed) ═══ */}
+              {queueItems && queueItems.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQueue((q) => !q);
+                    setShowSettings(false);
+                    setShowSubtitlesMenu(false);
+                  }}
+                  className={`px-3 h-10 rounded-full flex items-center gap-1.5 text-xs font-medium transition-all backdrop-blur-sm ${showQueue ? "bg-netflix-red text-white" : "bg-black/50 hover:bg-black/80 text-white"}`}
+                  title="Episodes"
+                >
+                  <ListVideo size={18} />
+                  <span className="hidden sm:inline">Episodes</span>
+                </button>
+              )}
+
               {/* ═══ SETTINGS BUTTON (Speed Only) ═══ */}
               <div ref={settingsRef} className="relative">
                 <button
@@ -1277,9 +1280,10 @@ export function VideoPlayer({
                     e.stopPropagation();
                     setShowSettings(!showSettings);
                     setShowSubtitlesMenu(false);
+                    setShowQueue(false);
                   }}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${showSettings ? "bg-white/20 hover:bg-white/30" : "bg-black/50 hover:bg-black/80"}`}
-                  title="Settings"
+                  title="Settings / Speed"
                 >
                   <Settings
                     size={18}
@@ -1479,6 +1483,26 @@ export function VideoPlayer({
 
               {/* Right controls */}
               <div className="flex items-center gap-2 md:gap-3">
+                {/* Episodes button next to Theater & Fullscreen */}
+                {queueItems && queueItems.length > 1 && (
+                  <button
+                    onClick={() => {
+                      setShowQueue((q) => !q);
+                      setShowSettings(false);
+                      setShowSubtitlesMenu(false);
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all backdrop-blur-sm ${
+                      showQueue
+                        ? "bg-netflix-red text-white"
+                        : "bg-white/10 hover:bg-white/20 text-white"
+                    }`}
+                    title="Episodes"
+                  >
+                    <ListVideo size={15} />
+                    <span>Episodes</span>
+                  </button>
+                )}
+
                 {/* Theater Mode */}
                 <button
                   onClick={() => setIsTheater((t) => !t)}
