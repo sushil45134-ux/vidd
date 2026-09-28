@@ -1003,6 +1003,26 @@ export const Route = createFileRoute("/api/anime-auto")({
               }
             }
 
+            // Jikan/streamingEpisodes often return a PARTIAL list (MAL down or
+            // incomplete, AniList streamingEpisodes sirf ep-1 list karta hai) —
+            // e.g. Chainsmoker Cat: AniList episodes=12 but only 1 entry came
+            // back, so the site only added 1 episode while Nxsha has all 12.
+            // Pad the missing episodes with placeholders up to the known count.
+            if (episodesCount > episodes.length) {
+              const known = new Set(episodes.map((e) => e.episodeNumber));
+              for (let e = 1; e <= episodesCount; e++) {
+                if (known.has(e)) continue;
+                episodes.push({
+                  episodeNumber: e,
+                  title: `Episode ${e}`,
+                  synopsis: "",
+                  aired: "",
+                  image: cover,
+                });
+              }
+              episodes.sort((a, b) => a.episodeNumber - b.episodeNumber);
+            }
+
             totalEpisodes += episodes.length;
 
             seasons.push({
