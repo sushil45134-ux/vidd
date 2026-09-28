@@ -322,10 +322,11 @@ function buildSeasonsChain(main: AniListMedia): AniListMedia[] {
     if (!node) continue;
     if (node.type && node.type !== "ANIME") continue;
     const fmt = (node as any).format;
-    if (fmt && !["TV", "TV_SHORT", "ONA", "OVA"].includes(fmt)) {
-      // Still allow if it's TV-like
-      if (fmt !== "TV" && relType !== "SEQUEL" && relType !== "PREQUEL") continue;
-    }
+    // Nxsha's /tv/{id}/{season}/{episode} catalogue follows the real TV
+    // seasons. OVA/ONA/TV-short side stories are not seasons there and were
+    // previously being rendered as extra season cards.
+    if (fmt !== "TV") continue;
+    if (relType !== "SEQUEL" && relType !== "PREQUEL") continue;
     const year = node.startDate?.year || node.seasonYear || 9999;
     relatedTV.push({ media: node, rel: relType, year });
   }
@@ -830,9 +831,11 @@ export const Route = createFileRoute("/api/anime-auto")({
             // 1) Try from AniList searchResults
             const franchiseFromSearch = searchResults.filter((m) => {
               if (m.id === mainDetailed!.id) return false;
-              if (titlesShareFranchise(mainDetailed!.title, m.title)) return true;
-              // Also include if title explicitly says Season 2/3
-              if (isSeason2Title(m.title) && titlesShareFranchise(mainDetailed!.title, m.title)) return true;
+              if (
+                m.format === "TV" &&
+                /\bseason\s*\d+\b/i.test(bestTitle(m.title)) &&
+                titlesShareFranchise(mainDetailed!.title, m.title)
+              ) return true;
               return false;
             });
             franchiseFromSearch.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
@@ -848,6 +851,7 @@ export const Route = createFileRoute("/api/anime-auto")({
               for (const jf of jikanFranchise) {
                 if (seasonsChain.find((s) => s.idMal === jf.idMal)) continue;
                 if (!titlesShareFranchise(mainDetailed!.title, jf.title)) continue;
+                if (!/\bseason\s*\d+\b/i.test(bestTitle(jf.title))) continue;
                 // Try to get AniList version via MAL ID for richer data
                 if (jf.idMal) {
                   try {
