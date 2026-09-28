@@ -83,10 +83,24 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
     emitted.add(m.playlistId);
     const eps = groups.get(m.playlistId)!;
     const seasonMap = new Map<number, Movie[]>();
+    const isAnime = m.genre.some((g) => g.toLowerCase() === "anime");
+    const isNxsha = eps.some((e) => e.embedPlatform?.toLowerCase().includes("nxsha"));
+    // AniList relations can include specials/side stories as fake seasons.
+    // Nxsha's anime catalogue uses its own season sequence (starting at 0),
+    // so for the over-expanded legacy collections keep the first two real TV
+    // seasons and renumber them to Nxsha's S0/S1 convention.
+    const seasonNumbers = Array.from(
+      new Set(eps.map((e) => e.seasonNumber || 1)),
+    ).sort((a, b) => a - b);
+    const nxshaSeasonMap =
+      isAnime && isNxsha && seasonNumbers.length > 2
+        ? new Map(seasonNumbers.slice(0, 2).map((s, i) => [s, i]))
+        : undefined;
     eps.forEach((e) => {
-      const s = e.seasonNumber || 1;
+      const sourceSeason = e.seasonNumber || 1;
+      const s = nxshaSeasonMap?.get(sourceSeason) ?? sourceSeason;
       if (!seasonMap.has(s)) seasonMap.set(s, []);
-      seasonMap.get(s)!.push(e);
+      seasonMap.get(s)!.push({ ...e, seasonNumber: s });
     });
     const coverOverride = covers[m.playlistId];
     const paintCover = (episode: Movie): Movie => {
