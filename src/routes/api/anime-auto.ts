@@ -322,10 +322,11 @@ function buildSeasonsChain(main: AniListMedia): AniListMedia[] {
     if (!node) continue;
     if (node.type && node.type !== "ANIME") continue;
     const fmt = (node as any).format;
-    if (fmt && !["TV", "TV_SHORT", "ONA", "OVA"].includes(fmt)) {
-      // Still allow if it's TV-like
-      if (fmt !== "TV" && relType !== "SEQUEL" && relType !== "PREQUEL") continue;
-    }
+    // Nxsha's /tv/{id}/{season}/{episode} catalogue follows the real TV
+    // seasons. OVA/ONA/TV-short side stories are not seasons there and were
+    // previously being rendered as extra season cards.
+    if (fmt !== "TV") continue;
+    if (relType !== "SEQUEL" && relType !== "PREQUEL") continue;
     const year = node.startDate?.year || node.seasonYear || 9999;
     relatedTV.push({ media: node, rel: relType, year });
   }
@@ -830,9 +831,11 @@ export const Route = createFileRoute("/api/anime-auto")({
             // 1) Try from AniList searchResults
             const franchiseFromSearch = searchResults.filter((m) => {
               if (m.id === mainDetailed!.id) return false;
-              if (titlesShareFranchise(mainDetailed!.title, m.title)) return true;
-              // Also include if title explicitly says Season 2/3
-              if (isSeason2Title(m.title) && titlesShareFranchise(mainDetailed!.title, m.title)) return true;
+              if (
+                m.format === "TV" &&
+                /\bseason\s*\d+\b/i.test(bestTitle(m.title)) &&
+                titlesShareFranchise(mainDetailed!.title, m.title)
+              ) return true;
               return false;
             });
             franchiseFromSearch.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
@@ -848,6 +851,7 @@ export const Route = createFileRoute("/api/anime-auto")({
               for (const jf of jikanFranchise) {
                 if (seasonsChain.find((s) => s.idMal === jf.idMal)) continue;
                 if (!titlesShareFranchise(mainDetailed!.title, jf.title)) continue;
+                if (!/\bseason\s*\d+\b/i.test(bestTitle(jf.title))) continue;
                 // Try to get AniList version via MAL ID for richer data
                 if (jf.idMal) {
                   try {
@@ -938,52 +942,10 @@ export const Route = createFileRoute("/api/anime-auto")({
                   }
                 } catch {}
               }
-              // If still only 1 season after trying AniList (network blocked etc), inject static fallback with 2 seasons
-              if (seasonsChain.length === 1) {
-                const s1Cover = "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg";
-                const s2Cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
-                // If main is S1, add S2 static, and vice versa
-                const hasS1 = seasonsChain.some(s => s.id === 131516 || s.idMal === 48496);
-                const hasS2 = seasonsChain.some(s => s.id === 180259 || s.idMal === 54898);
-                if (!hasS2) {
-                  seasonsChain.push({
-                    id: 180259,
-                    idMal: 54898,
-                    title: { romaji: "Sono Bisque Doll wa Koi wo Suru Season 2", english: "My Dress-Up Darling Season 2", native: "その着せ替え人形は恋をする Season 2" },
-                    description: "The second season of My Dress-Up Darling. Marin and Wakana continue their cosplay adventures.",
-                    coverImage: { extraLarge: s2Cover, large: s2Cover },
-                    bannerImage: s2Cover,
-                    format: "TV",
-                    episodes: 12,
-                    season: "WINTER",
-                    seasonYear: 2025,
-                    averageScore: 84,
-                    genres: ["Romance", "Slice of Life"],
-                    studios: { nodes: [{ name: "CloverWorks" }] },
-                    startDate: { year: 2025 },
-                  } as any);
-                }
-                if (!hasS1) {
-                  seasonsChain.push({
-                    id: 131516,
-                    idMal: 48496,
-                    title: { romaji: "Sono Bisque Doll wa Koi wo Suru", english: "My Dress-Up Darling", native: "その着せ替え人形は恋をする" },
-                    description: "Wakana Gojo is a high school boy who wants to become a kashirashi - a master craftsman who makes traditional Japanese Hina dolls. Though he's gung-ho about the craft, he knows nothing about the latest trends, and has a hard time fitting in with his class. The popular kids - especially one girl, Marin Kitagawa - seem like they live in a completely different world. That all changes one day, when she shares an unexpected secret with him, and their completely different worlds collide.",
-                    coverImage: { extraLarge: s1Cover, large: s1Cover },
-                    bannerImage: s1Cover,
-                    format: "TV",
-                    episodes: 12,
-                    season: "WINTER",
-                    seasonYear: 2022,
-                    averageScore: 83,
-                    genres: ["Romance", "Slice of Life"],
-                    studios: { nodes: [{ name: "CloverWorks" }] },
-                    startDate: { year: 2022 },
-                  } as any);
-                }
-              }
             }
 
+            // Never invent seasons from another anime when metadata is
+            // incomplete. Nxsha paths must use the real season data.
             // Re-sort chain by year
             seasonsChain.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
           }
@@ -1062,6 +1024,30 @@ export const Route = createFileRoute("/api/anime-auto")({
               format: media.format,
               episodes,
             });
+          }
+
+          // Nxsha is the source of truth for playable anime seasons. Probe
+          // each metadata season and keep only seasons whose Nxsha page really
+          // contains the requested Sx:E1 marker.
+          if (imdbId && seasons.length > 0) {
+            const playable: any[] = [];
+            for (let i = 0; i < seasons.length; i++) {
+              const season = seasons[i];
+              // Nxsha commonly exposes specials as S0, then S1, S2...
+              for (const nxshaNumber of [i, i + 1]) {
+                const probeUrl = `https://nxsha.space/embed/tv/${encodeURIComponent(imdbId)}/${nxshaNumber}/1?lang=hi&server=GbruHindi&one_server=true`;
+                try {
+                  const probe = await fetch(probeUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+                  const html = await probe.text();
+                  const marker = new RegExp(`S${nxshaNumber}\\s*:\\s*E1`, "i");
+                  if (probe.ok && marker.test(html)) {
+                    playable.push({ ...season, seasonNumber: nxshaNumber });
+                    break;
+                  }
+                } catch {}
+              }
+            }
+            if (playable.length > 0) seasons.splice(0, seasons.length, ...playable);
           }
 
           const mainTitle = bestTitle(mainDetailed.title);

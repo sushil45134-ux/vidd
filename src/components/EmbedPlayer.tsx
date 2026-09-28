@@ -624,6 +624,25 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
+  // Enter native fullscreen immediately when an episode is opened. Some
+  // browsers reject this if the original click's activation has expired, so
+  // failure is intentionally silent and the visible fullscreen control still
+  // provides the fallback.
+  useEffect(() => {
+    const container = containerRef.current as (HTMLDivElement & {
+      webkitRequestFullscreen?: () => void;
+    }) | null;
+    if (!container || document.fullscreenElement) return;
+    try {
+      const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        (result as Promise<void>).catch(() => {});
+      }
+    } catch {
+      // Fullscreen can be blocked by browser policy; do not block playback.
+    }
+  }, [src]);
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
