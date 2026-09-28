@@ -823,6 +823,23 @@ export function EmbedPlayer({
           </button>
         </div>
 
+        {/* Bottom Floating Episodes Pill — convenient 1-tap access near bottom controls */}
+        {episodes && episodes.length > 1 && !showQueue && (
+          <div className="absolute bottom-5 right-4 z-30 pointer-events-auto">
+            <button
+              onClick={() => setShowQueue(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white border border-white/15 shadow-xl hover:border-red-500/50 hover:scale-105 transition-all backdrop-blur-md text-xs font-semibold"
+              title="Episodes"
+            >
+              <ListVideo size={16} className="text-red-500" />
+              <span>Episodes</span>
+              <span className="text-[10px] bg-red-600/80 text-white px-1.5 py-0.5 rounded-full font-mono">
+                {(currentEpisodeIndex ?? 0) + 1}/{episodes.length}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* ═══════ EPISODES QUEUE DRAWER ═══════ */}
         {showQueue && episodes && episodes.length > 1 && (
           <div
