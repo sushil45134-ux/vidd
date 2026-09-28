@@ -55,6 +55,15 @@ export default function PlayerOverlay({
   const hasPrev = queue.length > 1 && idx > 0;
   const hasNext = queue.length > 1 && idx < queue.length - 1;
 
+  // Button labels — "S1E5" style, warna chhota title.
+  const epShortLabel = (e?: Movie) => {
+    if (!e) return undefined;
+    if (e.episodeNumber != null) return `S${e.seasonNumber || 1}E${e.episodeNumber}`;
+    return e.title.length > 24 ? `${e.title.slice(0, 24)}…` : e.title;
+  };
+  const prevTitle = hasPrev ? epShortLabel(queue[idx - 1]) : undefined;
+  const nextTitle = hasNext ? epShortLabel(queue[idx + 1]) : undefined;
+
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).
   if (!current.youtubeId && current.embedUrl) {
@@ -66,6 +75,8 @@ export default function PlayerOverlay({
         onClose={onClose}
         hasPrev={hasPrev}
         hasNext={hasNext}
+        prevTitle={prevTitle}
+        nextTitle={nextTitle}
         onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
         startAt={effectiveStartAt}
@@ -85,6 +96,8 @@ export default function PlayerOverlay({
         onClose={onClose}
         hasPrev={hasPrev}
         hasNext={hasNext}
+        prevTitle={prevTitle}
+        nextTitle={nextTitle}
         onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
         startAt={effectiveStartAt}

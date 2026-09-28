@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { X, Maximize, Minimize } from "lucide-react";
+import { X, Maximize, Minimize, SkipBack, SkipForward } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 
@@ -13,6 +13,10 @@ interface EmbedPlayerProps {
   onNext?: () => void;
   hasPrev?: boolean;
   hasNext?: boolean;
+  /** Previous episode ka label — button tooltip me dikhta hai (e.g. "S1E4"). */
+  prevTitle?: string;
+  /** Next episode ka label — button par dikhta hai (e.g. "S1E6"). */
+  nextTitle?: string;
   /** Resume offset in seconds — direct videos + best-effort Dailymotion seek. */
   startAt?: number;
   /** Playback clock for Continue Watching (0,0) = started, clock unknown. */
@@ -272,6 +276,8 @@ export function EmbedPlayer({
   onNext,
   hasPrev,
   hasNext,
+  prevTitle,
+  nextTitle,
   startAt = 0,
   onProgress,
   onEnded,
@@ -765,9 +771,34 @@ export function EmbedPlayer({
           <X size={20} className="text-white" />
         </button>
 
-        {/* Video files only: Fullscreen button */}
-        {kind === "video" && (
-          <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+        {/* Top-right: Prev / Next Episode (series queue) + Fullscreen (video) */}
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          {hasPrev && onPrev && (
+            <button
+              onClick={onPrev}
+              className="h-9 px-3 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center gap-1.5 transition-all backdrop-blur-sm ring-1 ring-white/15 group"
+              title={prevTitle ? `Previous: ${prevTitle} (←)` : "Previous episode (←)"}
+            >
+              <SkipBack size={15} className="text-white" />
+              <span className="hidden sm:inline text-white text-xs font-semibold">Prev</span>
+            </button>
+          )}
+          {hasNext && onNext && (
+            <button
+              onClick={onNext}
+              className="h-9 px-3.5 rounded-full bg-[#e50914] hover:bg-[#f6121d] flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-black/40 active:scale-95"
+              title={nextTitle ? `Next: ${nextTitle} (→)` : "Next episode (→)"}
+            >
+              <span className="text-white text-xs font-bold">
+                Next<span className="hidden sm:inline"> Episode</span>
+                {nextTitle ? (
+                  <span className="hidden md:inline text-white/80 font-semibold"> • {nextTitle}</span>
+                ) : null}
+              </span>
+              <SkipForward size={15} className="text-white" />
+            </button>
+          )}
+          {kind === "video" && (
             <button
               onClick={toggleFullscreen}
               className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
@@ -779,8 +810,8 @@ export function EmbedPlayer({
                 <Maximize size={18} className="text-white" />
               )}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
