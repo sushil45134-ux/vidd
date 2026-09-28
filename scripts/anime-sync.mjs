@@ -49,8 +49,16 @@ async function anilist(query, variables) {
     const gap = 700 - (Date.now() - lastAnilistCall);
     if (gap > 0) await sleep(gap);
     lastAnilistCall = Date.now();
-    const res = await fetch(ANILIST_URL, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query, variables }) });
-    if (res.status === 429) { if (attempt === 3) throw new Error("AniList 429"); await sleep(20000 * (attempt + 1)); continue; }
+    const res = await fetch(ANILIST_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (res.status === 429) {
+      if (attempt === 3) throw new Error("AniList 429");
+      await sleep(20000 * (attempt + 1));
+      continue;
+    }
     if (!res.ok) throw new Error(`AniList ${res.status}`);
     const json = await res.json();
     if (json.errors) throw new Error(`AniList: ${JSON.stringify(json.errors).slice(0, 200)}`);
@@ -60,8 +68,15 @@ async function anilist(query, variables) {
 async function anilistBatchSearch(titles) {
   const out = [];
   for (let start = 0; start < titles.length; start += 10) {
-    const chunk = titles.slice(start, start + 10), vars = {}, fields = [];
-    chunk.forEach((title, i) => { vars[`q${i}`] = title; fields.push(`q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`); });
+    const chunk = titles.slice(start, start + 10),
+      vars = {},
+      fields = [];
+    chunk.forEach((title, i) => {
+      vars[`q${i}`] = title;
+      fields.push(
+        `q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`,
+      );
+    });
     const defs = chunk.map((_, i) => `$q${i}: String`).join(", ");
     const data = await anilist(`query (${defs}) { ${fields.join(" ")} }`, vars);
     out.push(...chunk.map((_, i) => data?.[`q${i}`]?.media || []));
@@ -71,12 +86,24 @@ async function anilistBatchSearch(titles) {
 async function anilistBatchDetails(ids) {
   const out = Array(ids.length).fill(null);
   for (let start = 0; start < ids.length; start += 10) {
-    const chunk = ids.slice(start, start + 10), vars = {}, fields = [], positions = [];
-    chunk.forEach((id, i) => { if (id == null) return; vars[`i${i}`] = id; positions.push([i, start + i]); fields.push(`i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`); });
+    const chunk = ids.slice(start, start + 10),
+      vars = {},
+      fields = [],
+      positions = [];
+    chunk.forEach((id, i) => {
+      if (id == null) return;
+      vars[`i${i}`] = id;
+      positions.push([i, start + i]);
+      fields.push(
+        `i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`,
+      );
+    });
     if (!fields.length) continue;
     const defs = positions.map(([i]) => `$i${i}: Int`).join(", ");
     const data = await anilist(`query (${defs}) { ${fields.join(" ")} }`, vars);
-    positions.forEach(([i, pos]) => { out[pos] = data?.[`i${i}`] || null; });
+    positions.forEach(([i, pos]) => {
+      out[pos] = data?.[`i${i}`] || null;
+    });
   }
   return out;
 }
@@ -210,6 +237,63 @@ const buildEmbed = (template, id, s, e) =>
     .replace(/\{s\}/g, String(s))
     .replace(/\{e\}/g, String(e));
 
+async function fetchNxshaTopology(id) {
+  let lastError = "no episodes in Nxsha response";
+  for (const host of ["https://web.nxsha.app", "https://nxsha.space"]) {
+    try {
+      const res = await fetch(`${host}/tv/${encodeURIComponent(id)}`, {
+        redirect: "follow",
+        headers: { Accept: "text/html", "User-Agent": "Mozilla/5.0 (vid-anime-sync/2.0)" },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) {
+        lastError = `HTTP ${res.status}`;
+        continue;
+      }
+      const html = (await res.text())
+        .replace(/\\u002[fF]/g, "/")
+        .replace(/\\\//g, "/")
+        .replace(/\\"/g, '"')
+        .replace(/&quot;/g, '"');
+      const seasons = new Map();
+      const pattern = /\/watch\/tv\/[^/"'?#\\]+\/(\d+)\/(\d+)(?=[?"'#<\\/]|$)/gi;
+      let match;
+      while ((match = pattern.exec(html))) {
+        const season = Number(match[1]),
+          episode = Number(match[2]);
+        if (season < 0 || episode < 1) continue;
+        if (!seasons.has(season)) seasons.set(season, new Set());
+        seasons.get(season).add(episode);
+      }
+      const declaredPatterns = [
+        /"season_number"\s*:\s*(\d+)[^{}]{0,1200}?"episode_count"\s*:\s*(\d+)/gi,
+        /"episode_count"\s*:\s*(\d+)[^{}]{0,1200}?"season_number"\s*:\s*(\d+)/gi,
+      ];
+      declaredPatterns.forEach((declared, patternIndex) => {
+        let item;
+        while ((item = declared.exec(html))) {
+          const season = Number(item[patternIndex === 0 ? 1 : 2]);
+          const count = Number(item[patternIndex === 0 ? 2 : 1]);
+          if (season < 0 || count < 1 || count > 2000) continue;
+          if (!seasons.has(season)) seasons.set(season, new Set());
+          for (let episode = 1; episode <= count; episode++) seasons.get(season).add(episode);
+        }
+      });
+      if (seasons.size) {
+        return [...seasons]
+          .sort((a, b) => a[0] - b[0])
+          .map(([seasonNumber, eps]) => ({
+            seasonNumber,
+            episodeNumbers: [...eps].sort((a, b) => a - b),
+          }));
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  throw new Error(lastError);
+}
+
 function seasonTitleFromRows(rows, playlistTitle, seasonNumber) {
   const first = rows[0];
   if (first?.title?.includes(" - ")) return first.title.split(" - ")[0].trim();
@@ -317,7 +401,83 @@ async function main() {
     const newRows = [];
     const summary = [];
 
-    // existing seasons → new aired episodes
+    if (col.template.provider === "Nxsha") {
+      let topology;
+      try {
+        topology = await fetchNxshaTopology(col.template.imdbId);
+      } catch (error) {
+        console.log(`⏭  ${col.title}: Nxsha catalogue unavailable (${error.message})`);
+        continue;
+      }
+      const allRows = [...col.seasons.values()].flat();
+      const fallbackRow = allRows[0];
+      for (let index = 0; index < topology.length; index++) {
+        const providerSeason = topology[index];
+        const srows = col.seasons.get(providerSeason.seasonNumber) || [];
+        const existing = new Set(srows.map((row) => row.episode_number || 0));
+        const missing = providerSeason.episodeNumbers
+          .filter((episode) => !existing.has(episode))
+          .slice(0, MAX_PER_SEASON);
+        if (!missing.length) continue;
+        const media = chain[index] || chain[0];
+        const templateRow = srows[0] || fallbackRow;
+        const seasonTitle = seasonTitleFromRows(
+          srows.length ? srows : allRows,
+          col.title,
+          providerSeason.seasonNumber,
+        );
+        let epMeta = new Map();
+        if (media?.idMal) epMeta = await jikanEpisodesUpTo(media.idMal, Math.max(...missing));
+        const cover =
+          media?.coverImage?.extraLarge || media?.coverImage?.large || templateRow?.image || "";
+        for (const episode of missing) {
+          const meta = epMeta.get(episode);
+          const image = meta?.images?.jpg?.image_url || cover;
+          newRows.push({
+            title: `${seasonTitle} - ${meta?.title || `Episode ${episode}`}`,
+            description: (meta?.synopsis || "").slice(0, 1000),
+            image,
+            thumbnailUrl: image,
+            backdrop: media?.bannerImage || templateRow?.backdrop || image,
+            year:
+              media?.seasonYear ||
+              media?.startDate?.year ||
+              templateRow?.year ||
+              new Date().getFullYear(),
+            rating: templateRow?.rating || "TV-14",
+            duration: templateRow?.duration || "24m",
+            genre: templateRow?.genre?.length ? templateRow.genre : ["Anime"],
+            match: templateRow?.match_score ?? 95,
+            cast: templateRow?.cast_members || undefined,
+            creator: templateRow?.creator || undefined,
+            embedUrl: buildEmbed(
+              col.template.template,
+              col.template.imdbId,
+              providerSeason.seasonNumber,
+              episode,
+            ),
+            embedPlatform: templateRow?.embed_platform || "Nxsha",
+            playlistId,
+            playlistTitle: col.title,
+            episodeNumber: episode,
+            seasonNumber: providerSeason.seasonNumber,
+          });
+        }
+        summary.push(`S${providerSeason.seasonNumber}: +${missing.length} Nxsha episode(s)`);
+      }
+      if (!newRows.length) {
+        console.log(`✅ ${col.title}: up to date with Nxsha`);
+      } else if (DRY_RUN) {
+        console.log(`👀 ${col.title}: would add ${newRows.length} — ${summary.join(", ")}`);
+      } else {
+        const added = await insertRows(newRows);
+        totalAdded += added;
+        console.log(`➕ ${col.title}: added ${added} — ${summary.join(", ")}`);
+      }
+      continue;
+    }
+
+    // Legacy non-Nxsha providers: existing seasons → new aired episodes
     for (const sn of seasonNums) {
       const srows = col.seasons.get(sn);
       const dbMax = Math.max(...srows.map((r) => r.episode_number || 0));

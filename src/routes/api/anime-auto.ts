@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fetchNxshaCatalog, type NxshaCatalog } from "../../lib/nxshaCatalog";
 
 /**
  * /api/anime-auto — No API key needed
  * Uses AniList GraphQL (public) + Jikan API (public) to fetch anime metadata
- * 
+ *
  * Query params:
  *   title  = anime name (required) e.g. "Naruto"
  *   imdbId = optional tt... id, just echoed back for client convenience
- * 
+ *
  * Returns:
  *   {
  *     mainTitle, mainCover, mainBanner, description,
@@ -212,8 +213,16 @@ function titlesShareFranchise(a: AniListTitle, b: AniListTitle): boolean {
       const bWords = bt.split(/[\s\-]+/).filter((w: string) => w.length > 2);
       const common = aWords.filter((w: string) => bWords.includes(w));
       if (common.length >= 2) return true;
-      const atHas = at.includes("bisque") || at.includes("dress-up") || at.includes("dress up") || at.includes("sono bisque");
-      const btHas = bt.includes("bisque") || bt.includes("dress-up") || bt.includes("dress up") || bt.includes("sono bisque");
+      const atHas =
+        at.includes("bisque") ||
+        at.includes("dress-up") ||
+        at.includes("dress up") ||
+        at.includes("sono bisque");
+      const btHas =
+        bt.includes("bisque") ||
+        bt.includes("dress-up") ||
+        bt.includes("dress up") ||
+        bt.includes("sono bisque");
       if (atHas && btHas) return true;
     }
   }
@@ -222,7 +231,13 @@ function titlesShareFranchise(a: AniListTitle, b: AniListTitle): boolean {
 
 function isSeason2Title(t: AniListTitle): boolean {
   const all = allTitleVariants(t).join(" ");
-  return all.includes("season 2") || all.includes("season2") || all.includes("2nd season") || all.includes("s2") || /\b2\b/.test(all) && all.includes("season");
+  return (
+    all.includes("season 2") ||
+    all.includes("season2") ||
+    all.includes("2nd season") ||
+    all.includes("s2") ||
+    (/\b2\b/.test(all) && all.includes("season"))
+  );
 }
 
 async function anilistFetch(query: string, variables: any): Promise<any> {
@@ -245,9 +260,12 @@ async function anilistFetch(query: string, variables: any): Promise<any> {
 
 async function jikanSearch(title: string): Promise<AniListMedia[]> {
   try {
-    const res = await fetch(`${JIKAN_BASE}/anime?q=${encodeURIComponent(title)}&limit=5&order_by=popularity&sort=desc&sfw=true`, {
-      headers: { "User-Agent": "vid-anime/1.0" },
-    });
+    const res = await fetch(
+      `${JIKAN_BASE}/anime?q=${encodeURIComponent(title)}&limit=5&order_by=popularity&sort=desc&sfw=true`,
+      {
+        headers: { "User-Agent": "vid-anime/1.0" },
+      },
+    );
     if (!res.ok) return [];
     const json = await res.json();
     const data = json.data || [];
@@ -257,7 +275,10 @@ async function jikanSearch(title: string): Promise<AniListMedia[]> {
       idMal: m.mal_id,
       title: { romaji: m.title, english: m.title_english || m.title, native: m.title_japanese },
       description: m.synopsis,
-      coverImage: { extraLarge: m.images?.jpg?.large_image_url || m.images?.jpg?.image_url || "", large: m.images?.jpg?.image_url || "" },
+      coverImage: {
+        extraLarge: m.images?.jpg?.large_image_url || m.images?.jpg?.image_url || "",
+        large: m.images?.jpg?.image_url || "",
+      },
       bannerImage: m.images?.jpg?.large_image_url || "",
       format: m.type,
       episodes: m.episodes,
@@ -378,9 +399,9 @@ function scoreTitleMatch(query: string, candidate: string): number {
   if (c.startsWith(q)) return 90;
   if (c.includes(q)) return 80;
   if (q.includes(c)) return 70;
-  const qWords = q.split(/\s+/).filter(w => w.length > 2);
-  const cWords = c.split(/\s+/).filter(w => w.length > 2);
-  const common = qWords.filter(w => cWords.includes(w)).length;
+  const qWords = q.split(/\s+/).filter((w) => w.length > 2);
+  const cWords = c.split(/\s+/).filter((w) => w.length > 2);
+  const common = qWords.filter((w) => cWords.includes(w)).length;
   if (qWords.length > 0) {
     return Math.round((common / qWords.length) * 60);
   }
@@ -391,7 +412,7 @@ const KNOWN_IMDB_IDS: Record<string, string> = {
   "violet evergarden": "tt7078180",
   "your name": "tt5726616",
   "kimi no na wa": "tt5726616",
-  "suzume": "tt16428256",
+  suzume: "tt16428256",
   "suzume no tojimari": "tt16428256",
   "a silent voice": "tt5323662",
   "koe no katachi": "tt5323662",
@@ -403,10 +424,10 @@ const KNOWN_IMDB_IDS: Record<string, string> = {
   "kimetsu no yaiba": "tt9335498",
   "spy x family": "tt13693136",
   "spy family": "tt13693136",
-  "my dress-up darling": "tt14185374",
-  "sono bisque doll wa koi wo suru": "tt14185374",
+  "my dress-up darling": "tt15765670",
+  "sono bisque doll wa koi wo suru": "tt15765670",
   "attack on titan": "tt2560140",
-  "naruto": "tt0988824",
+  naruto: "tt0988824",
   "one piece": "tt0388629",
   "jujutsu kaisen": "tt12343534",
   "chainsaw man": "tt13616990",
@@ -416,13 +437,13 @@ const KNOWN_IMDB_IDS: Record<string, string> = {
   "boku no hero academia": "tt5626028",
   "cyberpunk: edgerunners": "tt13197174",
   "cyberpunk edgerunners": "tt13197174",
-  "edgerunners": "tt13197174",
+  edgerunners: "tt13197174",
   "one punch man": "tt4508902",
   "tokyo revengers": "tt13600802",
-  "dandadan": "tt21344706",
+  dandadan: "tt21344706",
   "dan da dan": "tt21344706",
   "solo leveling": "tt21209876",
-  "frieren": "tt22248376",
+  frieren: "tt22248376",
   "sousou no frieren": "tt22248376",
 };
 
@@ -443,8 +464,8 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
     if (!q) return null;
     const encoded = encodeURIComponent(q);
     const lowerQ = q.toLowerCase();
-    const firstChar = q[0]?.toLowerCase() || 'a';
-    const safeFirst = /[a-z0-9]/.test(firstChar) ? firstChar : 'a';
+    const firstChar = q[0]?.toLowerCase() || "a";
+    const safeFirst = /[a-z0-9]/.test(firstChar) ? firstChar : "a";
 
     // Try IMDb suggestion API with exact matching
     const urls = [
@@ -457,7 +478,10 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
     for (const url of urls) {
       try {
         const res = await fetch(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'application/json' },
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            Accept: "application/json",
+          },
         });
         if (!res.ok) continue;
         const json: any = await res.json();
@@ -465,15 +489,15 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
         if (Array.isArray(d) && d.length > 0) {
           // Score each candidate by title match
           const scored = d
-            .filter((x: any) => x.id && typeof x.id === 'string' && x.id.startsWith('tt'))
+            .filter((x: any) => x.id && typeof x.id === "string" && x.id.startsWith("tt"))
             .map((item: any) => {
-              const label = (item.l || '').toLowerCase();
+              const label = (item.l || "").toLowerCase();
               const score = scoreTitleMatch(lowerQ, label);
-              const qid = (item.qid || '').toLowerCase();
+              const qid = (item.qid || "").toLowerCase();
               // Penalize video games, etc
               let penalty = 0;
-              if (qid.includes('video') && !qid.includes('movie')) penalty -= 50;
-              if (qid.includes('game')) penalty -= 50;
+              if (qid.includes("video") && !qid.includes("movie")) penalty -= 50;
+              if (qid.includes("game")) penalty -= 50;
               return { item, score: score + penalty, label };
             })
             .sort((a: any, b: any) => b.score - a.score);
@@ -492,14 +516,14 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
     // TVMaze fallback with exact matching
     try {
       const tvRes = await fetch(`https://api.tvmaze.com/search/shows?q=${encoded}`, {
-        headers: { 'User-Agent': 'vid/1.0' },
+        headers: { "User-Agent": "vid/1.0" },
       });
       if (tvRes.ok) {
         const tvData: any = await tvRes.json();
         if (Array.isArray(tvData) && tvData.length > 0) {
           const scored = tvData
             .map((entry: any) => {
-              const name = (entry.show?.name || '').toLowerCase();
+              const name = (entry.show?.name || "").toLowerCase();
               const score = scoreTitleMatch(lowerQ, name);
               return { entry, score };
             })
@@ -507,7 +531,7 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
           for (const s of scored) {
             if (s.score >= 30) {
               const imdb = s.entry.show?.externals?.imdb;
-              if (imdb && typeof imdb === 'string' && imdb.startsWith('tt')) return imdb;
+              if (imdb && typeof imdb === "string" && imdb.startsWith("tt")) return imdb;
             }
           }
         }
@@ -523,22 +547,80 @@ async function findImdbIdForTitle(title: string): Promise<string | null> {
 function pickBestAniListMatch(query: string, results: AniListMedia[]): AniListMedia | null {
   if (results.length === 0) return null;
   const lowerQ = query.toLowerCase().trim();
-  const scored = results.map(media => {
-    const variants = allTitleVariants(media.title);
-    let bestScore = 0;
-    for (const v of variants) {
-      const s = scoreTitleMatch(lowerQ, v);
-      if (s > bestScore) bestScore = s;
-    }
-    // Bonus for having MAL id and being TV format
-    if (media.idMal) bestScore += 5;
-    if (media.format === 'TV' || media.format === 'MOVIE') bestScore += 2;
-    return { media, score: bestScore };
-  }).sort((a,b) => b.score - a.score);
+  const scored = results
+    .map((media) => {
+      const variants = allTitleVariants(media.title);
+      let bestScore = 0;
+      for (const v of variants) {
+        const s = scoreTitleMatch(lowerQ, v);
+        if (s > bestScore) bestScore = s;
+      }
+      // Bonus for having MAL id and being TV format
+      if (media.idMal) bestScore += 5;
+      if (media.format === "TV" || media.format === "MOVIE") bestScore += 2;
+      return { media, score: bestScore };
+    })
+    .sort((a, b) => b.score - a.score);
 
   // If best score is too low (<20), maybe query is movie not anime, but still return best
   // For Violet Evergarden, it should score 100 for exact match
   return scored[0]?.media || results[0];
+}
+
+function applyNxshaTopology(seasons: any[], catalog: NxshaCatalog): any[] {
+  const metadataSeasons = [...seasons];
+  const topologyAligned =
+    metadataSeasons.length === catalog.seasons.length &&
+    catalog.seasons.every((providerSeason) =>
+      metadataSeasons.some((season) => season.seasonNumber === providerSeason.seasonNumber),
+    );
+  const flattenedMetadata = metadataSeasons.flatMap((season) => season.episodes || []);
+  let providerOffset = 0;
+  return catalog.seasons.map((providerSeason, index) => {
+    const metadata = topologyAligned
+      ? metadataSeasons.find((season) => season.seasonNumber === providerSeason.seasonNumber)
+      : metadataSeasons[index] || metadataSeasons[0];
+    const seasonMetadata = new Map<number, any>(
+      (metadata?.episodes || []).map((episode: any) => [episode.episodeNumber, episode]),
+    );
+    const fallbackImage = metadata?.coverImage || metadataSeasons[0]?.coverImage || "";
+    const episodes = providerSeason.episodeNumbers.map((episodeNumber, episodeIndex) => {
+      const episode = topologyAligned
+        ? seasonMetadata.get(episodeNumber)
+        : flattenedMetadata[providerOffset + episodeIndex];
+      return episode
+        ? { ...episode, episodeNumber }
+        : {
+            episodeNumber,
+            title: `Episode ${episodeNumber}`,
+            synopsis: "",
+            aired: "",
+            image: fallbackImage,
+          };
+    });
+    providerOffset += providerSeason.episodeNumbers.length;
+    return {
+      ...(metadata || {}),
+      seasonNumber: providerSeason.seasonNumber,
+      episodesCount: episodes.length,
+      episodes,
+    };
+  });
+}
+
+function finalizeAnimeResult(result: any, catalog: NxshaCatalog | null): any {
+  if (!catalog) return result;
+  const seasons = applyNxshaTopology(result.seasons || [], catalog);
+  return {
+    ...result,
+    seasons,
+    totalSeasons: seasons.length,
+    totalEpisodes: seasons.reduce(
+      (total: number, season: any) => total + (season.episodes?.length || 0),
+      0,
+    ),
+    topologySource: "nxsha",
+  };
 }
 
 export const Route = createFileRoute("/api/anime-auto")({
@@ -551,9 +633,11 @@ export const Route = createFileRoute("/api/anime-auto")({
         const autoImdb = url.searchParams.get("autoImdb") !== "false"; // default true
 
         if (!title) {
-          return Response.json({ error: "title query param required, e.g. ?title=Naruto" }, { status: 400 });
+          return Response.json(
+            { error: "title query param required, e.g. ?title=Naruto" },
+            { status: 400 },
+          );
         }
-
 
         let autoResolvedImdb: string | null = null;
         if (!imdbId && autoImdb) {
@@ -568,46 +652,83 @@ export const Route = createFileRoute("/api/anime-auto")({
           }
         }
 
-        // EARLY STATIC FALLBACKS - guaranteed to work even if AniList/Jikan blocked
+        // Season and episode existence comes from Nxsha. AniList/Jikan data
+        // below is enrichment only and is never allowed to expand this shape.
+        let nxshaCatalog: NxshaCatalog | null = null;
+        if (!imdbId) {
+          return Response.json(
+            { error: "Nxsha catalogue ke liye valid IMDb/TMDB ID nahi mila." },
+            { status: 422 },
+          );
+        }
+        try {
+          nxshaCatalog = await fetchNxshaCatalog(imdbId);
+        } catch (error) {
+          return Response.json(
+            {
+              error: `Nxsha par is anime ke seasons/episodes nahi mile: ${
+                error instanceof Error ? error.message : "catalogue unavailable"
+              }`,
+            },
+            { status: 404 },
+          );
+        }
+
+        // EARLY STATIC FALLBACKS - artwork/title metadata only. Their topology
+        // is replaced by Nxsha before returning.
         const lowerTitleEarly = title.toLowerCase();
-        const isDressUpDarling = lowerTitleEarly.includes("dress-up") || lowerTitleEarly.includes("dress up") || lowerTitleEarly.includes("dressup") || lowerTitleEarly.includes("bisque doll") || lowerTitleEarly.includes("my dress") || lowerTitleEarly.includes("sono bisque");
+        const isDressUpDarling =
+          lowerTitleEarly.includes("dress-up") ||
+          lowerTitleEarly.includes("dress up") ||
+          lowerTitleEarly.includes("dressup") ||
+          lowerTitleEarly.includes("bisque doll") ||
+          lowerTitleEarly.includes("my dress") ||
+          lowerTitleEarly.includes("sono bisque");
         const isViolet = lowerTitleEarly.includes("violet evergarden");
-        const isCyberpunk = lowerTitleEarly.includes("cyberpunk") || lowerTitleEarly.includes("edgerunners");
-        const isYourName = lowerTitleEarly === "your name" || lowerTitleEarly.includes("kimi no na wa");
-        const isSuzume = lowerTitleEarly === "suzume" || lowerTitleEarly.includes("suzume no tojimari");
-        
+        const isCyberpunk =
+          lowerTitleEarly.includes("cyberpunk") || lowerTitleEarly.includes("edgerunners");
+        const isYourName =
+          lowerTitleEarly === "your name" || lowerTitleEarly.includes("kimi no na wa");
+        const isSuzume =
+          lowerTitleEarly === "suzume" || lowerTitleEarly.includes("suzume no tojimari");
+
         // Static fallback for Violet Evergarden
         if (isViolet) {
-          const cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21827-6x2sS1Q7YITo.jpg";
-          const banner = "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21827-3x2V2q1o3h9c.jpg";
-          const seasons = [{
-            seasonNumber: 1,
-            title: "Violet Evergarden",
-            titleEnglish: "Violet Evergarden",
-            titleNative: "ヴァイオレット・エヴァーガーデン",
-            description: "The Great War finally came to an end after four long years of conflict; fractured in two, the continent of Telesis slowly began to flourish once again. Caught up in the bloodshed was Violet Evergarden, a young girl raised for the sole purpose of decimating enemy lines. Hospitalized and maimed in a bloody skirmish during the War's final leg, she was left with only words from the person she held dearest, but with no understanding of their meaning. Recovering from her wounds, Violet starts a new life working at CH Postal Services after a falling out with her new intended guardian family. There, she witnesses by pure chance the work of an Auto Memory Doll - amanuenses that transcribe people's thoughts and feelings into words on paper. Moved by the notion, Violet begins work as an Auto Memory Doll, a trade that will take her on an adventure, one that will reshape the lives of her clients and hopefully lead to self-discovery.",
-            coverImage: cover,
-            bannerImage: banner,
-            year: 2018,
-            season: "WINTER",
-            episodesCount: 13,
-            averageScore: 84,
-            genres: ["Drama", "Fantasy", "Slice of Life"],
-            studios: ["Kyoto Animation"],
-            anilistId: 21827,
-            malId: 33352,
-            format: "TV",
-            episodes: Array.from({ length: 13 }, (_, i) => ({
-              episodeNumber: i + 1,
-              title: `Violet Evergarden Episode ${i + 1}`,
-              titleJapanese: "",
-              synopsis: "",
-              aired: "",
-              image: cover,
-              filler: false,
-              recap: false,
-            })),
-          }];
+          const cover =
+            "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21827-6x2sS1Q7YITo.jpg";
+          const banner =
+            "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21827-3x2V2q1o3h9c.jpg";
+          const seasons = [
+            {
+              seasonNumber: 1,
+              title: "Violet Evergarden",
+              titleEnglish: "Violet Evergarden",
+              titleNative: "ヴァイオレット・エヴァーガーデン",
+              description:
+                "The Great War finally came to an end after four long years of conflict; fractured in two, the continent of Telesis slowly began to flourish once again. Caught up in the bloodshed was Violet Evergarden, a young girl raised for the sole purpose of decimating enemy lines. Hospitalized and maimed in a bloody skirmish during the War's final leg, she was left with only words from the person she held dearest, but with no understanding of their meaning. Recovering from her wounds, Violet starts a new life working at CH Postal Services after a falling out with her new intended guardian family. There, she witnesses by pure chance the work of an Auto Memory Doll - amanuenses that transcribe people's thoughts and feelings into words on paper. Moved by the notion, Violet begins work as an Auto Memory Doll, a trade that will take her on an adventure, one that will reshape the lives of her clients and hopefully lead to self-discovery.",
+              coverImage: cover,
+              bannerImage: banner,
+              year: 2018,
+              season: "WINTER",
+              episodesCount: 13,
+              averageScore: 84,
+              genres: ["Drama", "Fantasy", "Slice of Life"],
+              studios: ["Kyoto Animation"],
+              anilistId: 21827,
+              malId: 33352,
+              format: "TV",
+              episodes: Array.from({ length: 13 }, (_, i) => ({
+                episodeNumber: i + 1,
+                title: `Violet Evergarden Episode ${i + 1}`,
+                titleJapanese: "",
+                synopsis: "",
+                aired: "",
+                image: cover,
+                filler: false,
+                recap: false,
+              })),
+            },
+          ];
           const result = {
             query: title,
             imdbId: imdbId || "tt7078180",
@@ -623,40 +744,47 @@ export const Route = createFileRoute("/api/anime-auto")({
             seasons,
             source: "static-fallback" as const,
           };
-          return Response.json(result, { headers: { "cache-control": "public, max-age=3600" } });
+          return Response.json(finalizeAnimeResult(result, nxshaCatalog), {
+            headers: { "cache-control": "public, max-age=3600" },
+          });
         }
-        
+
         if (isCyberpunk) {
-          const cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx136430-2o1T0p6K4E4s.jpg";
-          const banner = "https://s4.anilist.co/file/anilistcdn/media/anime/banner/136430-8Q1s5o1a0R6x.jpg";
-          const seasons = [{
-            seasonNumber: 1,
-            title: "Cyberpunk: Edgerunners",
-            titleEnglish: "Cyberpunk: Edgerunners",
-            titleNative: "サイバーパンク エッジランナーズ",
-            description: "In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid strives to become a mercenary outlaw — an edgerunner.",
-            coverImage: cover,
-            bannerImage: banner,
-            year: 2022,
-            season: "SUMMER",
-            episodesCount: 10,
-            averageScore: 86,
-            genres: ["Action", "Sci-Fi", "Drama"],
-            studios: ["Trigger"],
-            anilistId: 136430,
-            malId: 42310,
-            format: "TV",
-            episodes: Array.from({ length: 10 }, (_, i) => ({
-              episodeNumber: i + 1,
-              title: `Cyberpunk: Edgerunners Episode ${i + 1}`,
-              titleJapanese: "",
-              synopsis: "",
-              aired: "",
-              image: cover,
-              filler: false,
-              recap: false,
-            })),
-          }];
+          const cover =
+            "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx136430-2o1T0p6K4E4s.jpg";
+          const banner =
+            "https://s4.anilist.co/file/anilistcdn/media/anime/banner/136430-8Q1s5o1a0R6x.jpg";
+          const seasons = [
+            {
+              seasonNumber: 1,
+              title: "Cyberpunk: Edgerunners",
+              titleEnglish: "Cyberpunk: Edgerunners",
+              titleNative: "サイバーパンク エッジランナーズ",
+              description:
+                "In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid strives to become a mercenary outlaw — an edgerunner.",
+              coverImage: cover,
+              bannerImage: banner,
+              year: 2022,
+              season: "SUMMER",
+              episodesCount: 10,
+              averageScore: 86,
+              genres: ["Action", "Sci-Fi", "Drama"],
+              studios: ["Trigger"],
+              anilistId: 136430,
+              malId: 42310,
+              format: "TV",
+              episodes: Array.from({ length: 10 }, (_, i) => ({
+                episodeNumber: i + 1,
+                title: `Cyberpunk: Edgerunners Episode ${i + 1}`,
+                titleJapanese: "",
+                synopsis: "",
+                aired: "",
+                image: cover,
+                filler: false,
+                recap: false,
+              })),
+            },
+          ];
           const result = {
             query: title,
             imdbId: imdbId || "tt13197174",
@@ -672,12 +800,15 @@ export const Route = createFileRoute("/api/anime-auto")({
             seasons,
             source: "static-fallback" as const,
           };
-          return Response.json(result, { headers: { "cache-control": "public, max-age=3600" } });
+          return Response.json(finalizeAnimeResult(result, nxshaCatalog), {
+            headers: { "cache-control": "public, max-age=3600" },
+          });
         }
-        
+
         if (isDressUpDarling) {
           const s1Cover = "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg";
-          const s2Cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
+          const s2Cover =
+            "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
           const fallbackCover = s1Cover;
           const seasons = [
             {
@@ -685,7 +816,8 @@ export const Route = createFileRoute("/api/anime-auto")({
               title: "My Dress-Up Darling",
               titleEnglish: "My Dress-Up Darling",
               titleNative: "その着せ替え人形は恋をする",
-              description: "Wakana Gojo is a high school boy who wants to become a kashirashi - a master craftsman who makes traditional Japanese Hina dolls. Though he's gung-ho about the craft, he knows nothing about the latest trends, and has a hard time fitting in with his class. The popular kids - especially one girl, Marin Kitagawa - seem like they live in a completely different world. That all changes one day, when she shares an unexpected secret with him, and their completely different worlds collide.",
+              description:
+                "Wakana Gojo is a high school boy who wants to become a kashirashi - a master craftsman who makes traditional Japanese Hina dolls. Though he's gung-ho about the craft, he knows nothing about the latest trends, and has a hard time fitting in with his class. The popular kids - especially one girl, Marin Kitagawa - seem like they live in a completely different world. That all changes one day, when she shares an unexpected secret with him, and their completely different worlds collide.",
               coverImage: s1Cover,
               bannerImage: s1Cover,
               year: 2022,
@@ -699,7 +831,32 @@ export const Route = createFileRoute("/api/anime-auto")({
               format: "TV",
               episodes: Array.from({ length: 12 }, (_, i) => ({
                 episodeNumber: i + 1,
-                title: i === 0 ? "Someone Who Lives in the Exact Opposite World as Me" : i === 1 ? "Wanna Hurry Up, and Do It?" : i === 2 ? "Then Why Don't We?" : i === 3 ? "Isn't This Your Girlfriend?" : i === 4 ? "Are These Your Girlfriend's?" : i === 5 ? "It's Probably Because This Is the Best Boob Bag Here" : i === 6 ? "For Real?!" : i === 7 ? "A Home Date with the Guy I Wuv Is the Best" : i === 8 ? "Backlight Is the Best" : i === 9 ? "A Lot Happened After I Saw That Photo" : i === 10 ? "We've All Got Struggles" : i === 11 ? "I Am Currently at a Love Hotel" : "My Dress-Up Darling",
+                title:
+                  i === 0
+                    ? "Someone Who Lives in the Exact Opposite World as Me"
+                    : i === 1
+                      ? "Wanna Hurry Up, and Do It?"
+                      : i === 2
+                        ? "Then Why Don't We?"
+                        : i === 3
+                          ? "Isn't This Your Girlfriend?"
+                          : i === 4
+                            ? "Are These Your Girlfriend's?"
+                            : i === 5
+                              ? "It's Probably Because This Is the Best Boob Bag Here"
+                              : i === 6
+                                ? "For Real?!"
+                                : i === 7
+                                  ? "A Home Date with the Guy I Wuv Is the Best"
+                                  : i === 8
+                                    ? "Backlight Is the Best"
+                                    : i === 9
+                                      ? "A Lot Happened After I Saw That Photo"
+                                      : i === 10
+                                        ? "We've All Got Struggles"
+                                        : i === 11
+                                          ? "I Am Currently at a Love Hotel"
+                                          : "My Dress-Up Darling",
                 titleJapanese: "",
                 synopsis: "",
                 aired: "",
@@ -713,7 +870,8 @@ export const Route = createFileRoute("/api/anime-auto")({
               title: "My Dress-Up Darling Season 2",
               titleEnglish: "My Dress-Up Darling Season 2",
               titleNative: "その着せ替え人形は恋をする Season 2",
-              description: "The second season of My Dress-Up Darling. Marin and Wakana continue their cosplay adventures with new costumes and deeper feelings.",
+              description:
+                "The second season of My Dress-Up Darling. Marin and Wakana continue their cosplay adventures with new costumes and deeper feelings.",
               coverImage: s2Cover,
               bannerImage: s2Cover,
               year: 2025,
@@ -754,7 +912,7 @@ export const Route = createFileRoute("/api/anime-auto")({
           };
           // Try to enrich with live data in background, but return static immediately so user always sees 2 seasons
           // We return static now; live enrichment will happen on next request when network works
-          return Response.json(result, {
+          return Response.json(finalizeAnimeResult(result, nxshaCatalog), {
             headers: { "cache-control": "public, max-age=3600" },
           });
         }
@@ -779,8 +937,14 @@ export const Route = createFileRoute("/api/anime-auto")({
 
           // Pick best by title similarity, not just first — fixes Violet Evergarden -> Spy x Family bug
           let mainSearch = pickBestAniListMatch(title, searchResults);
-          let bestScore = mainSearch ? Math.max(...allTitleVariants(mainSearch.title).map(v => scoreTitleMatch(title.toLowerCase(), v))) : 0;
-          
+          let bestScore = mainSearch
+            ? Math.max(
+                ...allTitleVariants(mainSearch.title).map((v) =>
+                  scoreTitleMatch(title.toLowerCase(), v),
+                ),
+              )
+            : 0;
+
           // If AniList best match is weak (<70), try Jikan search as it often has better exact matching
           if (!mainSearch || bestScore < 70) {
             try {
@@ -788,9 +952,15 @@ export const Route = createFileRoute("/api/anime-auto")({
               if (jikanResults.length > 0) {
                 const jikanBest = pickBestAniListMatch(title, jikanResults);
                 if (jikanBest) {
-                  const jikanScore = Math.max(...allTitleVariants(jikanBest.title).map(v => scoreTitleMatch(title.toLowerCase(), v)));
+                  const jikanScore = Math.max(
+                    ...allTitleVariants(jikanBest.title).map((v) =>
+                      scoreTitleMatch(title.toLowerCase(), v),
+                    ),
+                  );
                   if (jikanScore > bestScore) {
-                    console.log(`[anime-auto] Jikan better match for "${title}": ${bestTitle(jikanBest.title)} (score ${jikanScore}) vs AniList ${mainSearch ? bestTitle(mainSearch.title) : 'none'} (score ${bestScore})`);
+                    console.log(
+                      `[anime-auto] Jikan better match for "${title}": ${bestTitle(jikanBest.title)} (score ${jikanScore}) vs AniList ${mainSearch ? bestTitle(mainSearch.title) : "none"} (score ${bestScore})`,
+                    );
                     mainSearch = jikanBest;
                     bestScore = jikanScore;
                   }
@@ -800,7 +970,7 @@ export const Route = createFileRoute("/api/anime-auto")({
               console.warn("[anime-auto] Jikan fallback search failed", e);
             }
           }
-          
+
           // Final fallback
           if (!mainSearch) {
             mainSearch = searchResults.find((m) => !!m.idMal) || searchResults[0];
@@ -823,7 +993,8 @@ export const Route = createFileRoute("/api/anime-auto")({
 
           if (!mainDetailed) mainDetailed = mainSearch;
 
-          let seasonsChain = mainDetailed.id < 1000000 ? buildSeasonsChain(mainDetailed) : [mainDetailed];
+          let seasonsChain =
+            mainDetailed.id < 1000000 ? buildSeasonsChain(mainDetailed) : [mainDetailed];
 
           // If relations didn't give us multiple seasons (e.g. My Dress-Up Darling S1 & S2 are separate entries),
           // also collect all search results that look like same franchise (same base title) to ensure S2 is included
@@ -835,10 +1006,15 @@ export const Route = createFileRoute("/api/anime-auto")({
                 m.format === "TV" &&
                 /\bseason\s*\d+\b/i.test(bestTitle(m.title)) &&
                 titlesShareFranchise(mainDetailed!.title, m.title)
-              ) return true;
+              )
+                return true;
               return false;
             });
-            franchiseFromSearch.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
+            franchiseFromSearch.sort(
+              (a, b) =>
+                (a.seasonYear || a.startDate?.year || 9999) -
+                (b.seasonYear || b.startDate?.year || 9999),
+            );
             for (const f of franchiseFromSearch.slice(0, 5)) {
               if (!seasonsChain.find((s) => s.id === f.id)) {
                 seasonsChain.push(f);
@@ -874,13 +1050,13 @@ export const Route = createFileRoute("/api/anime-auto")({
 
             // 3) Known hardcode for popular anime where AniList search might miss S2 or return wrong title
             const lowerQuery = title.toLowerCase();
-            
+
             // Special handling for Violet Evergarden - exact ID to avoid Spy x Family bug
             const KNOWN_ANIME_IDS: Record<string, number> = {
               "violet evergarden": 21827,
               "your name": 21519,
               "kimi no na wa": 21519,
-              "suzume": 15564,
+              suzume: 15564,
               "suzume no tojimari": 15564,
               "a silent voice": 20954,
               "koe no katachi": 20954,
@@ -894,17 +1070,17 @@ export const Route = createFileRoute("/api/anime-auto")({
               "spy family": 140960,
               "cyberpunk: edgerunners": 136430,
               "cyberpunk edgerunners": 136430,
-              "edgerunners": 136430,
+              edgerunners: 136430,
               "chainsaw man": 136603,
               "one punch man": 35247,
               "tokyo revengers": 120120,
-              "dandadan": 167578,
+              dandadan: 167578,
               "dan da dan": 167578,
               "solo leveling": 162804,
-              "frieren": 151807,
+              frieren: 151807,
               "sousou no frieren": 151807,
             };
-            
+
             // Check if query exactly matches known anime
             for (const [key, id] of Object.entries(KNOWN_ANIME_IDS)) {
               if (lowerQuery === key || lowerQuery.includes(key)) {
@@ -917,7 +1093,9 @@ export const Route = createFileRoute("/api/anime-auto")({
                       const correctData = await anilistFetch(MEDIA_DETAILS_QUERY, { id });
                       const correctMedia = correctData?.Media as AniListMedia | null;
                       if (correctMedia) {
-                        console.log(`[anime-auto] Known ID override for "${title}" -> ${key} (${id}), replacing ${currentBest}`);
+                        console.log(
+                          `[anime-auto] Known ID override for "${title}" -> ${key} (${id}), replacing ${currentBest}`,
+                        );
                         seasonsChain = [correctMedia];
                         break;
                       }
@@ -928,8 +1106,14 @@ export const Route = createFileRoute("/api/anime-auto")({
                 }
               }
             }
-            
-            if (lowerQuery.includes("dress-up") || lowerQuery.includes("dress up") || lowerQuery.includes("bisque doll") || lowerQuery.includes("my dress") || lowerQuery.includes("dressup")) {
+
+            if (
+              lowerQuery.includes("dress-up") ||
+              lowerQuery.includes("dress up") ||
+              lowerQuery.includes("bisque doll") ||
+              lowerQuery.includes("my dress") ||
+              lowerQuery.includes("dressup")
+            ) {
               // My Dress-Up Darling S1 = 131516 (MAL 48496), S2 = 180259 (MAL 54898)
               const knownIds = [131516, 180259];
               for (const kid of knownIds) {
@@ -947,7 +1131,11 @@ export const Route = createFileRoute("/api/anime-auto")({
             // Never invent seasons from another anime when metadata is
             // incomplete. Nxsha paths must use the real season data.
             // Re-sort chain by year
-            seasonsChain.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
+            seasonsChain.sort(
+              (a, b) =>
+                (a.seasonYear || a.startDate?.year || 9999) -
+                (b.seasonYear || b.startDate?.year || 9999),
+            );
           }
 
           // 2. For each season, fetch Jikan episodes if possible
@@ -1026,30 +1214,6 @@ export const Route = createFileRoute("/api/anime-auto")({
             });
           }
 
-          // Nxsha is the source of truth for playable anime seasons. Probe
-          // each metadata season and keep only seasons whose Nxsha page really
-          // contains the requested Sx:E1 marker.
-          if (imdbId && seasons.length > 0) {
-            const playable: any[] = [];
-            for (let i = 0; i < seasons.length; i++) {
-              const season = seasons[i];
-              // Nxsha commonly exposes specials as S0, then S1, S2...
-              for (const nxshaNumber of [i, i + 1]) {
-                const probeUrl = `https://nxsha.space/embed/tv/${encodeURIComponent(imdbId)}/${nxshaNumber}/1?lang=hi&server=GbruHindi&one_server=true`;
-                try {
-                  const probe = await fetch(probeUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-                  const html = await probe.text();
-                  const marker = new RegExp(`S${nxshaNumber}\\s*:\\s*E1`, "i");
-                  if (probe.ok && marker.test(html)) {
-                    playable.push({ ...season, seasonNumber: nxshaNumber });
-                    break;
-                  }
-                } catch {}
-              }
-            }
-            if (playable.length > 0) seasons.splice(0, seasons.length, ...playable);
-          }
-
           const mainTitle = bestTitle(mainDetailed.title);
           const result = {
             query: title,
@@ -1057,7 +1221,11 @@ export const Route = createFileRoute("/api/anime-auto")({
             autoResolvedImdb: autoResolvedImdb || undefined,
             imdbAutoResolved: !!autoResolvedImdb,
             mainTitle,
-            mainCover: mainDetailed.coverImage?.extraLarge || mainDetailed.coverImage?.large || seasons[0]?.coverImage || "",
+            mainCover:
+              mainDetailed.coverImage?.extraLarge ||
+              mainDetailed.coverImage?.large ||
+              seasons[0]?.coverImage ||
+              "",
             mainBanner: mainDetailed.bannerImage || seasons[0]?.bannerImage || "",
             description: stripHtml(mainDetailed.description),
             genres: mainDetailed.genres || [],
@@ -1067,7 +1235,7 @@ export const Route = createFileRoute("/api/anime-auto")({
             source: "anilist+jikan" as const,
           };
 
-          return Response.json(result, {
+          return Response.json(finalizeAnimeResult(result, nxshaCatalog), {
             headers: { "cache-control": "public, max-age=3600" },
           });
         } catch (err: any) {

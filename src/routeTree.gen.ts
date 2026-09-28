@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
+import { Route as ApiNxshaCatalogRouteImport } from './routes/api/nxsha-catalog'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiSupabaseRoute = ApiSupabaseRouteImport.update({
   id: '/api/supabase',
   path: '/api/supabase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNxshaCatalogRoute = ApiNxshaCatalogRouteImport.update({
+  id: '/api/nxsha-catalog',
+  path: '/api/nxsha-catalog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMoviesRoute = ApiMoviesRouteImport.update({
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
+  '/api/nxsha-catalog': typeof ApiNxshaCatalogRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
+  '/api/nxsha-catalog': typeof ApiNxshaCatalogRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
+  '/api/nxsha-catalog': typeof ApiNxshaCatalogRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/api/auth'
     | '/api/config'
     | '/api/movies'
+    | '/api/nxsha-catalog'
     | '/api/supabase'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/api/auth'
     | '/api/config'
     | '/api/movies'
+    | '/api/nxsha-catalog'
     | '/api/supabase'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/api/auth'
     | '/api/config'
     | '/api/movies'
+    | '/api/nxsha-catalog'
     | '/api/supabase'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   ApiAuthRoute: typeof ApiAuthRoute
   ApiConfigRoute: typeof ApiConfigRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
+  ApiNxshaCatalogRoute: typeof ApiNxshaCatalogRoute
   ApiSupabaseRoute: typeof ApiSupabaseRoute
 }
 
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/api/supabase'
       fullPath: '/api/supabase'
       preLoaderRoute: typeof ApiSupabaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/nxsha-catalog': {
+      id: '/api/nxsha-catalog'
+      path: '/api/nxsha-catalog'
+      fullPath: '/api/nxsha-catalog'
+      preLoaderRoute: typeof ApiNxshaCatalogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/movies': {
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthRoute: ApiAuthRoute,
   ApiConfigRoute: ApiConfigRoute,
   ApiMoviesRoute: ApiMoviesRoute,
+  ApiNxshaCatalogRoute: ApiNxshaCatalogRoute,
   ApiSupabaseRoute: ApiSupabaseRoute,
 }
 export const routeTree = rootRouteImport

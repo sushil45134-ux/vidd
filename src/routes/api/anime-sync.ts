@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fetchNxshaCatalog } from "../../lib/nxshaCatalog";
 
 /**
  * /api/anime-sync — New Episode Auto-Sync (no API key needed)
@@ -104,9 +105,20 @@ async function anilistFetch(query: string, variables: Record<string, unknown>): 
     const gap = 700 - (Date.now() - lastAnilistCall);
     if (gap > 0) await new Promise((r) => setTimeout(r, gap));
     lastAnilistCall = Date.now();
-    const res = await fetch(ANILIST_URL, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query, variables }) });
-    if (res.status === 429) { if (attempt === 3) throw new Error("AniList 429"); await new Promise((r) => setTimeout(r, 20000 * (attempt + 1))); continue; }
-    if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(`AniList ${res.status}: ${txt.slice(0, 200)}`); }
+    const res = await fetch(ANILIST_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (res.status === 429) {
+      if (attempt === 3) throw new Error("AniList 429");
+      await new Promise((r) => setTimeout(r, 20000 * (attempt + 1)));
+      continue;
+    }
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`AniList ${res.status}: ${txt.slice(0, 200)}`);
+    }
     const json = await res.json();
     if (json.errors) throw new Error(`AniList error: ${JSON.stringify(json.errors).slice(0, 300)}`);
     return json.data;
@@ -116,8 +128,15 @@ async function anilistFetch(query: string, variables: Record<string, unknown>): 
 async function anilistBatchSearch(titles: string[]): Promise<SyncMedia[][]> {
   const out: SyncMedia[][] = [];
   for (let start = 0; start < titles.length; start += 10) {
-    const chunk = titles.slice(start, start + 10), vars: Record<string, unknown> = {}, fields: string[] = [];
-    chunk.forEach((title, i) => { vars[`q${i}`] = title; fields.push(`q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`); });
+    const chunk = titles.slice(start, start + 10),
+      vars: Record<string, unknown> = {},
+      fields: string[] = [];
+    chunk.forEach((title, i) => {
+      vars[`q${i}`] = title;
+      fields.push(
+        `q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`,
+      );
+    });
     const defs = chunk.map((_, i) => `$q${i}: String`).join(", ");
     const data = await anilistFetch(`query (${defs}) { ${fields.join(" ")} }`, vars);
     out.push(...chunk.map((_, i) => data?.[`q${i}`]?.media || []));
@@ -127,12 +146,24 @@ async function anilistBatchSearch(titles: string[]): Promise<SyncMedia[][]> {
 async function anilistBatchDetails(ids: (number | undefined)[]): Promise<(SyncMedia | null)[]> {
   const out: (SyncMedia | null)[] = Array(ids.length).fill(null);
   for (let start = 0; start < ids.length; start += 10) {
-    const chunk = ids.slice(start, start + 10), vars: Record<string, unknown> = {}, fields: string[] = [], positions: [number, number][] = [];
-    chunk.forEach((id, i) => { if (id == null) return; vars[`i${i}`] = id; positions.push([i, start + i]); fields.push(`i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`); });
+    const chunk = ids.slice(start, start + 10),
+      vars: Record<string, unknown> = {},
+      fields: string[] = [],
+      positions: [number, number][] = [];
+    chunk.forEach((id, i) => {
+      if (id == null) return;
+      vars[`i${i}`] = id;
+      positions.push([i, start + i]);
+      fields.push(
+        `i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`,
+      );
+    });
     if (!fields.length) continue;
     const defs = positions.map(([i]) => `$i${i}: Int`).join(", ");
     const data = await anilistFetch(`query (${defs}) { ${fields.join(" ")} }`, vars);
-    positions.forEach(([i, pos]) => { out[pos] = data?.[`i${i}`] || null; });
+    positions.forEach(([i, pos]) => {
+      out[pos] = data?.[`i${i}`] || null;
+    });
   }
   return out;
 }
@@ -477,6 +508,95 @@ export const Route = createFileRoute("/api/anime-sync")({
             const sortedSeasonNums = Array.from(col.seasons.keys()).sort((a, b) => a - b);
             const maxDbSeason = sortedSeasonNums[sortedSeasonNums.length - 1] || 0;
 
+            if (col.template.provider === "Nxsha") {
+              try {
+                const catalog = await fetchNxshaCatalog(col.template.imdbId);
+                const allRows = [...col.seasons.values()].flat();
+                const fallbackRow = allRows[0];
+                for (let index = 0; index < catalog.seasons.length; index++) {
+                  const providerSeason = catalog.seasons[index];
+                  const seasonRows = col.seasons.get(providerSeason.seasonNumber) || [];
+                  const existing = new Set(seasonRows.map((row) => row.episode_number || 0));
+                  const missing = providerSeason.episodeNumbers
+                    .filter((episode) => !existing.has(episode))
+                    .slice(0, maxPerSeason);
+                  const media = chain[index] || chain[0];
+                  const templateRow = seasonRows[0] || fallbackRow;
+                  const seasonTitle = seasonTitleFromRows(
+                    seasonRows.length ? seasonRows : allRows,
+                    col.title,
+                    providerSeason.seasonNumber,
+                  );
+                  const seasonInfo: SeasonSyncInfo = {
+                    seasonNumber: providerSeason.seasonNumber,
+                    seasonTitle,
+                    anilistId: media?.id,
+                    malId: media?.idMal,
+                    anilistStatus: media?.status,
+                    dbEpisodes: seasonRows.length,
+                    airedEpisodes: providerSeason.episodeNumbers.length,
+                    totalExpected: providerSeason.episodeNumbers.length,
+                    isNewSeason: seasonRows.length === 0,
+                    newEpisodes: [],
+                  };
+                  let epMeta = new Map<number, JikanEp>();
+                  if (media?.idMal && missing.length) {
+                    epMeta = await jikanEpisodesUpTo(media.idMal, Math.max(...missing));
+                  }
+                  const cover =
+                    media?.coverImage?.extraLarge ||
+                    media?.coverImage?.large ||
+                    templateRow?.image ||
+                    "";
+                  for (const epNum of missing) {
+                    const meta = epMeta.get(epNum);
+                    const image = meta?.images?.jpg?.image_url || cover;
+                    const row: SyncRow = {
+                      title: `${seasonTitle} - ${meta?.title || `Episode ${epNum}`}`,
+                      description: (meta?.synopsis || "").slice(0, 1000),
+                      image,
+                      backdrop: media?.bannerImage || templateRow?.backdrop || image,
+                      thumbnailUrl: image,
+                      year:
+                        media?.seasonYear ||
+                        media?.startDate?.year ||
+                        templateRow?.year ||
+                        new Date().getFullYear(),
+                      rating: templateRow?.rating || "TV-14",
+                      duration: templateRow?.duration || "24m",
+                      genre: templateRow?.genre?.length ? templateRow.genre : ["Anime"],
+                      match: templateRow?.match_score ?? 95,
+                      cast: templateRow?.cast_members || undefined,
+                      creator: templateRow?.creator || undefined,
+                      embedUrl: buildEmbed(
+                        col.template.template,
+                        col.template.imdbId,
+                        providerSeason.seasonNumber,
+                        epNum,
+                      ),
+                      embedPlatform: templateRow?.embed_platform || "Nxsha",
+                      playlistId,
+                      playlistTitle: col.title,
+                      episodeNumber: epNum,
+                      seasonNumber: providerSeason.seasonNumber,
+                    };
+                    allNewRows.push(row);
+                    seasonInfo.newEpisodes.push(row);
+                  }
+                  info.seasons.push(seasonInfo);
+                }
+                resultCollections.push(info);
+              } catch (error) {
+                info.status = "skipped";
+                info.reason = `Nxsha catalogue unavailable: ${
+                  error instanceof Error ? error.message : "unknown error"
+                }`;
+                resultCollections.push(info);
+              }
+              continue;
+            }
+
+            // Non-Nxsha legacy providers retain their existing aired-episode flow.
             // ── existing DB seasons: check for new aired episodes ──
             for (const sn of sortedSeasonNums) {
               const seasonRows = col.seasons.get(sn)!;
