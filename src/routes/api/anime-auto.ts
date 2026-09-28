@@ -938,8 +938,10 @@ export const Route = createFileRoute("/api/anime-auto")({
                   }
                 } catch {}
               }
-              // Never invent seasons from another anime when metadata is
-              // incomplete. Nxsha paths must use the real season data.
+            }
+
+            // Never invent seasons from another anime when metadata is
+            // incomplete. Nxsha paths must use the real season data.
             // Re-sort chain by year
             seasonsChain.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
           }
