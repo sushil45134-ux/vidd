@@ -72,9 +72,25 @@ export default function MovieModal({
   const isCollection = !!(movie.isCollection && movie.episodes && movie.episodes.length > 0);
   const seasons: Season[] = useMemo(() => {
     if (!isCollection) return [];
-    if (movie.seasons && movie.seasons.length > 0) return movie.seasons;
-    // Fallback: single synthetic season from flat episodes
-    return [{ seasonNumber: 1, episodes: movie.episodes! }];
+    const source = movie.seasons && movie.seasons.length > 0
+      ? movie.seasons
+      : [{ seasonNumber: 1, episodes: movie.episodes! }];
+    const isAnime = movie.genre.some((g) => g.toLowerCase() === "anime");
+    const isNxsha = movie.episodes!.some(
+      (episode) =>
+        episode.embedPlatform?.toLowerCase().includes("nxsha") ||
+        episode.embedUrl?.toLowerCase().includes("nxsha"),
+    );
+    // Older saved collections may still contain AniList relation seasons.
+    // Nxsha's guide starts at S0; keep only the first two TV seasons for these
+    // legacy over-expanded anime collections and present them as S0/S1.
+    if (isAnime && source.length > 2) {
+      return source.slice(0, 2).map((season, index) => ({
+        ...season,
+        seasonNumber: index,
+      }));
+    }
+    return source;
   }, [isCollection, movie.seasons, movie.episodes]);
 
   const hasMultiSeason = seasons.length > 1;
