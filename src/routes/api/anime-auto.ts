@@ -938,52 +938,8 @@ export const Route = createFileRoute("/api/anime-auto")({
                   }
                 } catch {}
               }
-              // If still only 1 season after trying AniList (network blocked etc), inject static fallback with 2 seasons
-              if (seasonsChain.length === 1) {
-                const s1Cover = "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg";
-                const s2Cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
-                // If main is S1, add S2 static, and vice versa
-                const hasS1 = seasonsChain.some(s => s.id === 131516 || s.idMal === 48496);
-                const hasS2 = seasonsChain.some(s => s.id === 180259 || s.idMal === 54898);
-                if (!hasS2) {
-                  seasonsChain.push({
-                    id: 180259,
-                    idMal: 54898,
-                    title: { romaji: "Sono Bisque Doll wa Koi wo Suru Season 2", english: "My Dress-Up Darling Season 2", native: "その着せ替え人形は恋をする Season 2" },
-                    description: "The second season of My Dress-Up Darling. Marin and Wakana continue their cosplay adventures.",
-                    coverImage: { extraLarge: s2Cover, large: s2Cover },
-                    bannerImage: s2Cover,
-                    format: "TV",
-                    episodes: 12,
-                    season: "WINTER",
-                    seasonYear: 2025,
-                    averageScore: 84,
-                    genres: ["Romance", "Slice of Life"],
-                    studios: { nodes: [{ name: "CloverWorks" }] },
-                    startDate: { year: 2025 },
-                  } as any);
-                }
-                if (!hasS1) {
-                  seasonsChain.push({
-                    id: 131516,
-                    idMal: 48496,
-                    title: { romaji: "Sono Bisque Doll wa Koi wo Suru", english: "My Dress-Up Darling", native: "その着せ替え人形は恋をする" },
-                    description: "Wakana Gojo is a high school boy who wants to become a kashirashi - a master craftsman who makes traditional Japanese Hina dolls. Though he's gung-ho about the craft, he knows nothing about the latest trends, and has a hard time fitting in with his class. The popular kids - especially one girl, Marin Kitagawa - seem like they live in a completely different world. That all changes one day, when she shares an unexpected secret with him, and their completely different worlds collide.",
-                    coverImage: { extraLarge: s1Cover, large: s1Cover },
-                    bannerImage: s1Cover,
-                    format: "TV",
-                    episodes: 12,
-                    season: "WINTER",
-                    seasonYear: 2022,
-                    averageScore: 83,
-                    genres: ["Romance", "Slice of Life"],
-                    studios: { nodes: [{ name: "CloverWorks" }] },
-                    startDate: { year: 2022 },
-                  } as any);
-                }
-              }
-            }
-
+              // Never invent seasons from another anime when metadata is
+              // incomplete. Nxsha paths must use the real season data.
             // Re-sort chain by year
             seasonsChain.sort((a, b) => (a.seasonYear || a.startDate?.year || 9999) - (b.seasonYear || b.startDate?.year || 9999));
           }
