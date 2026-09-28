@@ -84,7 +84,11 @@ export default function MovieModal({
     // Older saved collections may still contain AniList relation seasons.
     // Nxsha's guide starts at S0; keep only the first two TV seasons for these
     // legacy over-expanded anime collections and present them as S0/S1.
-    if (isAnime && source.length > 2) {
+    // "Nxsha Direct" (nxsha-tv-*) collections TMDB-accurate hain — skip hack.
+    const isTmdbAccurate = (movie.playlistId || movie.episodes?.[0]?.playlistId || "").startsWith(
+      "nxsha-tv-",
+    );
+    if (isAnime && !isTmdbAccurate && source.length > 2) {
       return source.slice(0, 2).map((season, index) => ({
         ...season,
         seasonNumber: index,

@@ -96,8 +96,11 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
     const seasonNumbers = Array.from(
       new Set(eps.map((e) => e.seasonNumber || 1)),
     ).sort((a, b) => a - b);
+    // Naye "Nxsha Direct" collections (nxsha-tv-*) TMDB-accurate hote hain —
+    // unke season numbers pehle se sahi hain, renumbering hack skip karo.
+    const isTmdbAccurate = m.playlistId.startsWith("nxsha-tv-");
     const nxshaSeasonMap =
-      isAnime && isNxsha && seasonNumbers.length > 2
+      isAnime && isNxsha && !isTmdbAccurate && seasonNumbers.length > 2
         ? new Map(seasonNumbers.slice(0, 2).map((s, i) => [s, i]))
         : undefined;
     eps.forEach((e) => {
