@@ -223,6 +223,19 @@ function getDailymotionProgress(data: unknown): { currentTime?: number; duration
   return { currentTime, duration };
 }
 
+/** VidSync's tested source selector: Moviebox returns the Hindi-capable
+ * source set, while the stock route falls back to AnimeGG/GogoAnime. */
+function normalizeVidSyncUrl(url: string): string {
+  if (!/vidsync\.pro\/embed\/anime\//i.test(url)) return url;
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has("server")) u.searchParams.set("server", "moviebox");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 function isDailymotionLastFiveSeconds(data: unknown): boolean {
   const { currentTime, duration } = getDailymotionProgress(data);
   if (currentTime === undefined || duration === undefined) return false;
@@ -252,7 +265,7 @@ export function EmbedPlayer({
   onProgress,
   onEnded,
 }: EmbedPlayerProps) {
-  const iframeSrc = kind === "iframe" ? normalizeDailymotionUrl(src) : src;
+  const iframeSrc = kind === "iframe" ? normalizeVidSyncUrl(normalizeDailymotionUrl(src)) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
