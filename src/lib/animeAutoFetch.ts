@@ -10,7 +10,7 @@
  */
 
 import type { Movie } from "../data";
-import { IMDB_PROVIDERS, buildImdbSeries, getProvider } from "./imdbSeries";
+import { IMDB_PROVIDERS, VIDSYNC_PROVIDER, buildImdbSeries, getProvider } from "./imdbSeries";
 import { youtubeThumbnailSources } from "./media";
 
 export interface AutoFetchEpisode {
@@ -77,9 +77,13 @@ export function autoFetchToMovies(
 ): Movie[] {
   const { imdbId, providerId, customTemplate } = opts;
   const provider = getProvider(providerId);
+  const isVidSync = providerId === VIDSYNC_PROVIDER.id;
   const template = provider ? provider.template : customTemplate || "";
 
   if (!template || !imdbId) return [];
+  // VidSync's anime endpoint is keyed by AniList media ID and has no season
+  // segment. The fetched season already carries the correct AniList ID.
+  if (isVidSync && !/^\d+$/.test(imdbId)) return [];
 
   // Deterministic playlistId based on mainTitle slug + imdbId, so S1 and S2 fetched separately still merge into same collection
   const slug = result.mainTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40) || "anime";
@@ -107,7 +111,10 @@ export function autoFetchToMovies(
       const ep = season.episodes[i];
       const epNum = ep.episodeNumber;
       const embedUrl = template
-        .replace(/\{id\}/g, encodeURIComponent(imdbId))
+        .replace(
+          /\{id\}/g,
+          encodeURIComponent(isVidSync ? String(season.anilistId) : imdbId),
+        )
         .replace(/\{s\}/g, String(seasonNum))
         .replace(/\{e\}/g, String(epNum));
 
@@ -140,7 +147,10 @@ export function autoFetchToMovies(
     if (season.episodes.length === 0 && season.episodesCount > 0) {
       for (let epNum = 1; epNum <= season.episodesCount; epNum++) {
         const embedUrl = template
-          .replace(/\{id\}/g, encodeURIComponent(imdbId))
+          .replace(
+            /\{id\}/g,
+            encodeURIComponent(isVidSync ? String(season.anilistId) : imdbId),
+          )
           .replace(/\{s\}/g, String(seasonNum))
           .replace(/\{e\}/g, String(epNum));
 
@@ -217,4 +227,4 @@ export async function fetchAnimeAuto(title: string, imdbId?: string): Promise<Au
   return (await res.json()) as AutoFetchResult;
 }
 
-export const ANIME_PROVIDERS = IMDB_PROVIDERS;
+export const ANIME_PROVIDERS = [...IMDB_PROVIDERS, VIDSYNC_PROVIDER];

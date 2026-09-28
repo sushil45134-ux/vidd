@@ -4,9 +4,9 @@
  * NHD and Nxsha turn a single IMDb/TMDB ID into a player for any TV episode:
  *   https://nhdapi.com/tv/{id}/{s}/{e}
  *   https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true
- *   https://vidsync.pro/embed/tv/{tmdbId}/{season}/{episode}
+ *   https://vidsync.pro/embed/anime/{anilistId}/{episode}
  *
- * VidSync uses TMDB numeric IDs (not IMDb tt IDs) for its TV endpoint.
+ * VidSync uses AniList numeric IDs (not IMDb/TMDB IDs) for anime.
  */
 
 export interface ImdbProvider {
@@ -31,18 +31,20 @@ export const IMDB_PROVIDERS: ImdbProvider[] = [
     template: "https://nhdapi.com/tv/{id}/{s}/{e}",
     hint: "nhdapi.com — IMDb/TMDB ID se har episode",
   },
-  {
-    id: "vidsync",
-    name: "VidSync",
-    template: "https://vidsync.pro/embed/tv/{id}/{s}/{e}",
-    hint: "vidsync.pro — TMDB numeric ID required",
-  },
-];
+ ];
+
+/** VidSync is an AniList anime provider, not an IMDb/TMDB TV provider. */
+export const VIDSYNC_PROVIDER: ImdbProvider = {
+  id: "vidsync",
+  name: "VidSync",
+  template: "https://vidsync.pro/embed/anime/{id}/{e}",
+  hint: "vidsync.pro — AniList numeric ID required",
+};
 
 export const CUSTOM_PROVIDER_ID = "custom";
 
 export function getProvider(id: string): ImdbProvider | undefined {
-  return IMDB_PROVIDERS.find((p) => p.id === id);
+  return [...IMDB_PROVIDERS, VIDSYNC_PROVIDER].find((p) => p.id === id);
 }
 
 /** Pull an IMDb ID (tt + 6-10 digits) out of any pasted text/embed. */
@@ -68,7 +70,6 @@ export function detectProviderFromEmbed(input: string): ImdbProvider | null {
   if (lower.includes("web.nxsha.app") || lower.includes("nxsha.space") || lower.includes("nxsha"))
     return getProvider("nxsha") ?? null;
   if (lower.includes("nhdapi.com") || lower.includes("nhdapi")) return getProvider("nhd") ?? null;
-  if (lower.includes("vidsync.pro") || lower.includes("vidsync")) return getProvider("vidsync") ?? null;
   return null;
 }
 

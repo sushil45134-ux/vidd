@@ -58,13 +58,24 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
     if (!result) return;
     const cleanImdb = imdbId.trim();
     if (!cleanImdb) {
-      setError("IMDb ID dalo — jaise tt15765670 — taaki player link ban sake. Agar sirf metadata chahiye to bhi IMDb ID zaroori hai.");
+      setError(
+        providerId === "vidsync"
+          ? "VidSync ke liye AniList numeric ID dalo — jaise 20954."
+          : "IMDb ID dalo — jaise tt15765670 — taaki player link ban sake.",
+      );
       return;
     }
-    // Validate imdb format (tt + digits) or numeric tmdb id
-    const isValid = /^tt\d{6,10}$/.test(cleanImdb) || /^\d{1,8}$/.test(cleanImdb);
+    // VidSync uses AniList IDs; NHD/Nxsha accept IMDb or numeric IDs.
+    const isValid =
+      providerId === "vidsync"
+        ? /^\d{1,8}$/.test(cleanImdb)
+        : /^tt\d{6,10}$/.test(cleanImdb) || /^\d{1,8}$/.test(cleanImdb);
     if (!isValid) {
-      setError("IMDb ID galat format hai. tt wala ID daalo jaise tt15765670 ya TMDB numeric ID.");
+      setError(
+        providerId === "vidsync"
+          ? "VidSync ko AniList numeric ID chahiye — jaise 20954."
+          : "IMDb ID galat format hai. tt wala ID daalo jaise tt15765670 ya TMDB numeric ID.",
+      );
       return;
     }
 
@@ -231,7 +242,10 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
         </div>
         <div>
           <label className="text-gray-300 text-xs font-medium mb-1.5 block">
-            IMDb ID <span className="text-red-500">*</span> <span className="text-gray-500 text-[10px]">(tt... ya TMDB numeric)</span>
+            {providerId === "vidsync" ? "AniList ID" : "IMDb ID"} <span className="text-red-500">*</span>{" "}
+            <span className="text-gray-500 text-[10px]">
+              ({providerId === "vidsync" ? "numeric, jaise 20954" : "tt... ya TMDB numeric"})
+            </span>
           </label>
           <div className="relative">
             <Film size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
