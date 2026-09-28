@@ -145,6 +145,21 @@ function detectPlatform(input: string): PlatformResult | null {
       icon: "📺",
     };
 
+  // ── VidSync ───────────────────────────────────────────────
+  // VidSync documents TMDB-backed movie and TV iframe routes. Keep the
+  // supplied path/query intact so optional player parameters are preserved.
+  if (/vidsync\.pro\/(?:embed|player)\//i.test(url)) {
+    const vidsyncId = url.match(/vidsync\.pro\/(?:embed|player)\/[^/?#]+\/([^/?#]+)/i)?.[1] || url;
+    return {
+      platform: "VidSync",
+      id: vidsyncId,
+      embedUrl: url,
+      thumbnail: "",
+      color: "bg-violet-600",
+      icon: "🔗",
+    };
+  }
+
   // ── Bilibili ───────────────────────────────────────────────
   const biliMatch = url.match(
     /(?:bilibili\.com\/video\/(BV[A-Za-z0-9]+)|player\.bilibili\.com\/player\.html\?.*bvid=(BV[A-Za-z0-9]+)|player\.bilibili\.com\/player\.html\?.*aid=(\d+))/,
@@ -357,6 +372,11 @@ const PLATFORMS = [
     examples: ["dailymotion.com/video/...", "dai.ly/..."],
     color: "text-blue-400",
   },
+  {
+    name: "VidSync",
+    examples: ["vidsync.pro/embed/tv/TMDB_ID/1/1", "vidsync.pro/embed/movie/TMDB_ID"],
+    color: "text-violet-400",
+  },
   { name: "Bilibili", examples: ["bilibili.com/video/BV..."], color: "text-pink-400" },
   {
     name: "Twitch",
@@ -567,6 +587,14 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       return;
     }
     const preset = getProvider(imdbProvider);
+    // VidSync's documented TV route accepts TMDB numeric IDs only. Do not
+    // silently generate /embed/tv/tt... URLs that the provider cannot resolve.
+    if (preset?.id === "vidsync" && !tmdbId) {
+      setEmbedSeriesError(
+        "VidSync ko TMDB numeric ID chahiye (jaise 1399), IMDb ka tt... ID nahi. TMDB ID daal kar phir Generate dabao.",
+      );
+      return;
+    }
     const template = preset ? preset.template : imdbTemplate.trim();
     const result = buildImdbSeries(
       template,
@@ -1503,8 +1531,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   )}
                   <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
                     💡 NHD (nhdapi.com) default player hai. Nxsha (nxsha.space / web.nxsha.app) —
-                    Hindi audio verified by user; popup risk accepted. IMDb ya numeric TMDB ID se
-                    har episode ka link khud banta hai. Test ID:{" "}
+                    Hindi audio verified by user; popup risk accepted. VidSync (vidsync.pro) ke liye
+                    numeric TMDB ID zaroori hai; IMDb ya numeric TMDB ID se har episode ka link khud
+                    banta hai. Test ID:{" "}
                     <span className="font-mono">tt15765670</span> → NHD{" "}
                     <span className="font-mono">https://nhdapi.com/tv/tt15765670/1/1</span>, Nxsha{" "}
                     <span className="font-mono">

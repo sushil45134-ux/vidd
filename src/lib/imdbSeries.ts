@@ -4,6 +4,9 @@
  * NHD and Nxsha turn a single IMDb/TMDB ID into a player for any TV episode:
  *   https://nhdapi.com/tv/{id}/{s}/{e}
  *   https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true
+ *   https://vidsync.pro/embed/tv/{tmdbId}/{season}/{episode}
+ *
+ * VidSync uses TMDB numeric IDs (not IMDb tt IDs) for its TV endpoint.
  */
 
 export interface ImdbProvider {
@@ -27,6 +30,12 @@ export const IMDB_PROVIDERS: ImdbProvider[] = [
     name: "NHD",
     template: "https://nhdapi.com/tv/{id}/{s}/{e}",
     hint: "nhdapi.com — IMDb/TMDB ID se har episode",
+  },
+  {
+    id: "vidsync",
+    name: "VidSync",
+    template: "https://vidsync.pro/embed/tv/{id}/{s}/{e}",
+    hint: "vidsync.pro — TMDB numeric ID required",
   },
 ];
 
@@ -59,6 +68,7 @@ export function detectProviderFromEmbed(input: string): ImdbProvider | null {
   if (lower.includes("web.nxsha.app") || lower.includes("nxsha.space") || lower.includes("nxsha"))
     return getProvider("nxsha") ?? null;
   if (lower.includes("nhdapi.com") || lower.includes("nhdapi")) return getProvider("nhd") ?? null;
+  if (lower.includes("vidsync.pro") || lower.includes("vidsync")) return getProvider("vidsync") ?? null;
   return null;
 }
 
