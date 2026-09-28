@@ -43,6 +43,12 @@ import { useIsTvBrowser } from "./hooks/useIsTvBrowser";
 import { bannerSection, useHeroBanners, type HeroSection } from "./lib/heroBanners";
 import { isGenericPoster, movieImageSources } from "./lib/media";
 import { useCollectionCovers, setCollectionCover } from "./lib/collectionCovers";
+import {
+  syncNotifications,
+  markAllNotificationsRead,
+  unreadCount,
+  type AppNotification,
+} from "./lib/notifications";
 
 // Start downloading the data layer (moviesRepo + the Supabase SDK chunk it
 // depends on) at module-eval time — i.e. the moment the entry script runs,
@@ -96,8 +102,11 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
     const seasonNumbers = Array.from(
       new Set(eps.map((e) => e.seasonNumber || 1)),
     ).sort((a, b) => a - b);
+    // Naye "Nxsha Direct" collections (nxsha-tv-*) TMDB-accurate hote hain —
+    // unke season numbers pehle se sahi hain, renumbering hack skip karo.
+    const isTmdbAccurate = m.playlistId.startsWith("nxsha-tv-");
     const nxshaSeasonMap =
-      isAnime && isNxsha && seasonNumbers.length > 2
+      isAnime && isNxsha && !isTmdbAccurate && seasonNumbers.length > 2
         ? new Map(seasonNumbers.slice(0, 2).map((s, i) => [s, i]))
         : undefined;
     eps.forEach((e) => {
@@ -314,6 +323,7 @@ function App() {
   }, [searchQuery]);
   const [activeCategory, setActiveCategory] = useState<Category>("home");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPlaylistSync, setShowPlaylistSync] = useState(false);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
@@ -704,7 +714,18 @@ function App() {
   // Stable identity (the TV back-stack relies on mount-time registration).
   const closeModal = useCallback(() => setSelectedMovie(null), []);
   const closePlayer = useCallback(() => setPlayingMovie(null), []);
-  const closeNotifications = useCallback(() => setShowNotifications(false), []);
+  const closeNotifications = useCallback(() => {
+    setShowNotifications(false);
+    // Panel band karte hi sab read — badge reset.
+    setNotifications(markAllNotificationsRead());
+  }, []);
+
+  // Library load/refresh hone par snapshot diff se naye anime/episode ke
+  // notifications banao (lib/notifications.ts — localStorage based).
+  useEffect(() => {
+    if (allMovies.length === 0) return;
+    setNotifications(syncNotifications(allMovies));
+  }, [allMovies]);
 
   // Stable Navbar/HeroBanner callbacks — inline arrows here would defeat
   // memo() on those components and re-render them on every App render
@@ -987,6 +1008,7 @@ function App() {
         onCategoryChange={handleCategoryChange}
         onNotificationClick={handleNotificationToggle}
         showNotifications={showNotifications}
+        notificationCount={unreadCount(notifications)}
         onUploadClick={handleUploadOpen}
         onSyncClick={handleSyncOpen}
         onAiClick={handleAiOpen}
@@ -1017,6 +1039,27 @@ function App() {
               <Suspense fallback={null}>
                 <NotificationPanel
                   onClose={closeNotifications}
+                  notifications={notifications}
+                  onOpenNotification={(n) => {
+                    closeNotifications();
+                    // Notification se seedha us series/video par jao
+                    if (n.playlistId) {
+                      const collection = displayItems.find(
+                        (m) =>
+                          m.isCollection &&
+                          (m.playlistId === n.playlistId ||
+                            m.episodes?.[0]?.playlistId === n.playlistId),
+                      );
+                      if (collection) {
+                        setSelectedMovie(collection);
+                        return;
+                      }
+                    }
+                    if (n.movieId != null) {
+                      const movie = allMovies.find((m) => m.id === n.movieId);
+                      if (movie) setSelectedMovie(movie);
+                    }
+                  }}
                   onMovieClick={(movie: Movie) => {
                     setShowNotifications(false);
                     setSelectedMovie(movie);

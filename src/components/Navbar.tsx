@@ -28,6 +28,8 @@ interface NavbarProps {
   onCategoryChange: (category: Category) => void;
   onNotificationClick: () => void;
   showNotifications: boolean;
+  /** Unread notifications — badge count (0 = koi badge nahi). */
+  notificationCount?: number;
   onUploadClick: () => void;
   onSyncClick: () => void;
   onAiClick: () => void;
@@ -55,6 +57,7 @@ function Navbar({
   onCategoryChange,
   onNotificationClick,
   showNotifications,
+  notificationCount = 0,
   onUploadClick,
   onSyncClick,
   onAiClick,
@@ -162,7 +165,11 @@ function Navbar({
                     title="Notifications"
                   >
                     <Bell size={15} className={showNotifications ? "text-white" : ""} />
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#ff6a00]" />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-[#ff6a00] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                        {notificationCount > 9 ? "9+" : notificationCount}
+                      </span>
+                    )}
                   </button>
                 </div>
 

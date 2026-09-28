@@ -42,6 +42,7 @@ import {
   type CloudProvider,
 } from "../lib/cloudLinks";
 import AnimeAutoFetchPanel from "./AnimeAutoFetchPanel";
+import NxshaFetchPanel from "./NxshaFetchPanel";
 import AnimeEpisodeSyncPanel from "./AnimeEpisodeSyncPanel";
 
 interface UploadModalProps {
@@ -1664,6 +1665,12 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
             {/* ── ANIME AUTO-FETCH TAB (Jikan + AniList) ── */}
             {sourceTab === "anime" && (
               <div className="space-y-4">
+                <NxshaFetchPanel
+                  onAddMovies={(movies) => {
+                    setStep("done");
+                    setTimeout(() => onUpload(movies), 1500);
+                  }}
+                />
                 <AnimeEpisodeSyncPanel
                   onAddMovies={(movies) => {
                     setStep("done");
