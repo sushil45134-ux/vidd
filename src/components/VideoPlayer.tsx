@@ -133,6 +133,25 @@ export function VideoPlayer({
   // Remote BACK closes the player first (on top of the details modal).
   useEffect(() => registerTvBackHandler(onClose), [onClose]);
 
+  // Open the browser's native fullscreen mode as soon as an episode player is
+  // mounted. The play click normally supplies the browser's user activation;
+  // the catch keeps providers/browsers that block automatic fullscreen usable.
+  useEffect(() => {
+    const player = playerRef.current as (HTMLDivElement & {
+      webkitRequestFullscreen?: () => void;
+    }) | null;
+    if (!player || document.fullscreenElement) return;
+    try {
+      const result = player.requestFullscreen?.() ?? player.webkitRequestFullscreen?.();
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        (result as Promise<void>).catch(() => {});
+      }
+    } catch {
+      // Fullscreen requires user activation in some browsers; the player's
+      // fullscreen control remains available in that case.
+    }
+  }, [videoId]);
+
   // If the plain embed has not visibly started after 15s, surface recovery
   // actions. Purely advisory — never blocks a video that is just slow.
   useEffect(() => {
