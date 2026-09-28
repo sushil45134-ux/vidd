@@ -1026,6 +1026,30 @@ export const Route = createFileRoute("/api/anime-auto")({
             });
           }
 
+          // Nxsha is the source of truth for playable anime seasons. Probe
+          // each metadata season and keep only seasons whose Nxsha page really
+          // contains the requested Sx:E1 marker.
+          if (imdbId && seasons.length > 0) {
+            const playable: any[] = [];
+            for (let i = 0; i < seasons.length; i++) {
+              const season = seasons[i];
+              // Nxsha commonly exposes specials as S0, then S1, S2...
+              for (const nxshaNumber of [i, i + 1]) {
+                const probeUrl = `https://nxsha.space/embed/tv/${encodeURIComponent(imdbId)}/${nxshaNumber}/1?lang=hi&server=GbruHindi&one_server=true`;
+                try {
+                  const probe = await fetch(probeUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+                  const html = await probe.text();
+                  const marker = new RegExp(`S${nxshaNumber}\\s*:\\s*E1`, "i");
+                  if (probe.ok && marker.test(html)) {
+                    playable.push({ ...season, seasonNumber: nxshaNumber });
+                    break;
+                  }
+                } catch {}
+              }
+            }
+            if (playable.length > 0) seasons.splice(0, seasons.length, ...playable);
+          }
+
           const mainTitle = bestTitle(mainDetailed.title);
           const result = {
             query: title,
