@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { X, Maximize, Minimize, ChevronLeft, ChevronRight, ListVideo, Play } from "lucide-react";
+import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
-import type { Movie } from "../data";
 
 interface EmbedPlayerProps {
   src: string;
@@ -14,10 +13,6 @@ interface EmbedPlayerProps {
   onNext?: () => void;
   hasPrev?: boolean;
   hasNext?: boolean;
-  /** Full series queue for episode drawer */
-  episodes?: Movie[];
-  currentEpisodeIndex?: number;
-  onSelectEpisode?: (index: number) => void;
   /** Resume offset in seconds — direct videos + best-effort Dailymotion seek. */
   startAt?: number;
   /** Playback clock for Continue Watching (0,0) = started, clock unknown. */
@@ -277,9 +272,6 @@ export function EmbedPlayer({
   onNext,
   hasPrev,
   hasNext,
-  episodes,
-  currentEpisodeIndex,
-  onSelectEpisode,
   startAt = 0,
   onProgress,
   onEnded,
@@ -292,7 +284,6 @@ export function EmbedPlayer({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const queueRef = useRef<HTMLDivElement>(null);
   // Continue Watching: throttled clock for direct <video> + Dailymotion SDK.
   const onProgressRef = useRef(onProgress);
   onProgressRef.current = onProgress;
@@ -304,7 +295,6 @@ export function EmbedPlayer({
   const dailymotionPlayerRef = useRef<any>(null);
   const dailymotionStoppedRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showQueue, setShowQueue] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
 
@@ -344,18 +334,6 @@ export function EmbedPlayer({
     }, 5000);
     return () => window.clearTimeout(t);
   }, [kind, src, isDailymotion]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (queueRef.current && !queueRef.current.contains(e.target as Node)) {
-        setShowQueue(false);
-      }
-    };
-    if (showQueue) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showQueue]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -759,166 +737,29 @@ export function EmbedPlayer({
           </>
         )}
 
-        {/* Top gradient */}
-        <div
-          className="absolute top-0 left-0 right-0 h-24 z-20 pointer-events-none"
-          style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
-          }}
-        />
-
-        {/* Close */}
+        {/* Close (Esc) */}
         <button
           onClick={onClose}
-          className="absolute top-4 left-4 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+          className="absolute top-3 left-3 z-30 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
           title="Close (Esc)"
         >
-          <X size={22} className="text-white" />
+          <X size={20} className="text-white" />
         </button>
 
-        {/* Prev / Next / Episodes / Fullscreen — top-right */}
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
-          {episodes && episodes.length > 1 && (
+        {/* Video files only: Fullscreen button */}
+        {kind === "video" && (
+          <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
             <button
-              onClick={() => setShowQueue((q) => !q)}
-              className={`px-3 h-10 rounded-full flex items-center gap-1.5 text-xs font-medium transition-all backdrop-blur-sm ${
-                showQueue
-                  ? "bg-red-600 text-white shadow-lg"
-                  : "bg-black/60 hover:bg-black/90 text-white"
-              }`}
-              title="Episodes"
+              onClick={toggleFullscreen}
+              className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+              title="Fullscreen (f)"
             >
-              <ListVideo size={16} />
-              <span>Episodes</span>
+              {isFullscreen ? (
+                <Minimize size={18} className="text-white" />
+              ) : (
+                <Maximize size={18} className="text-white" />
+              )}
             </button>
-          )}
-          {hasPrev && (
-            <button
-              onClick={onPrev}
-              className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Previous episode (←)"
-            >
-              <ChevronLeft size={22} className="text-white" />
-            </button>
-          )}
-          {hasNext && (
-            <button
-              onClick={onNext}
-              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Next episode (→)"
-            >
-              <ChevronRight size={22} className="text-white" />
-            </button>
-          )}
-          <button
-            onClick={toggleFullscreen}
-            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-            title="Fullscreen (f)"
-          >
-            {isFullscreen ? (
-              <Minimize size={20} className="text-white" />
-            ) : (
-              <Maximize size={20} className="text-white" />
-            )}
-          </button>
-        </div>
-
-        {/* Bottom Floating Episodes Pill — convenient 1-tap access near bottom controls */}
-        {episodes && episodes.length > 1 && !showQueue && (
-          <div className="absolute bottom-5 right-4 z-30 pointer-events-auto">
-            <button
-              onClick={() => setShowQueue(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-black/80 hover:bg-black/95 text-white border border-white/15 shadow-xl hover:border-red-500/50 hover:scale-105 transition-all backdrop-blur-md text-xs font-semibold"
-              title="Episodes"
-            >
-              <ListVideo size={16} className="text-red-500" />
-              <span>Episodes</span>
-              <span className="text-[10px] bg-red-600/80 text-white px-1.5 py-0.5 rounded-full font-mono">
-                {(currentEpisodeIndex ?? 0) + 1}/{episodes.length}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* ═══════ EPISODES QUEUE DRAWER ═══════ */}
-        {showQueue && episodes && episodes.length > 1 && (
-          <div
-            ref={queueRef}
-            className="absolute top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-black/95 backdrop-blur-xl z-40 flex flex-col border-l border-white/10 animate-fadeIn"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Panel header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
-              <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                <ListVideo size={16} className="text-red-500" />
-                Episodes
-                <span className="text-white/40 font-normal ml-1">
-                  {(currentEpisodeIndex ?? 0) + 1} / {episodes.length}
-                </span>
-              </h3>
-              <button
-                onClick={() => setShowQueue(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-              >
-                <X size={16} className="text-white/60" />
-              </button>
-            </div>
-
-            {/* Scrollable video list */}
-            <div className="overflow-y-auto flex-1 py-1">
-              {episodes.map((item, idx) => {
-                const isCurrent = idx === currentEpisodeIndex;
-                const epTitle =
-                  item.episodeNumber != null
-                    ? `E${item.episodeNumber}${item.seasonNumber ? ` • S${item.seasonNumber}` : ""}: ${item.title}`
-                    : item.title;
-                return (
-                  <button
-                    key={`${item.id}-${idx}`}
-                    onClick={() => {
-                      onSelectEpisode?.(idx);
-                      setShowQueue(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-                      isCurrent
-                        ? "bg-red-600/20 border-l-[3px] border-red-600"
-                        : "hover:bg-white/5 border-l-[3px] border-transparent"
-                    }`}
-                  >
-                    <span
-                      className={`text-[11px] font-bold w-5 flex-shrink-0 text-center ${
-                        isCurrent ? "text-red-500" : "text-white/35"
-                      }`}
-                    >
-                      {isCurrent ? (
-                        <Play size={12} className="mx-auto fill-red-500 text-red-500" />
-                      ) : (
-                        idx + 1
-                      )}
-                    </span>
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt=""
-                        className="w-16 h-10 object-cover rounded flex-shrink-0 bg-neutral-800"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-xs font-medium truncate ${
-                          isCurrent ? "text-white font-semibold" : "text-gray-300"
-                        }`}
-                      >
-                        {epTitle}
-                      </p>
-                      {item.duration && (
-                        <p className="text-[10px] text-gray-500 mt-0.5">{item.duration}</p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
       </div>

@@ -68,9 +68,6 @@ export default function PlayerOverlay({
         hasNext={hasNext}
         onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
-        episodes={queue}
-        currentEpisodeIndex={idx}
-        onSelectEpisode={(i) => setIdx(i)}
         startAt={effectiveStartAt}
         onProgress={handleProgress}
         onEnded={handleEnded}
@@ -90,9 +87,6 @@ export default function PlayerOverlay({
         hasNext={hasNext}
         onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
-        episodes={queue}
-        currentEpisodeIndex={idx}
-        onSelectEpisode={(i) => setIdx(i)}
         startAt={effectiveStartAt}
         onProgress={handleProgress}
         onEnded={handleEnded}
