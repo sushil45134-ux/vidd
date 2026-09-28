@@ -84,7 +84,11 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
     const eps = groups.get(m.playlistId)!;
     const seasonMap = new Map<number, Movie[]>();
     const isAnime = m.genre.some((g) => g.toLowerCase() === "anime");
-    const isNxsha = eps.some((e) => e.embedPlatform?.toLowerCase().includes("nxsha"));
+    const isNxsha = eps.some(
+      (e) =>
+        e.embedPlatform?.toLowerCase().includes("nxsha") ||
+        e.embedUrl?.toLowerCase().includes("nxsha"),
+    );
     // AniList relations can include specials/side stories as fake seasons.
     // Nxsha's anime catalogue uses its own season sequence (starting at 0),
     // so for the over-expanded legacy collections keep the first two real TV
