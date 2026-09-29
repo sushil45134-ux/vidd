@@ -483,14 +483,13 @@ function App() {
     [uploadedCollections, syncedCollections],
   );
 
-  // Automatic home shelf: every anime series that received a DB entry today
-  // appears here, newest drop first. For collection cards we inspect all
-  // episodes, so an established show returns to the shelf when its new episode
-  // lands instead of only appearing on the day the series was first created.
+  // Automatic home shelf: every anime series that received a DB entry in the
+  // last 24 hours appears here, newest drop first. The rolling window avoids
+  // midnight/timezone gaps between the 6-hour anime cron and a visitor's local
+  // day. For collection cards we inspect every episode, so an established show
+  // returns here automatically whenever its latest episode lands.
   const freshDrops = useMemo(() => {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const todayMs = startOfToday.getTime();
+    const dailyWindowStart = Date.now() - 24 * 60 * 60 * 1000;
     const timestamp = (movie: Movie) => {
       const parsed = movie.createdAt ? Date.parse(movie.createdAt) : NaN;
       return Number.isFinite(parsed) ? parsed : 0;
@@ -503,7 +502,7 @@ function App() {
       .filter(
         (movie) =>
           movie.genre.some((genre) => genre.toLowerCase() === "anime") &&
-          latestDrop(movie) >= todayMs,
+          latestDrop(movie) >= dailyWindowStart,
       )
       .sort((a, b) => latestDrop(b) - latestDrop(a))
       .slice(0, 30);
