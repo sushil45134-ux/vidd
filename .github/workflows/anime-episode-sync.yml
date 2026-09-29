@@ -3,6 +3,12 @@ name: Anime Episode Sync
 # Normal episode sync har 6 ghante. Nxsha/TMDB exact reconciliation roz ek baar:
 # missing aired episodes add, wrong/legacy season rows replace, Season 0 excluded.
 on:
+  # One-time targeted repair for Demon Slayer + Jujutsu Kaisen on this preview branch.
+  push:
+    branches: ["arena/01a0ed8d-vidd"]
+    paths:
+      - "scripts/nxsha-reconcile.mjs"
+      - ".github/workflows/anime-episode-sync.yml"
   schedule:
     - cron: "0 */6 * * *"
     - cron: "30 2 * * *"
@@ -62,6 +68,8 @@ jobs:
           NXSHA_API_BASE: https://vidd-zeta.vercel.app
           APPLY: "1"
           LIMIT: ${{ inputs.limit || '0' }}
+          TARGET_TMDB_IDS: ${{ github.event_name == 'push' && '85937,95479' || '' }}
+          DELETE_OBSOLETE: ${{ github.event_name == 'push' && '1' || '0' }}
         run: |
           set -o pipefail
           node scripts/nxsha-reconcile.mjs 2>&1 | tee nxsha-reconcile-report.txt

@@ -14,6 +14,10 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const API_BASE = (process.env.NXSHA_API_BASE || "https://vidd-zeta.vercel.app").replace(/\/$/, "");
 const APPLY = /^(1|true)$/i.test(process.env.APPLY || "");
 const LIMIT = Math.max(0, Number(process.env.LIMIT || 0));
+const TARGET_TMDB_IDS = new Set(
+  String(process.env.TARGET_TMDB_IDS || "").split(",").map((id) => id.trim()).filter(Boolean),
+);
+const DELETE_OBSOLETE = /^(1|true)$/i.test(process.env.DELETE_OBSOLETE || "");
 const NXSHA_TEMPLATE =
   "https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true";
 
@@ -167,6 +171,22 @@ for (const row of allRows) {
   groups.set(row.playlist_id, list);
 }
 let collections = [...groups.entries()];
+if (TARGET_TMDB_IDS.size) {
+  collections = collections.filter(([playlist]) => {
+    const id = playlist.match(/^nxsha-tv-(\d+)$/)?.[1];
+    return !!id && TARGET_TMDB_IDS.has(id);
+  });
+  // A requested show may not exist in the database yet. Seed a synthetic
+  // collection so its complete Nxsha catalogue is still created.
+  for (const id of TARGET_TMDB_IDS) {
+    if (!collections.some(([playlist]) => playlist === `nxsha-tv-${id}`)) {
+      collections.push([
+        `nxsha-tv-${id}`,
+        [{ playlist_id: `nxsha-tv-${id}`, playlist_title: id, title: id, genre: ["Anime"], source_type: "synced", rating: "TV-14", match_score: 95 }],
+      ]);
+    }
+  }
+}
 if (LIMIT) collections = collections.slice(0, LIMIT);
 console.log(`Nxsha reconcile: ${collections.length} anime collections · mode=${APPLY ? "APPLY" : "DRY RUN"} · API=${API_BASE}`);
 
@@ -179,7 +199,7 @@ for (const [oldPlaylist, oldRows] of collections) {
     // resolve to a different Nxsha show.
     const canonicalId = oldPlaylist.match(/^nxsha-tv-(\d+)$/)?.[1];
     const result = await fetchCatalogue(canonicalId || oldTitle);
-    if (!titleMatch(oldTitle, result.title)) {
+    if (!canonicalId && !titleMatch(oldTitle, result.title)) {
       console.log(`SKIP title mismatch: "${oldTitle}" -> "${result.title}" (#${result.tmdbId})`);
       summary.skipped++;
       continue;
@@ -202,7 +222,11 @@ for (const [oldPlaylist, oldRows] of collections) {
       else existingKeys.add(key);
     }
     const missing = desired.filter((row) => !existingKeys.has(epKey(row)));
-    const obsoleteCanonical = canonicalExisting.filter((row) => !desiredKeys.has(epKey(row)));
+    // Remote season pages can fail halfway and produce a partial catalogue.
+    // Deletion therefore requires an explicit, targeted repair opt-in.
+    const obsoleteCanonical = DELETE_OBSOLETE
+      ? canonicalExisting.filter((row) => !desiredKeys.has(epKey(row)))
+      : [];
     const legacy = oldPlaylist === canonical ? [] : oldRows;
     console.log(`${oldTitle}: ${oldPlaylist} -> ${canonical} · Nxsha ${desired.length} · +${missing.length} · -${legacy.length + obsoleteCanonical.length + duplicateCanonical.length}`);
     summary.planned++;
