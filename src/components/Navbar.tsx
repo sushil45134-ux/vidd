@@ -15,6 +15,7 @@ import {
   Clapperboard,
   Drama,
   Palette,
+  Tv,
 } from "lucide-react";
 import type { Category } from "../data";
 import { useSiteConfig } from "../lib/customization";
@@ -48,6 +49,7 @@ const categories = [
   { label: "Movies", icon: Clapperboard, category: "movies" as Category },
   { label: "Anime", icon: Drama, category: "anime" as Category },
   { label: "Cartoon", icon: Palette, category: "cartoon" as Category },
+  { label: "OTT", icon: Tv, category: "ott" as Category },
 ];
 
 function Navbar({
