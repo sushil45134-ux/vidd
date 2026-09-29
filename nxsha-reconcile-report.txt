@@ -1,8 +1,8 @@
-RECOVER nxsha-tv-111110 -> nxsha-tv-37854: +180 -17
-RECOVER nxsha-tv-45952 -> nxsha-tv-46298: +148 -62
 Nxsha reconcile: 140 anime collections · mode=APPLY · API=https://vidd-zeta.vercel.app
+Naruto Shippūden: nxsha-tv-31910 -> nxsha-tv-31910 · Nxsha 500 · +0 · -0
+Demon Slayer: Kimetsu no Yaiba: nxsha-tv-85937 -> nxsha-tv-85937 · Nxsha 26 · +0 · -37
+One Piece: nxsha-tv-37854 -> nxsha-tv-37854 · Nxsha 1180 · +0 · -720
 Hunter x Hunter: nxsha-tv-46298 -> nxsha-tv-46298 · Nxsha 148 · +0 · -0
-One Piece: nxsha-tv-37854 -> nxsha-tv-37854 · Nxsha 1180 · +180 · -0
 Chainsaw Man: nxsha-tv-114410 -> nxsha-tv-114410 · Nxsha 12 · +0 · -0
 My Dress-Up Darling: nxsha-tv-123249 -> nxsha-tv-123249 · Nxsha 24 · +0 · -0
 Death Note: nxsha-tv-13916 -> nxsha-tv-13916 · Nxsha 37 · +0 · -0
@@ -26,8 +26,8 @@ A Couple of Cuckoos: nxsha-tv-122587 -> nxsha-tv-122587 · Nxsha 36 · +0 · -0
 The Angel Next Door Spoils Me Rotten: nxsha-tv-154743 -> nxsha-tv-154743 · Nxsha 24 · +0 · -0
 Though I Am an Inept Villainess: nxsha-tv-286345 -> nxsha-tv-286345 · Nxsha 11 · +0 · -0
 TSUKIMICHI -Moonlit Fantasy-: nxsha-tv-111819 -> nxsha-tv-111819 · Nxsha 38 · +0 · -0
-FAIL Fullmetal Alchemist: Brotherhood: TMDB id 31911 nahi mila (themoviedb.org/tv/31911 404).
-FAIL I Became a Legend After My 10 Year-Long Last Stand: TMDB id 302051 nahi mila (themoviedb.org/tv/302051 404).
+Fullmetal Alchemist: Brotherhood: nxsha-tv-31911 -> nxsha-tv-31911 · Nxsha 64 · +0 · -0
+I Became a Legend After My 10 Year-Long Last Stand: nxsha-tv-302051 -> nxsha-tv-302051 · Nxsha 12 · +0 · -0
 BLUE LOCK: nxsha-tv-131041 -> nxsha-tv-131041 · Nxsha 38 · +0 · -0
 Parallel World Pharmacy: nxsha-tv-129195 -> nxsha-tv-129195 · Nxsha 12 · +0 · -0
 Fruits Basket: nxsha-tv-85991 -> nxsha-tv-85991 · Nxsha 63 · +0 · -0
@@ -43,9 +43,8 @@ My Next Life as a Villainess: All Routes Lead to Doom!: nxsha-tv-94904 -> nxsha-
 I'm the Villainess, So I'm Taming the Final Boss: nxsha-tv-135334 -> nxsha-tv-135334 · Nxsha 12 · +0 · -0
 SK8 the Infinity: nxsha-tv-110309 -> nxsha-tv-110309 · Nxsha 12 · +0 · -0
 Arifureta: From Commonplace to World's Strongest: nxsha-tv-86034 -> nxsha-tv-86034 · Nxsha 41 · +0 · -0
-Demon Slayer: Kimetsu no Yaiba: nxsha-tv-85937 -> nxsha-tv-85937 · Nxsha 26 · +0 · -37
-FAIL Solo Leveling: TMDB id 127532 nahi mila (themoviedb.org/tv/127532 404).
-FAIL Black Clover: TMDB id 73223 nahi mila (themoviedb.org/tv/73223 404).
+Solo Leveling: nxsha-tv-127532 -> nxsha-tv-127532 · Nxsha 25 · +0 · -0
+Black Clover: nxsha-tv-73223 -> nxsha-tv-73223 · Nxsha 170 · +0 · -0
 Bleach: nxsha-tv-30984 -> nxsha-tv-30984 · Nxsha 414 · +0 · -0
 Dr. STONE: nxsha-tv-86031 -> nxsha-tv-86031 · Nxsha 94 · +0 · -0
 From Overshadowed to Overpowered: Second Reincarnation of a Talentless Sage: nxsha-tv-314554 -> nxsha-tv-314554 · Nxsha 12 · +0 · -0
@@ -56,13 +55,13 @@ LINK CLICK: nxsha-tv-123542 -> nxsha-tv-123542 · Nxsha 38 · +0 · -0
 March Comes In Like a Lion: nxsha-tv-65336 -> nxsha-tv-65336 · Nxsha 44 · +0 · -0
 Mob Psycho 100: nxsha-tv-67075 -> nxsha-tv-67075 · Nxsha 37 · +0 · -0
 My Hero Academia: nxsha-tv-65930 -> nxsha-tv-65930 · Nxsha 170 · +0 · -0
-FAIL Noragami: TMDB id 64710 nahi mila (themoviedb.org/tv/64710 404).
-FAIL One-Punch Man: TMDB id 63926 nahi mila (themoviedb.org/tv/63926 404).
-FAIL Rent-a-Girlfriend: TMDB id 96316 nahi mila (themoviedb.org/tv/96316 404).
-FAIL Shangri-La Frontier: TMDB id 205050 nahi mila (themoviedb.org/tv/205050 404).
-FAIL Sword Art Online: TMDB id 45782 nahi mila (themoviedb.org/tv/45782 404).
-FAIL The Seven Deadly Sins: Four Knights of the Apocalypse: TMDB id 218843 nahi mila (themoviedb.org/tv/218843 404).
-FAIL Tokyo Ghoul: TMDB id 61374 nahi mila (themoviedb.org/tv/61374 404).
+Noragami: nxsha-tv-64710 -> nxsha-tv-64710 · Nxsha 25 · +0 · -0
+One-Punch Man: nxsha-tv-63926 -> nxsha-tv-63926 · Nxsha 36 · +0 · -0
+Rent-a-Girlfriend: nxsha-tv-96316 -> nxsha-tv-96316 · Nxsha 60 · +0 · -0
+Shangri-La Frontier: nxsha-tv-205050 -> nxsha-tv-205050 · Nxsha 50 · +0 · -0
+Sword Art Online: nxsha-tv-45782 -> nxsha-tv-45782 · Nxsha 96 · +0 · -0
+The Seven Deadly Sins: Four Knights of the Apocalypse: nxsha-tv-218843 -> nxsha-tv-218843 · Nxsha 36 · +0 · -0
+Tokyo Ghoul: nxsha-tv-61374 -> nxsha-tv-61374 · Nxsha 48 · +0 · -0
 Fairy Tail: nxsha-tv-46261 -> nxsha-tv-46261 · Nxsha 328 · +0 · -0
 Kubo Won't Let Me Be Invisible: nxsha-tv-201889 -> nxsha-tv-201889 · Nxsha 12 · +0 · -0
 My Happy Marriage: nxsha-tv-196944 -> nxsha-tv-196944 · Nxsha 25 · +0 · -0
@@ -75,23 +74,23 @@ Tokyo Revengers: nxsha-tv-105009 -> nxsha-tv-105009 · Nxsha 50 · +0 · -0
 BOCCHI THE ROCK!: nxsha-tv-119100 -> nxsha-tv-119100 · Nxsha 12 · +0 · -0
 MASHLE: MAGIC AND MUSCLES: nxsha-tv-204832 -> nxsha-tv-204832 · Nxsha 24 · +0 · -0
 EDENS ZERO: nxsha-tv-104711 -> nxsha-tv-104711 · Nxsha 50 · +0 · -0
-FAIL Steins;Gate: TMDB id 42509 nahi mila (themoviedb.org/tv/42509 404).
-FAIL Cyberpunk: Edgerunners: TMDB id 105248 nahi mila (themoviedb.org/tv/105248 404).
-FAIL Yuri!!! on Ice: TMDB id 68129 nahi mila (themoviedb.org/tv/68129 404).
+Steins;Gate: nxsha-tv-42509 -> nxsha-tv-42509 · Nxsha 24 · +0 · -0
+Cyberpunk: Edgerunners: nxsha-tv-105248 -> nxsha-tv-105248 · Nxsha 10 · +0 · -0
+Yuri!!! on Ice: nxsha-tv-68129 -> nxsha-tv-68129 · Nxsha 12 · +0 · -0
 Violet Evergarden: nxsha-tv-75214 -> nxsha-tv-75214 · Nxsha 13 · +0 · -0
 In/Spectre: nxsha-tv-93653 -> nxsha-tv-93653 · Nxsha 24 · +0 · -0
 Kamisama Kiss: nxsha-tv-62741 -> nxsha-tv-62741 · Nxsha 25 · +0 · -0
 Yona of the Dawn: nxsha-tv-61461 -> nxsha-tv-61461 · Nxsha 24 · +0 · -0
 ERASED: nxsha-tv-65249 -> nxsha-tv-65249 · Nxsha 12 · +0 · -0
 The Promised Neverland: nxsha-tv-83097 -> nxsha-tv-83097 · Nxsha 23 · +0 · -0
-Blue Exorcist: nxsha-tv-38464 -> nxsha-tv-38464 · Nxsha 73 · +0 · -0
+Blue Exorcist: nxsha-tv-38464 -> nxsha-tv-38464 · Nxsha 73 · +48 · -0
 Captain Tsubasa: nxsha-tv-77240 -> nxsha-tv-77240 · Nxsha 91 · +0 · -0
 From Me to You: Kimi ni Todoke: nxsha-tv-68854 -> nxsha-tv-68854 · Nxsha 42 · +0 · -0
 KONOSUBA - God's blessing on this wonderful world!: nxsha-tv-65844 -> nxsha-tv-65844 · Nxsha 31 · +0 · -0
 Kuroko's Basketball: nxsha-tv-45783 -> nxsha-tv-45783 · Nxsha 75 · +0 · -0
 Made in Abyss: nxsha-tv-72636 -> nxsha-tv-72636 · Nxsha 25 · +0 · -0
 Monster: nxsha-tv-30981 -> nxsha-tv-30981 · Nxsha 74 · +0 · -0
-FAIL My Teen Romantic Comedy SNAFU: TMDB id 65676 nahi mila (themoviedb.org/tv/65676 404).
+My Teen Romantic Comedy SNAFU: nxsha-tv-65676 -> nxsha-tv-65676 · Nxsha 38 · +0 · -0
 Orange: nxsha-tv-66958 -> nxsha-tv-66958 · Nxsha 13 · +0 · -0
 PLUTO: nxsha-tv-91997 -> nxsha-tv-91997 · Nxsha 8 · +0 · -0
 Psycho-Pass: nxsha-tv-43865 -> nxsha-tv-43865 · Nxsha 41 · +0 · -0
@@ -103,10 +102,10 @@ The Holy Grail of Eris: nxsha-tv-283891 -> nxsha-tv-283891 · Nxsha 12 · +0 · 
 The Darwin Incident: nxsha-tv-255064 -> nxsha-tv-255064 · Nxsha 13 · +0 · -0
 Agents of the Four Seasons Dance of Spring: nxsha-tv-288659 -> nxsha-tv-288659 · Nxsha 14 · +0 · -0
 Do You Like Big Girls?: nxsha-tv-330712 -> nxsha-tv-330712 · Nxsha 1 · +0 · -0
-FAIL The Brilliant Healer's New Life in the Shadows: TMDB id 276253 me koi season/episode parse nahi hua.
-FAIL Dandelion: TMDB id 316973 nahi mila (themoviedb.org/tv/316973 404).
-FAIL Botan Kamiina Fully Blossoms When Drunk: TMDB id 283905 nahi mila (themoviedb.org/tv/283905 404).
-FAIL Pardon the Intrusion, I'm Home!: TMDB id 306790 nahi mila (themoviedb.org/tv/306790 404).
+The Brilliant Healer's New Life in the Shadows: nxsha-tv-276253 -> nxsha-tv-276253 · Nxsha 12 · +0 · -0
+Dandelion: nxsha-tv-316973 -> nxsha-tv-316973 · Nxsha 7 · +0 · -0
+Botan Kamiina Fully Blossoms When Drunk: nxsha-tv-283905 -> nxsha-tv-283905 · Nxsha 12 · +0 · -0
+Pardon the Intrusion, I'm Home!: nxsha-tv-306790 -> nxsha-tv-306790 · Nxsha 12 · +0 · -0
 Komekami! Girls: nxsha-tv-317727 -> nxsha-tv-317727 · Nxsha 12 · +0 · -0
 Even a Replica Can Fall in Love: nxsha-tv-284568 -> nxsha-tv-284568 · Nxsha 13 · +0 · -0
 The Food Diary of Miss Maid: nxsha-tv-299134 -> nxsha-tv-299134 · Nxsha 12 · +0 · -0
@@ -123,11 +122,10 @@ The Exiled Heavy Knight Knows How to Game the System: nxsha-tv-270603 -> nxsha-t
 That Time I Got Reincarnated as a Slime: nxsha-tv-82684 -> nxsha-tv-82684 · Nxsha 96 · +0 · -0
 Mushoku Tensei: Jobless Reincarnation: nxsha-tv-94664 -> nxsha-tv-94664 · Nxsha 61 · +0 · -0
 Smoking Behind the Supermarket with You: nxsha-tv-296286 -> nxsha-tv-296286 · Nxsha 12 · +0 · -0
-FAIL Attack on Titan: TMDB id 1429 nahi mila (themoviedb.org/tv/1429 404).
-FAIL JoJo's Bizarre Adventure: TMDB id 45790 nahi mila (themoviedb.org/tv/45790 404).
-FAIL Chainsmoker Cat: TMDB id 312949 nahi mila (themoviedb.org/tv/312949 404).
-FAIL ONE PIECE: TMDB id 111110 nahi mila (themoviedb.org/tv/111110 404).
-FAIL Naruto: Shippuden: TMDB id 31910 nahi mila (themoviedb.org/tv/31910 404).
+Attack on Titan: nxsha-tv-1429 -> nxsha-tv-1429 · Nxsha 87 · +0 · -0
+JoJo's Bizarre Adventure: nxsha-tv-45790 -> nxsha-tv-45790 · Nxsha 192 · +0 · -192
+Chainsmoker Cat: nxsha-tv-312949 -> nxsha-tv-312949 · Nxsha 12 · +0 · -0
+ONE PIECE: anime-auto-one-piece-tt0388629 -> nxsha-tv-37854 · Nxsha 1180 · +0 · -1984
 FAIL The Disastrous Life of Saiki K. Season 2: "The Disastrous Life of Saiki K. Season 2" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
 SKIP title mismatch: "Hajime no Ippo: The Fighting!" -> "Fighting Spirit" (#42705)
 FAIL Komi Can't Communicate Part 2: "Komi Can't Communicate Part 2" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
@@ -142,10 +140,10 @@ FAIL ⟪HINDI ⟫ ⟪OVERLORD⟫ Episode-1: "⟪HINDI ⟫ ⟪OVERLORD⟫ Episode
 FAIL Cells at Work! - Episode 01: "Cells at Work! - Episode 01" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
 FAIL I PARRY EVERYTHING - Episode 01: "I PARRY EVERYTHING - Episode 01" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
 {
-  "planned": 103,
-  "migrated": 103,
-  "inserted": 180,
-  "deleted": 37,
+  "planned": 127,
+  "migrated": 127,
+  "inserted": 48,
+  "deleted": 2933,
   "skipped": 2,
-  "failed": 35
+  "failed": 11
 }
