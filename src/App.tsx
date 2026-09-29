@@ -483,6 +483,31 @@ function App() {
     [uploadedCollections, syncedCollections],
   );
 
+  // Automatic home shelf: every anime series that received a DB entry in the
+  // last 24 hours appears here, newest drop first. The rolling window avoids
+  // midnight/timezone gaps between the 6-hour anime cron and a visitor's local
+  // day. For collection cards we inspect every episode, so an established show
+  // returns here automatically whenever its latest episode lands.
+  const freshDrops = useMemo(() => {
+    const dailyWindowStart = Date.now() - 24 * 60 * 60 * 1000;
+    const timestamp = (movie: Movie) => {
+      const parsed = movie.createdAt ? Date.parse(movie.createdAt) : NaN;
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const latestDrop = (movie: Movie) =>
+      movie.episodes?.reduce((latest, episode) => Math.max(latest, timestamp(episode)), 0) ||
+      timestamp(movie);
+
+    return displayItems
+      .filter(
+        (movie) =>
+          movie.genre.some((genre) => genre.toLowerCase() === "anime") &&
+          latestDrop(movie) >= dailyWindowStart,
+      )
+      .sort((a, b) => latestDrop(b) - latestDrop(a))
+      .slice(0, 30);
+  }, [displayItems]);
+
   // Continue Watching — stored snapshots reconciled with fresh library data.
   const continueWatchingLibrary = useMemo(
     () => [...allMovies, ...animeEpisodes],
@@ -1307,6 +1332,31 @@ function App() {
                       );
                     };
                     let rowsRendered = false;
+
+                    // This row is generated from today's database additions,
+                    // so it stays current without any admin maintenance.
+                    if (!showRowSkeletons && freshDrops.length > 0) {
+                      elements.push(
+                        <MovieRow
+                          key="fresh-drops"
+                          title="Fresh Drops"
+                          movies={freshDrops}
+                          onSelectMovie={setSelectedMovie}
+                          onPlay={playFirstEpisode}
+                          isInMyList={isInMyList}
+                          isLiked={isLiked}
+                          toggleMyList={toggleMyList}
+                          toggleLike={toggleLike}
+                          canDelete={isAdmin}
+                          onDelete={handleDelete}
+                          canEditThumbnail={isAdmin}
+                          onEditThumbnail={setThumbnailEditMovie}
+                        />,
+                      );
+                      rowsRendered = true;
+                      pushContinueWatching();
+                    }
+
                     cfg.customRows?.forEach((row) => {
                       if (!row.visible) return;
                       const sec = row.section || "home";
