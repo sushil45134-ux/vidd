@@ -1,0 +1,150 @@
+Nxsha reconcile: 140 anime collections · mode=APPLY · API=https://vidd-zeta.vercel.app
+Chainsaw Man: nxsha-tv-114410 -> nxsha-tv-114410 · Nxsha 12 · +0 · -0
+My Dress-Up Darling: nxsha-tv-123249 -> nxsha-tv-123249 · Nxsha 24 · +0 · -0
+Death Note: nxsha-tv-13916 -> nxsha-tv-13916 · Nxsha 37 · +0 · -0
+WIND BREAKER: nxsha-tv-223500 -> nxsha-tv-223500 · Nxsha 25 · +0 · -0
+Kaiju No. 8: nxsha-tv-207468 -> nxsha-tv-207468 · Nxsha 23 · +0 · -0
+Frieren: Beyond Journey's End: nxsha-tv-209867 -> nxsha-tv-209867 · Nxsha 38 · +0 · -0
+Zom 100: Bucket List of the Dead: nxsha-tv-217766 -> nxsha-tv-217766 · Nxsha 12 · +0 · -0
+Dan Da Dan: nxsha-tv-240411 -> nxsha-tv-240411 · Nxsha 24 · +0 · -0
+The Apothecary Diaries: nxsha-tv-220542 -> nxsha-tv-220542 · Nxsha 48 · +0 · -0
+The Daily Life of the Immortal King: nxsha-tv-98123 -> nxsha-tv-98123 · Nxsha 63 · +0 · -0
+The Rising of the Shield Hero: nxsha-tv-83095 -> nxsha-tv-83095 · Nxsha 62 · +0 · -0
+The Case Study of Vanitas: nxsha-tv-121964 -> nxsha-tv-121964 · Nxsha 24 · +0 · -0
+Horimiya: nxsha-tv-110070 -> nxsha-tv-110070 · Nxsha 13 · +0 · -0
+365 Days to the Wedding: nxsha-tv-230189 -> nxsha-tv-230189 · Nxsha 12 · +0 · -0
+ReLIFE: nxsha-tv-66941 -> nxsha-tv-66941 · Nxsha 13 · +0 · -0
+Akebi's Sailor Uniform: nxsha-tv-121792 -> nxsha-tv-121792 · Nxsha 12 · +0 · -0
+Tomo-chan Is a Girl!: nxsha-tv-205308 -> nxsha-tv-205308 · Nxsha 13 · +0 · -0
+My Tiny Senpai: nxsha-tv-217390 -> nxsha-tv-217390 · Nxsha 12 · +0 · -0
+More than a Married Couple, but Not Lovers: nxsha-tv-139287 -> nxsha-tv-139287 · Nxsha 12 · +0 · -0
+A Couple of Cuckoos: nxsha-tv-122587 -> nxsha-tv-122587 · Nxsha 36 · +0 · -0
+The Angel Next Door Spoils Me Rotten: nxsha-tv-154743 -> nxsha-tv-154743 · Nxsha 24 · +0 · -0
+Though I Am an Inept Villainess: nxsha-tv-286345 -> nxsha-tv-286345 · Nxsha 11 · +0 · -0
+TSUKIMICHI -Moonlit Fantasy-: nxsha-tv-111819 -> nxsha-tv-111819 · Nxsha 38 · +0 · -0
+Fullmetal Alchemist: Brotherhood: nxsha-tv-31911 -> nxsha-tv-31911 · Nxsha 64 · +0 · -0
+I Became a Legend After My 10 Year-Long Last Stand: nxsha-tv-302051 -> nxsha-tv-302051 · Nxsha 12 · +0 · -0
+BLUE LOCK: nxsha-tv-131041 -> nxsha-tv-131041 · Nxsha 38 · +0 · -0
+Parallel World Pharmacy: nxsha-tv-129195 -> nxsha-tv-129195 · Nxsha 12 · +0 · -0
+Fruits Basket: nxsha-tv-85991 -> nxsha-tv-85991 · Nxsha 63 · +0 · -0
+Shinobi no Ittoki: nxsha-tv-158293 -> nxsha-tv-158293 · Nxsha 12 · +0 · -0
+My Stepmom's Daughter Is My Ex: nxsha-tv-129516 -> nxsha-tv-129516 · Nxsha 12 · +0 · -0
+My Love Story with Yamada-kun at Lv999: nxsha-tv-208067 -> nxsha-tv-208067 · Nxsha 13 · +0 · -0
+Shikimori's Not Just a Cutie: nxsha-tv-115694 -> nxsha-tv-115694 · Nxsha 12 · +0 · -0
+My Love Story!!: nxsha-tv-62565 -> nxsha-tv-62565 · Nxsha 24 · +0 · -0
+I'm Giving the Disgraced Noble Lady I Rescued a Crash Course in Naughtiness: nxsha-tv-217405 -> nxsha-tv-217405 · Nxsha 12 · +0 · -0
+Love After World Domination: nxsha-tv-122287 -> nxsha-tv-122287 · Nxsha 12 · +0 · -0
+Saint Cecilia and Pastor Lawrence: nxsha-tv-204148 -> nxsha-tv-204148 · Nxsha 12 · +0 · -0
+My Next Life as a Villainess: All Routes Lead to Doom!: nxsha-tv-94904 -> nxsha-tv-94904 · Nxsha 24 · +0 · -0
+I'm the Villainess, So I'm Taming the Final Boss: nxsha-tv-135334 -> nxsha-tv-135334 · Nxsha 12 · +0 · -0
+SK8 the Infinity: nxsha-tv-110309 -> nxsha-tv-110309 · Nxsha 12 · +0 · -0
+Arifureta: From Commonplace to World's Strongest: nxsha-tv-86034 -> nxsha-tv-86034 · Nxsha 41 · +0 · -0
+Demon Slayer: Kimetsu no Yaiba: nxsha-tv-85937 -> nxsha-tv-85937 · Nxsha 63 · +0 · -0
+Solo Leveling: nxsha-tv-127532 -> nxsha-tv-127532 · Nxsha 25 · +0 · -0
+Black Clover: nxsha-tv-73223 -> nxsha-tv-73223 · Nxsha 170 · +0 · -0
+Bleach: nxsha-tv-30984 -> nxsha-tv-30984 · Nxsha 414 · +0 · -0
+Dr. STONE: nxsha-tv-86031 -> nxsha-tv-86031 · Nxsha 94 · +0 · -0
+From Overshadowed to Overpowered: Second Reincarnation of a Talentless Sage: nxsha-tv-314554 -> nxsha-tv-314554 · Nxsha 12 · +0 · -0
+Gintama: nxsha-tv-57041 -> nxsha-tv-57041 · Nxsha 367 · +0 · -0
+Haikyu!!: nxsha-tv-60863 -> nxsha-tv-60863 · Nxsha 85 · +0 · -0
+Kaguya-sama: Love Is War: nxsha-tv-83121 -> nxsha-tv-83121 · Nxsha 37 · +0 · -0
+LINK CLICK: nxsha-tv-123542 -> nxsha-tv-123542 · Nxsha 38 · +0 · -0
+March Comes In Like a Lion: nxsha-tv-65336 -> nxsha-tv-65336 · Nxsha 44 · +0 · -0
+Mob Psycho 100: nxsha-tv-67075 -> nxsha-tv-67075 · Nxsha 37 · +0 · -0
+My Hero Academia: nxsha-tv-65930 -> nxsha-tv-65930 · Nxsha 170 · +0 · -0
+Noragami: nxsha-tv-64710 -> nxsha-tv-64710 · Nxsha 25 · +0 · -0
+One-Punch Man: nxsha-tv-63926 -> nxsha-tv-63926 · Nxsha 36 · +0 · -0
+Rent-a-Girlfriend: nxsha-tv-96316 -> nxsha-tv-96316 · Nxsha 60 · +0 · -0
+Shangri-La Frontier: nxsha-tv-205050 -> nxsha-tv-205050 · Nxsha 50 · +0 · -0
+Sword Art Online: nxsha-tv-45782 -> nxsha-tv-45782 · Nxsha 96 · +0 · -0
+The Seven Deadly Sins: Four Knights of the Apocalypse: nxsha-tv-218843 -> nxsha-tv-218843 · Nxsha 36 · +0 · -0
+Tokyo Ghoul: nxsha-tv-61374 -> nxsha-tv-61374 · Nxsha 48 · +0 · -0
+Fairy Tail: nxsha-tv-46261 -> nxsha-tv-46261 · Nxsha 328 · +0 · -0
+Kubo Won't Let Me Be Invisible: nxsha-tv-201889 -> nxsha-tv-201889 · Nxsha 12 · +0 · -0
+My Happy Marriage: nxsha-tv-196944 -> nxsha-tv-196944 · Nxsha 25 · +0 · -0
+Romantic Killer: nxsha-tv-208730 -> nxsha-tv-208730 · Nxsha 12 · +0 · -0
+A Sign of Affection: nxsha-tv-230059 -> nxsha-tv-230059 · Nxsha 12 · +0 · -0
+Rascal Does Not Dream of Bunny Girl Senpai: nxsha-tv-82739 -> nxsha-tv-82739 · Nxsha 26 · +0 · -0
+Toradora!: nxsha-tv-42916 -> nxsha-tv-42916 · Nxsha 25 · +0 · -0
+The Quintessential Quintuplets: nxsha-tv-84669 -> nxsha-tv-84669 · Nxsha 24 · +0 · -0
+Tokyo Revengers: nxsha-tv-105009 -> nxsha-tv-105009 · Nxsha 50 · +0 · -0
+BOCCHI THE ROCK!: nxsha-tv-119100 -> nxsha-tv-119100 · Nxsha 12 · +0 · -0
+MASHLE: MAGIC AND MUSCLES: nxsha-tv-204832 -> nxsha-tv-204832 · Nxsha 24 · +0 · -0
+EDENS ZERO: nxsha-tv-104711 -> nxsha-tv-104711 · Nxsha 50 · +0 · -0
+Steins;Gate: nxsha-tv-42509 -> nxsha-tv-42509 · Nxsha 24 · +0 · -0
+Cyberpunk: Edgerunners: nxsha-tv-105248 -> nxsha-tv-105248 · Nxsha 10 · +0 · -0
+Yuri!!! on Ice: nxsha-tv-68129 -> nxsha-tv-68129 · Nxsha 12 · +0 · -0
+Violet Evergarden: nxsha-tv-75214 -> nxsha-tv-75214 · Nxsha 13 · +0 · -0
+In/Spectre: nxsha-tv-93653 -> nxsha-tv-93653 · Nxsha 24 · +0 · -0
+Kamisama Kiss: nxsha-tv-62741 -> nxsha-tv-62741 · Nxsha 25 · +0 · -0
+Yona of the Dawn: nxsha-tv-61461 -> nxsha-tv-61461 · Nxsha 24 · +0 · -0
+ERASED: nxsha-tv-65249 -> nxsha-tv-65249 · Nxsha 12 · +0 · -0
+The Promised Neverland: nxsha-tv-83097 -> nxsha-tv-83097 · Nxsha 23 · +0 · -0
+Blue Exorcist: nxsha-tv-38464 -> nxsha-tv-38464 · Nxsha 73 · +0 · -0
+Captain Tsubasa: nxsha-tv-77240 -> nxsha-tv-77240 · Nxsha 91 · +0 · -0
+Hunter x Hunter: nxsha-tv-46298 -> nxsha-tv-45952 · Nxsha 62 · +62 · -148
+From Me to You: Kimi ni Todoke: nxsha-tv-68854 -> nxsha-tv-68854 · Nxsha 42 · +0 · -0
+KONOSUBA - God's blessing on this wonderful world!: nxsha-tv-65844 -> nxsha-tv-65844 · Nxsha 31 · +0 · -0
+Kuroko's Basketball: nxsha-tv-45783 -> nxsha-tv-45783 · Nxsha 75 · +0 · -0
+Made in Abyss: nxsha-tv-72636 -> nxsha-tv-72636 · Nxsha 25 · +0 · -0
+Monster: nxsha-tv-30981 -> nxsha-tv-30981 · Nxsha 74 · +0 · -0
+My Teen Romantic Comedy SNAFU: nxsha-tv-65676 -> nxsha-tv-65676 · Nxsha 38 · +0 · -0
+Orange: nxsha-tv-66958 -> nxsha-tv-66958 · Nxsha 13 · +0 · -0
+PLUTO: nxsha-tv-91997 -> nxsha-tv-91997 · Nxsha 8 · +0 · -0
+Psycho-Pass: nxsha-tv-43865 -> nxsha-tv-43865 · Nxsha 41 · +0 · -0
+Sailor Moon: nxsha-tv-3570 -> nxsha-tv-3570 · Nxsha 200 · +0 · -0
+Your Lie in April: nxsha-tv-61663 -> nxsha-tv-61663 · Nxsha 22 · +0 · -0
+Dragon Ball Z: nxsha-tv-12971 -> nxsha-tv-12971 · Nxsha 291 · +0 · -0
+Inuyashiki: nxsha-tv-73946 -> nxsha-tv-73946 · Nxsha 11 · +0 · -0
+The Holy Grail of Eris: nxsha-tv-283891 -> nxsha-tv-283891 · Nxsha 12 · +0 · -0
+The Darwin Incident: nxsha-tv-255064 -> nxsha-tv-255064 · Nxsha 13 · +0 · -0
+Agents of the Four Seasons Dance of Spring: nxsha-tv-288659 -> nxsha-tv-288659 · Nxsha 14 · +0 · -0
+Do You Like Big Girls?: nxsha-tv-330712 -> nxsha-tv-330712 · Nxsha 1 · +0 · -0
+The Brilliant Healer's New Life in the Shadows: nxsha-tv-276253 -> nxsha-tv-276253 · Nxsha 12 · +0 · -0
+Dandelion: nxsha-tv-316973 -> nxsha-tv-316973 · Nxsha 7 · +0 · -0
+Botan Kamiina Fully Blossoms When Drunk: nxsha-tv-283905 -> nxsha-tv-283905 · Nxsha 12 · +0 · -0
+Pardon the Intrusion, I'm Home!: nxsha-tv-306790 -> nxsha-tv-306790 · Nxsha 12 · +0 · -0
+Komekami! Girls: nxsha-tv-317727 -> nxsha-tv-317727 · Nxsha 12 · +0 · -0
+Even a Replica Can Fall in Love: nxsha-tv-284568 -> nxsha-tv-284568 · Nxsha 13 · +0 · -0
+The Food Diary of Miss Maid: nxsha-tv-299134 -> nxsha-tv-299134 · Nxsha 12 · +0 · -0
+Akane-banashi: nxsha-tv-297438 -> nxsha-tv-297438 · Nxsha 12 · +0 · -0
+Tomb Raider King: nxsha-tv-297826 -> nxsha-tv-297826 · Nxsha 12 · +0 · -0
+Naruto: nxsha-tv-46260 -> nxsha-tv-46260 · Nxsha 220 · +0 · -0
+BLACK TORCH: nxsha-tv-285993 -> nxsha-tv-285993 · Nxsha 12 · +0 · -0
+Daemons of the Shadow Realm: nxsha-tv-260463 -> nxsha-tv-260463 · Nxsha 24 · +0 · -0
+Clevatess: nxsha-tv-258348 -> nxsha-tv-258348 · Nxsha 25 · +0 · -0
+Re:ZERO -Starting Life in Another World-: nxsha-tv-65942 -> nxsha-tv-65942 · Nxsha 85 · +0 · -0
+Trapped in a Dating Sim: The World of Otome Games Is Tough for Mobs: nxsha-tv-139512 -> nxsha-tv-139512 · Nxsha 24 · +0 · -0
+Candy Caries: nxsha-tv-312383 -> nxsha-tv-312383 · Nxsha 24 · +0 · -0
+The Exiled Heavy Knight Knows How to Game the System: nxsha-tv-270603 -> nxsha-tv-270603 · Nxsha 13 · +0 · -0
+That Time I Got Reincarnated as a Slime: nxsha-tv-82684 -> nxsha-tv-82684 · Nxsha 96 · +0 · -0
+Mushoku Tensei: Jobless Reincarnation: nxsha-tv-94664 -> nxsha-tv-94664 · Nxsha 61 · +0 · -0
+One Piece: nxsha-tv-37854 -> nxsha-tv-111110 · Nxsha 17 · +17 · -1180
+Smoking Behind the Supermarket with You: nxsha-tv-296286 -> nxsha-tv-296286 · Nxsha 12 · +0 · -0
+Attack on Titan: nxsha-tv-1429 -> nxsha-tv-1429 · Nxsha 87 · +0 · -0
+JoJo's Bizarre Adventure: nxsha-tv-45790 -> nxsha-tv-45790 · Nxsha 192 · +0 · -0
+Chainsmoker Cat: nxsha-tv-312949 -> nxsha-tv-312949 · Nxsha 12 · +0 · -0
+ONE PIECE: anime-auto-one-piece-tt0388629 -> nxsha-tv-37854 · Nxsha 1180 · +1180 · -1984
+FAIL ONE PIECE: verification failed: expected 1180, got 1000
+SKIP title mismatch: "Naruto: Shippuden" -> "Naruto Shippūden" (#31910)
+FAIL The Disastrous Life of Saiki K. Season 2: "The Disastrous Life of Saiki K. Season 2" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+SKIP title mismatch: "Hajime no Ippo: The Fighting!" -> "Fighting Spirit" (#42705)
+FAIL Komi Can't Communicate Part 2: "Komi Can't Communicate Part 2" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+SKIP title mismatch: "TRIGUN STARGAZE" -> "TRIGUN STAMPEDE" (#204266)
+FAIL [Hindi Dub] Attack on Titan - Episode 01 (S1E01) | Muse IN: "[Hindi Dub] Attack on Titan - Episode 01 (S1E01) | Muse IN" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL [Hindi dub] DAN DA DAN - Episode 01 | Muse IN: "[Hindi dub] DAN DA DAN - Episode 01 | Muse IN" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL Welcome to the Outcast's Restaurant! ep01: "Welcome to the Outcast's Restaurant! ep01" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL Junji Ito Collection - Episode 01: "Junji Ito Collection - Episode 01" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL As a Reincarnated Aristocrat, I'll Use My Appraisal Skill to Rise in the World ep1: "As a Reincarnated Aristocrat, I'll Use My Appraisal Skill to Rise in the World ep1" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL ⟪HINDI ⟫ ⟪YOWAYOWA SENSEI⟫ Episode-1: "⟪HINDI ⟫ ⟪YOWAYOWA SENSEI⟫ Episode-1" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL ⟪HINDI ⟫ ⟪OVERLORD⟫ Episode-1: "⟪HINDI ⟫ ⟪OVERLORD⟫ Episode-1" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL Cells at Work! - Episode 01: "Cells at Work! - Episode 01" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+FAIL I PARRY EVERYTHING - Episode 01: "I PARRY EVERYTHING - Episode 01" ke liye TMDB par kuch nahi mila. TMDB link ya numeric ID try karo.
+{
+  "planned": 126,
+  "migrated": 125,
+  "inserted": 79,
+  "deleted": 1328,
+  "skipped": 3,
+  "failed": 12
+}
