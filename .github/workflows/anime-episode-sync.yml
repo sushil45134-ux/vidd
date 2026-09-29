@@ -29,6 +29,9 @@ on:
         required: false
         default: "0"
 
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -55,6 +58,8 @@ jobs:
         run: node scripts/nxsha-reconcile.mjs
 
       - name: Reconcile all anime with Nxsha catalogue
+        id: nxsha_reconcile
+        continue-on-error: true
         if: github.event_name == 'push' || github.event_name == 'schedule' && github.event.schedule == '30 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -64,4 +69,15 @@ jobs:
           NXSHA_API_BASE: https://vidd-zeta.vercel.app
           APPLY: "1"
           LIMIT: ${{ inputs.limit || '0' }}
-        run: node scripts/nxsha-reconcile.mjs
+        run: |
+          set -o pipefail
+          node scripts/nxsha-reconcile.mjs 2>&1 | tee nxsha-reconcile-report.txt
+
+      - name: Save Nxsha catalogue report on branch
+        if: always() && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nxsha-reconcile-report.txt
+          git commit -m "chore: save Nxsha catalogue repair report [skip ci]" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
