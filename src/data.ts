@@ -16,6 +16,8 @@ export interface Movie {
   youtubeId?: string;
   embedUrl?: string;
   embedPlatform?: string;
+  /** Database insertion time, used for automatically generated "new today" shelves. */
+  createdAt?: string;
   // Playlist / collection grouping
   playlistId?: string;
   playlistTitle?: string;
@@ -42,4 +44,11 @@ export const myListDefault: Movie[] = [];
 export const newReleases: Movie[] = [];
 export const allMovies: Movie[] = [];
 
-export type Category = "home" | "movies" | "anime" | "cartoon" | "mylist" | "discover";
+export type Category =
+  | "home"
+  | "movies"
+  | "anime"
+  | "cartoon"
+  | "ott"
+  | "mylist"
+  | "discover";
