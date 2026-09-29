@@ -64,6 +64,36 @@ const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   movies: (m) => !m.genre.some((g) => ["anime", "cartoon"].includes(g.toLowerCase())),
 };
 
+// Curated streaming availability. Only titles that actually exist in the
+// library are rendered; one anime may correctly appear on multiple services.
+// Matching the base title also survives season/episode suffixes in old rows.
+const OTT_TITLES = {
+  netflix: [
+    "cyberpunk edgerunners", "pluto", "romantic killer", "my happy marriage",
+    "violet evergarden", "komi can't communicate", "the seven deadly sins",
+    "kuroko's basketball", "beastars", "baki", "devilman crybaby", "blue period",
+    "dorohedoro", "great pretender", "kakegurui", "kotaro lives alone",
+  ],
+  prime: [
+    "vinland saga", "dororo", "banana fish", "wotakoi", "re creators",
+    "inuyashiki", "made in abyss", "land of the lustrous", "scum's wish",
+    "evangelion", "psycho pass",
+  ],
+  crunchyroll: [
+    "demon slayer", "jujutsu kaisen", "solo leveling", "attack on titan",
+    "my hero academia", "one piece", "naruto", "black clover", "dr stone",
+    "re zero", "that time i got reincarnated as a slime", "mushoku tensei",
+    "chainsaw man", "spy x family", "blue lock", "haikyu", "one punch man",
+    "mob psycho 100", "tokyo revengers", "frieren", "the apothecary diaries",
+    "shangri la frontier", "the rising of the shield hero", "konosuba", "overlord",
+    "fairy tail", "bleach", "jojo's bizarre adventure", "rent a girlfriend",
+    "a sign of affection", "mashle", "bocchi the rock", "my dress up darling",
+  ],
+} as const;
+
+const normalizeOttTitle = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+
 /**
  * Group flat episode rows that share a playlistId into one series collection
  * (Crunchyroll-style) with seasons sorted by season/episode number. Rows
@@ -482,6 +512,49 @@ function App() {
     () => [...uploadedCollections, ...syncedCollections],
     [uploadedCollections, syncedCollections],
   );
+
+  // Automatic home shelf: every anime series that received a DB entry in the
+  // last 24 hours appears here, newest drop first. The rolling window avoids
+  // midnight/timezone gaps between the 6-hour anime cron and a visitor's local
+  // day. For collection cards we inspect every episode, so an established show
+  // returns here automatically whenever its latest episode lands.
+  const freshDrops = useMemo(() => {
+    const dailyWindowStart = Date.now() - 24 * 60 * 60 * 1000;
+    const timestamp = (movie: Movie) => {
+      const parsed = movie.createdAt ? Date.parse(movie.createdAt) : NaN;
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const latestDrop = (movie: Movie) =>
+      movie.episodes?.reduce((latest, episode) => Math.max(latest, timestamp(episode)), 0) ||
+      timestamp(movie);
+
+    return displayItems
+      .filter(
+        (movie) =>
+          movie.genre.some((genre) => genre.toLowerCase() === "anime") &&
+          latestDrop(movie) >= dailyWindowStart,
+      )
+      .sort((a, b) => latestDrop(b) - latestDrop(a))
+      .slice(0, 30);
+  }, [displayItems]);
+
+  const ottRows = useMemo(() => {
+    const anime = displayItems.filter((movie) =>
+      movie.genre.some((genre) => genre.toLowerCase() === "anime"),
+    );
+    const pick = (titles: readonly string[]) => {
+      const needles = titles.map(normalizeOttTitle);
+      return anime.filter((movie) => {
+        const title = normalizeOttTitle(movie.playlistTitle || movie.title);
+        return needles.some((needle) => title.includes(needle) || needle.includes(title));
+      });
+    };
+    return {
+      netflix: pick(OTT_TITLES.netflix),
+      prime: pick(OTT_TITLES.prime),
+      crunchyroll: pick(OTT_TITLES.crunchyroll),
+    };
+  }, [displayItems]);
 
   // Continue Watching — stored snapshots reconciled with fresh library data.
   const continueWatchingLibrary = useMemo(
@@ -1125,6 +1198,51 @@ function App() {
                   </h1>
                 )}
 
+                {activeCategory === "ott" && (
+                  <div>
+                    <div className="mb-7 px-4 md:px-12">
+                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.24em] text-[#f47521]">
+                        Streaming collections
+                      </p>
+                      <h1 className="text-3xl font-black text-white md:text-5xl">OTT Anime</h1>
+                      <p className="mt-2 max-w-2xl text-sm text-white/55">
+                        Netflix, Prime Video aur Crunchyroll par milne wale anime—service ke hisaab se alag rows mein.
+                      </p>
+                    </div>
+                    {showRowSkeletons ? (
+                      <>
+                        <RowSkeleton />
+                        <RowSkeleton />
+                        <RowSkeleton />
+                      </>
+                    ) : (
+                      ([
+                        ["NETFLIX Anime", ottRows.netflix],
+                        ["Prime Video Anime", ottRows.prime],
+                        ["Crunchyroll Anime", ottRows.crunchyroll],
+                      ] as const).map(([title, movies]) =>
+                        movies.length > 0 ? (
+                          <MovieRow
+                            key={title}
+                            title={title}
+                            movies={movies}
+                            onSelectMovie={setSelectedMovie}
+                            onPlay={playFirstEpisode}
+                            isInMyList={isInMyList}
+                            isLiked={isLiked}
+                            toggleMyList={toggleMyList}
+                            toggleLike={toggleLike}
+                            canDelete={isAdmin}
+                            onDelete={handleDelete}
+                            canEditThumbnail={isAdmin}
+                            onEditThumbnail={setThumbnailEditMovie}
+                          />
+                        ) : null,
+                      )
+                    )}
+                  </div>
+                )}
+
                 {/* Hindi dubbed anime shelf (official licensed YouTube channels). */}
                 {activeCategory === "anime" && (
                   <Suspense
@@ -1183,7 +1301,8 @@ function App() {
                   );
                 })}
 
-                <div className="px-4 md:px-12">
+                {activeCategory !== "ott" && (
+                  <div className="px-4 md:px-12">
                   {showLibrarySkeleton ? (
                     <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {Array.from({ length: 12 }, (_, i) => (
@@ -1269,7 +1388,8 @@ function App() {
                       </button>
                     </div>
                   )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1307,6 +1427,31 @@ function App() {
                       );
                     };
                     let rowsRendered = false;
+
+                    // This row is generated from today's database additions,
+                    // so it stays current without any admin maintenance.
+                    if (!showRowSkeletons && freshDrops.length > 0) {
+                      elements.push(
+                        <MovieRow
+                          key="fresh-drops"
+                          title="Fresh Drops"
+                          movies={freshDrops}
+                          onSelectMovie={setSelectedMovie}
+                          onPlay={playFirstEpisode}
+                          isInMyList={isInMyList}
+                          isLiked={isLiked}
+                          toggleMyList={toggleMyList}
+                          toggleLike={toggleLike}
+                          canDelete={isAdmin}
+                          onDelete={handleDelete}
+                          canEditThumbnail={isAdmin}
+                          onEditThumbnail={setThumbnailEditMovie}
+                        />,
+                      );
+                      rowsRendered = true;
+                      pushContinueWatching();
+                    }
+
                     cfg.customRows?.forEach((row) => {
                       if (!row.visible) return;
                       const sec = row.section || "home";
