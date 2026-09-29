@@ -108,6 +108,18 @@ function makeRows(result, sample, sourceType) {
   }));
 }
 
+async function readPlaylist(playlistId, select = "id,playlist_id,season_number,episode_number,genre") {
+  const rows = [];
+  for (let offset = 0; ; offset += 1000) {
+    const page = await db(
+      `movies?select=${encodeURIComponent(select)}&playlist_id=eq.${encodeURIComponent(playlistId)}&order=id.asc&limit=1000&offset=${offset}`,
+    );
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  return rows;
+}
+
 async function insertRows(rows) {
   for (let i = 0; i < rows.length; i += 250) {
     await db("movies", { method: "POST", body: JSON.stringify(rows.slice(i, i + 250)), headers: { Prefer: "return=minimal" } });
@@ -131,12 +143,12 @@ async function repairKnownWrongRemaps() {
   ];
   for (const repair of repairs) {
     const wrongPlaylist = `nxsha-tv-${repair.wrongId}`;
-    const wrong = await db(`movies?select=id,genre&playlist_id=eq.${wrongPlaylist}&limit=1000`);
+    const wrong = await readPlaylist(wrongPlaylist, "id,genre");
     const ids = wrong.filter((row) => (row.genre || []).includes("Anime")).map((row) => row.id);
     if (!ids.length) continue;
     const result = await fetchCatalogue(repair.correctId);
     const correctPlaylist = `nxsha-tv-${repair.correctId}`;
-    const existing = await db(`movies?select=id,season_number,episode_number&playlist_id=eq.${correctPlaylist}&limit=1000`);
+    const existing = await readPlaylist(correctPlaylist, "id,season_number,episode_number");
     const existingKeys = new Set(existing.map(epKey));
     const sample = { title: result.title, genre: ["Anime"], source_type: "synced", rating: "TV-14", match_score: 95 };
     const missing = makeRows(result, sample, "synced").filter((row) => !existingKeys.has(epKey(row)));
@@ -177,15 +189,22 @@ for (const [oldPlaylist, oldRows] of collections) {
     if (!desired.length) { console.log(`SKIP no aired episodes: ${oldTitle}`); summary.skipped++; continue; }
     // Read this target fresh on every iteration: multiple legacy playlist IDs
     // can resolve to one Nxsha show during the same migration run.
-    const canonicalExisting = await db(
-      `movies?select=id,playlist_id,season_number,episode_number&playlist_id=eq.${encodeURIComponent(canonical)}&limit=10000`,
+    const canonicalExisting = await readPlaylist(
+      canonical,
+      "id,playlist_id,season_number,episode_number",
     );
     const desiredKeys = new Set(desired.map(epKey));
-    const existingKeys = new Set(canonicalExisting.map(epKey));
+    const existingKeys = new Set();
+    const duplicateCanonical = [];
+    for (const row of canonicalExisting) {
+      const key = epKey(row);
+      if (existingKeys.has(key)) duplicateCanonical.push(row);
+      else existingKeys.add(key);
+    }
     const missing = desired.filter((row) => !existingKeys.has(epKey(row)));
     const obsoleteCanonical = canonicalExisting.filter((row) => !desiredKeys.has(epKey(row)));
     const legacy = oldPlaylist === canonical ? [] : oldRows;
-    console.log(`${oldTitle}: ${oldPlaylist} -> ${canonical} · Nxsha ${desired.length} · +${missing.length} · -${legacy.length + obsoleteCanonical.length}`);
+    console.log(`${oldTitle}: ${oldPlaylist} -> ${canonical} · Nxsha ${desired.length} · +${missing.length} · -${legacy.length + obsoleteCanonical.length + duplicateCanonical.length}`);
     summary.planned++;
     if (!APPLY) continue;
 
@@ -194,7 +213,9 @@ for (const [oldPlaylist, oldRows] of collections) {
     // follow-up select this also works for 1000+ episode shows (PostgREST caps
     // normal select responses at 1000 rows).
     await insertRows(missing);
-    const deleteList = [...legacy, ...obsoleteCanonical];
+    const deleteList = Array.from(
+      new Map([...legacy, ...obsoleteCanonical, ...duplicateCanonical].map((row) => [row.id, row])).values(),
+    );
     await deleteIds(deleteList.map((row) => row.id));
     summary.migrated++;
     summary.inserted += missing.length;
