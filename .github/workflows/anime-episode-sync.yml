@@ -50,7 +50,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-dry-run'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NXSHA_API_BASE: https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app
+          NXSHA_API_BASE: https://vidd-zeta.vercel.app
           LIMIT: ${{ inputs.limit }}
         run: node scripts/nxsha-reconcile.mjs
 
@@ -58,7 +58,10 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'schedule' && github.event.schedule == '30 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NXSHA_API_BASE: ${{ github.event_name == 'push' && 'https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app' || github.event_name == 'workflow_dispatch' && 'https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app' || 'https://vidd-zeta.vercel.app' }}
+          # Preview deployments are Vercel-auth protected for CI. This API
+          # route already exists on production, so reconciliation uses its
+          # public Nxsha/TMDB reader while still running branch code.
+          NXSHA_API_BASE: https://vidd-zeta.vercel.app
           APPLY: "1"
           LIMIT: ${{ inputs.limit || '0' }}
         run: node scripts/nxsha-reconcile.mjs
