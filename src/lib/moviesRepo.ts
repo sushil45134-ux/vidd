@@ -27,6 +27,7 @@ export function rowToMovie(r: any): Movie {
     youtubeId: r.youtube_id ?? undefined,
     embedUrl: r.embed_url ?? undefined,
     embedPlatform: r.embed_platform ?? undefined,
+    createdAt: r.created_at ?? undefined,
     playlistId: r.playlist_id ?? undefined,
     playlistTitle: r.playlist_title ?? undefined,
     episodeNumber: r.episode_number ?? undefined,
