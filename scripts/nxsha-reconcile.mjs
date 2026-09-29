@@ -1,0 +1,172 @@
+#!/usr/bin/env node
+/**
+ * Reconcile every anime collection with Nxsha's TMDB-backed catalogue.
+ *
+ * Safe by default: without APPLY=1 this only prints a migration plan.
+ * With APPLY=1 it first inserts the canonical nxsha-tv-{tmdbId} rows, verifies
+ * them, and only then removes legacy/wrong rows. Season 0 is intentionally
+ * excluded. Subsequent runs only add missing aired episodes and remove keys
+ * that no longer exist in Nxsha/TMDB, so created_at is not reset every day.
+ */
+
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://yjakihgnxntjfjvarxmt.supabase.co";
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const API_BASE = (process.env.NXSHA_API_BASE || "https://vidd-zeta.vercel.app").replace(/\/$/, "");
+const APPLY = /^(1|true)$/i.test(process.env.APPLY || "");
+const LIMIT = Math.max(0, Number(process.env.LIMIT || 0));
+const NXSHA_TEMPLATE =
+  "https://nxsha.space/embed/tv/{id}/{s}/{e}?lang=hi&server=GbruHindi&one_server=true&disable_app_ad=true";
+
+if (APPLY && !SERVICE_KEY) throw new Error("APPLY=1 ke liye SUPABASE_SERVICE_ROLE_KEY required hai");
+const key = SERVICE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const headers = { apikey: key, Authorization: `Bearer ${key}` };
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function db(path, init = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        ...init,
+        headers: { ...headers, ...(init.body ? { "Content-Type": "application/json" } : {}), ...(init.headers || {}) },
+      });
+      if (!res.ok) throw new Error(`Supabase ${res.status}: ${(await res.text()).slice(0, 500)}`);
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await sleep(1000 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
+async function readAnime() {
+  const rows = [];
+  const select = "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,source_type";
+  for (let offset = 0; ; offset += 1000) {
+    const page = await db(`movies?select=${encodeURIComponent(select)}&genre=cs.${encodeURIComponent('{"Anime"}')}&order=created_at.desc&limit=1000&offset=${offset}`);
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  return rows.filter((row) => row.playlist_id && row.season_number != null && row.episode_number != null);
+}
+
+const normal = (value) => String(value || "").toLowerCase().replace(/\b(season|episode|s\d+e\d+)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+function titleMatch(a, b) {
+  const x = normal(a), y = normal(b);
+  if (!x || !y) return false;
+  if (x === y || x.includes(y) || y.includes(x)) return true;
+  const words = x.split(" ").filter((w) => w.length > 2);
+  return words.length > 0 && words.filter((w) => y.split(" ").includes(w)).length / words.length >= 0.65;
+}
+const epKey = (row) => `${Number(row.season_number)}:${Number(row.episode_number)}`;
+
+async function fetchCatalogue(title) {
+  const url = `${API_BASE}/api/nxsha-fetch?q=${encodeURIComponent(title)}`; // specials omitted by design
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Nxsha API ${res.status}`);
+  return data;
+}
+
+function makeRows(result, sample, sourceType) {
+  const genre = Array.from(new Set(["Anime", ...(result.genres || [])]));
+  return result.seasons.flatMap((season) => season.episodes.map((episode) => {
+    const image = episode.image || result.poster || sample.image;
+    const label = episode.title && !/^Episode \d+$/i.test(episode.title)
+      ? `S${season.seasonNumber}E${episode.episodeNumber} — ${episode.title}`
+      : `S${season.seasonNumber}E${episode.episodeNumber}`;
+    return {
+      title: `${result.title} ${label}`,
+      description: result.overview || sample.description || "",
+      image,
+      backdrop: result.backdrop || image,
+      thumbnail_url: image,
+      year: episode.aired ? Number(episode.aired.slice(0, 4)) : result.year || sample.year,
+      rating: sample.rating || "TV-14",
+      duration: episode.runtime || sample.duration || "24m",
+      genre,
+      match_score: sample.match_score || 95,
+      cast_members: sample.cast_members || null,
+      creator: "Nxsha Direct",
+      embed_url: NXSHA_TEMPLATE.replace("{id}", result.tmdbId).replace("{s}", season.seasonNumber).replace("{e}", episode.episodeNumber),
+      embed_platform: "Nxsha",
+      playlist_id: `nxsha-tv-${result.tmdbId}`,
+      playlist_title: result.title,
+      episode_number: episode.episodeNumber,
+      season_number: season.seasonNumber,
+      is_collection: false,
+      source_type: sourceType === "uploaded" ? "uploaded" : "synced",
+    };
+  }));
+}
+
+async function insertRows(rows) {
+  for (let i = 0; i < rows.length; i += 250) {
+    await db("movies", { method: "POST", body: JSON.stringify(rows.slice(i, i + 250)), headers: { Prefer: "return=minimal" } });
+  }
+}
+async function deleteIds(ids) {
+  for (let i = 0; i < ids.length; i += 200) {
+    await db(`movies?id=in.(${ids.slice(i, i + 200).join(",")})`, { method: "DELETE" });
+  }
+}
+
+const allRows = await readAnime();
+const groups = new Map();
+for (const row of allRows) {
+  const list = groups.get(row.playlist_id) || [];
+  list.push(row);
+  groups.set(row.playlist_id, list);
+}
+let collections = [...groups.entries()];
+if (LIMIT) collections = collections.slice(0, LIMIT);
+console.log(`Nxsha reconcile: ${collections.length} anime collections · mode=${APPLY ? "APPLY" : "DRY RUN"} · API=${API_BASE}`);
+
+const summary = { planned: 0, migrated: 0, inserted: 0, deleted: 0, skipped: 0, failed: 0 };
+for (const [oldPlaylist, oldRows] of collections) {
+  const oldTitle = oldRows[0].playlist_title || oldRows[0].title;
+  try {
+    const result = await fetchCatalogue(oldTitle);
+    if (!titleMatch(oldTitle, result.title)) {
+      console.log(`SKIP title mismatch: "${oldTitle}" -> "${result.title}" (#${result.tmdbId})`);
+      summary.skipped++;
+      continue;
+    }
+    const canonical = `nxsha-tv-${result.tmdbId}`;
+    const desired = makeRows(result, oldRows[0], oldRows[0].source_type);
+    if (!desired.length) { console.log(`SKIP no aired episodes: ${oldTitle}`); summary.skipped++; continue; }
+    // Read this target fresh on every iteration: multiple legacy playlist IDs
+    // can resolve to one Nxsha show during the same migration run.
+    const canonicalExisting = await db(
+      `movies?select=id,playlist_id,season_number,episode_number&playlist_id=eq.${encodeURIComponent(canonical)}&limit=10000`,
+    );
+    const desiredKeys = new Set(desired.map(epKey));
+    const existingKeys = new Set(canonicalExisting.map(epKey));
+    const missing = desired.filter((row) => !existingKeys.has(epKey(row)));
+    const obsoleteCanonical = canonicalExisting.filter((row) => !desiredKeys.has(epKey(row)));
+    const legacy = oldPlaylist === canonical ? [] : oldRows;
+    console.log(`${oldTitle}: ${oldPlaylist} -> ${canonical} · Nxsha ${desired.length} · +${missing.length} · -${legacy.length + obsoleteCanonical.length}`);
+    summary.planned++;
+    if (!APPLY) continue;
+
+    // Insert first: a failed remote/API write can never destroy the old collection.
+    await insertRows(missing);
+    if (missing.length) {
+      const count = await db(`movies?select=id&playlist_id=eq.${encodeURIComponent(canonical)}&limit=10000`);
+      if (count.length < desired.length) throw new Error(`verification failed: expected ${desired.length}, got ${count.length}`);
+    }
+    const deleteList = [...legacy, ...obsoleteCanonical];
+    await deleteIds(deleteList.map((row) => row.id));
+    summary.migrated++;
+    summary.inserted += missing.length;
+    summary.deleted += deleteList.length;
+  } catch (error) {
+    summary.failed++;
+    console.error(`FAIL ${oldTitle}: ${error instanceof Error ? error.message : error}`);
+  }
+  await sleep(350);
+}
+console.log(JSON.stringify(summary, null, 2));
+if (summary.failed) process.exitCode = 1;

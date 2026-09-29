@@ -1,19 +1,31 @@
 name: Anime Episode Sync
 
-# Naye aired episodes har 6 ghante automatic Supabase me add hote hain.
-# Setup: GitHub repo → Settings → Secrets and variables → Actions → New secret
-#   name:  SUPABASE_SERVICE_ROLE_KEY
-#   value: Supabase Dashboard → Settings → API → service_role (secret) key
+# Normal episode sync har 6 ghante. Nxsha/TMDB exact reconciliation roz ek baar:
+# missing aired episodes add, wrong/legacy season rows replace, Season 0 excluded.
 on:
   schedule:
-    # every 6 hours
     - cron: "0 */6 * * *"
-  workflow_dispatch: {}
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Kaunsa sync chalana hai"
+        required: true
+        default: "normal"
+        type: choice
+        options:
+          - normal
+          - nxsha-dry-run
+          - nxsha-apply
+      limit:
+        description: "Nxsha migration collection limit (0 = all)"
+        required: false
+        default: "0"
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +34,24 @@ jobs:
           node-version: 20
 
       - name: Sync new anime episodes
+        if: github.event_name == 'schedule' && github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'normal'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/anime-sync.mjs
+
+      - name: Nxsha exact catalogue dry run
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-dry-run'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NXSHA_API_BASE: https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app
+          LIMIT: ${{ inputs.limit }}
+        run: node scripts/nxsha-reconcile.mjs
+
+      - name: Reconcile all anime with Nxsha catalogue
+        if: github.event_name == 'schedule' && github.event.schedule == '30 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NXSHA_API_BASE: ${{ github.event_name == 'workflow_dispatch' && 'https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app' || 'https://vidd-zeta.vercel.app' }}
+          APPLY: "1"
+          LIMIT: ${{ inputs.limit || '0' }}
+        run: node scripts/nxsha-reconcile.mjs
