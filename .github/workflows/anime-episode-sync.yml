@@ -3,6 +3,13 @@ name: Anime Episode Sync
 # Normal episode sync har 6 ghante. Nxsha/TMDB exact reconciliation roz ek baar:
 # missing aired episodes add, wrong/legacy season rows replace, Season 0 excluded.
 on:
+  # Preview branch par migration ko ek baar actually run karne ke liye. The
+  # reconciler is idempotent, so a retry only fills still-missing episode keys.
+  push:
+    branches: ["arena/01a0ed8d-vidd"]
+    paths:
+      - "scripts/nxsha-reconcile.mjs"
+      - ".github/workflows/anime-episode-sync.yml"
   schedule:
     - cron: "0 */6 * * *"
     - cron: "30 2 * * *"
@@ -48,10 +55,10 @@ jobs:
         run: node scripts/nxsha-reconcile.mjs
 
       - name: Reconcile all anime with Nxsha catalogue
-        if: github.event_name == 'schedule' && github.event.schedule == '30 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
+        if: github.event_name == 'push' || github.event_name == 'schedule' && github.event.schedule == '30 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NXSHA_API_BASE: ${{ github.event_name == 'workflow_dispatch' && 'https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app' || 'https://vidd-zeta.vercel.app' }}
+          NXSHA_API_BASE: ${{ github.event_name == 'push' && 'https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app' || github.event_name == 'workflow_dispatch' && 'https://vidd-git-arena-01a0ed8d-vidd-oppp1.vercel.app' || 'https://vidd-zeta.vercel.app' }}
           APPLY: "1"
           LIMIT: ${{ inputs.limit || '0' }}
         run: node scripts/nxsha-reconcile.mjs
