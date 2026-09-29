@@ -61,6 +61,8 @@ export default function MovieModal({
   onEditThumbnail,
 }: MovieModalProps) {
   const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [trailerId, setTrailerId] = useState("");
+  const [showTrailerPlayer, setShowTrailerPlayer] = useState(false);
   const heroBanners = useHeroBanners();
   const heroBannerForMovie = heroBanners.find((b) => b.movieId === movie.id);
   const isHeroBanner = !!heroBannerForMovie;
@@ -203,11 +205,13 @@ export default function MovieModal({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (showTrailerPlayer) setShowTrailerPlayer(false);
+      else onClose();
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+  }, [onClose, showTrailerPlayer]);
 
   // TV remote BACK pops this modal off the overlay stack (player first).
   useEffect(() => registerTvBackHandler(onClose), [onClose]);
@@ -258,6 +262,31 @@ export default function MovieModal({
   const rating = Math.max(0, Math.min(5, Math.round((movie.match || 80) / 20)));
   const votes = 100 + ((movie.id * 37) % 900);
 
+  // Anime opens with its real TMDB trailer as a muted cinematic backdrop.
+  // TVs, reduced-motion users and data-saver connections retain the image —
+  // autoplay video there would hurt navigation/performance or user preference.
+  useEffect(() => {
+    setTrailerId("");
+    setShowTrailerPlayer(false);
+    if (kind !== "Anime" || isTv) return;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (reducedMotion || connection?.saveData) return;
+
+    const tmdbId = (movie.playlistId || movie.episodes?.[0]?.playlistId || "").match(
+      /^nxsha-tv-(\d+)$/,
+    )?.[1];
+    const query = tmdbId || movie.playlistTitle || movie.title;
+    const controller = new AbortController();
+    fetch(`/api/anime-trailer?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data?.youtubeId) setTrailerId(String(data.youtubeId));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [kind, isTv, movie.id, movie.playlistId, movie.playlistTitle, movie.title, movie.episodes]);
+
   const showSeasonPicker = isCollection && hasMultiSeason && selectedSeason == null;
 
   // Re-measure whenever the visible row content changes.
@@ -293,9 +322,40 @@ export default function MovieModal({
         className="relative w-full max-w-6xl mx-4 bg-[#0b0b0f] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5 animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
+        {showTrailerPlayer && trailerId && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/95 p-3 md:p-8">
+            <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/15">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailerId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1`}
+                title={`${movie.title} official trailer`}
+                className="h-full w-full border-0"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+              <button
+                onClick={() => setShowTrailerPlayer(false)}
+                className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/75 text-white ring-1 ring-white/25 transition hover:bg-black"
+                aria-label="Close trailer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Hero — legacy-media padding-ratio is the Chromium 69 aspect-ratio fallback */}
         <div className="legacy-media relative aspect-[16/9] w-full">
           <SmartImage src={heroImage} alt={heroTitle} className="w-full h-full object-cover" />
+          {trailerId && (
+            <iframe
+              key={trailerId}
+              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailerId)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${encodeURIComponent(trailerId)}&rel=0&modestbranding=1&playsinline=1&disablekb=1`}
+              title={`${heroTitle} trailer backdrop`}
+              className="pointer-events-none absolute inset-0 h-full w-full scale-[1.03] border-0"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              tabIndex={-1}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-transparent to-transparent" />
 
@@ -371,6 +431,15 @@ export default function MovieModal({
                     <Play size={12} fill="white" className="text-white ml-0.5" />
                   </span>
                 </button>
+                {trailerId && (
+                  <button
+                    onClick={() => setShowTrailerPlayer(true)}
+                    className="flex items-center gap-2 border border-white/45 bg-black/35 hover:bg-white hover:text-black text-white font-semibold px-5 py-2.5 rounded-full text-sm transition-colors"
+                  >
+                    <Play size={14} fill="currentColor" />
+                    Play Trailer
+                  </button>
+                )}
                 {isCollection && resume && (
                   <button
                     onClick={() => onPlay(resume.movie)}
