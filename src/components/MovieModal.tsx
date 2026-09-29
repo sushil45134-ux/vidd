@@ -61,6 +61,7 @@ export default function MovieModal({
   onEditThumbnail,
 }: MovieModalProps) {
   const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [trailerId, setTrailerId] = useState("");
   const heroBanners = useHeroBanners();
   const heroBannerForMovie = heroBanners.find((b) => b.movieId === movie.id);
   const isHeroBanner = !!heroBannerForMovie;
@@ -258,6 +259,30 @@ export default function MovieModal({
   const rating = Math.max(0, Math.min(5, Math.round((movie.match || 80) / 20)));
   const votes = 100 + ((movie.id * 37) % 900);
 
+  // Anime opens with its real TMDB trailer as a muted cinematic backdrop.
+  // TVs, reduced-motion users and data-saver connections retain the image —
+  // autoplay video there would hurt navigation/performance or user preference.
+  useEffect(() => {
+    setTrailerId("");
+    if (kind !== "Anime" || isTv) return;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (reducedMotion || connection?.saveData) return;
+
+    const tmdbId = (movie.playlistId || movie.episodes?.[0]?.playlistId || "").match(
+      /^nxsha-tv-(\d+)$/,
+    )?.[1];
+    const query = tmdbId || movie.playlistTitle || movie.title;
+    const controller = new AbortController();
+    fetch(`/api/anime-trailer?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data?.youtubeId) setTrailerId(String(data.youtubeId));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [kind, isTv, movie.id, movie.playlistId, movie.playlistTitle, movie.title, movie.episodes]);
+
   const showSeasonPicker = isCollection && hasMultiSeason && selectedSeason == null;
 
   // Re-measure whenever the visible row content changes.
@@ -296,6 +321,16 @@ export default function MovieModal({
         {/* Hero — legacy-media padding-ratio is the Chromium 69 aspect-ratio fallback */}
         <div className="legacy-media relative aspect-[16/9] w-full">
           <SmartImage src={heroImage} alt={heroTitle} className="w-full h-full object-cover" />
+          {trailerId && (
+            <iframe
+              key={trailerId}
+              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailerId)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${encodeURIComponent(trailerId)}&rel=0&modestbranding=1&playsinline=1&disablekb=1`}
+              title={`${heroTitle} trailer backdrop`}
+              className="pointer-events-none absolute inset-0 h-full w-full scale-[1.03] border-0"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              tabIndex={-1}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-transparent to-transparent" />
 

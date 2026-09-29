@@ -16,6 +16,7 @@ import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
+import { Route as ApiAnimeTrailerRouteImport } from './routes/api/anime-trailer'
 import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
 import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
@@ -55,6 +56,11 @@ const ApiAuthRoute = ApiAuthRouteImport.update({
   path: '/api/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAnimeTrailerRoute = ApiAnimeTrailerRouteImport.update({
+  id: '/api/anime-trailer',
+  path: '/api/anime-trailer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAnimeSyncRoute = ApiAnimeSyncRouteImport.update({
   id: '/api/anime-sync',
   path: '/api/anime-sync',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
+  '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
+  '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
+  '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
+    | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
     | '/api/movies'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
+    | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
     | '/api/movies'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
+    | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
     | '/api/movies'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   ApiAnimeRoute: typeof ApiAnimeRoute
   ApiAnimeAutoRoute: typeof ApiAnimeAutoRoute
   ApiAnimeSyncRoute: typeof ApiAnimeSyncRoute
+  ApiAnimeTrailerRoute: typeof ApiAnimeTrailerRoute
   ApiAuthRoute: typeof ApiAuthRoute
   ApiConfigRoute: typeof ApiConfigRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/anime-trailer': {
+      id: '/api/anime-trailer'
+      path: '/api/anime-trailer'
+      fullPath: '/api/anime-trailer'
+      preLoaderRoute: typeof ApiAnimeTrailerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/anime-sync': {
       id: '/api/anime-sync'
       path: '/api/anime-sync'
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnimeRoute: ApiAnimeRoute,
   ApiAnimeAutoRoute: ApiAnimeAutoRoute,
   ApiAnimeSyncRoute: ApiAnimeSyncRoute,
+  ApiAnimeTrailerRoute: ApiAnimeTrailerRoute,
   ApiAuthRoute: ApiAuthRoute,
   ApiConfigRoute: ApiConfigRoute,
   ApiMoviesRoute: ApiMoviesRoute,
