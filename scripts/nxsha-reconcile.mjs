@@ -52,7 +52,13 @@ async function readAnime() {
   return rows.filter((row) => row.playlist_id && row.season_number != null && row.episode_number != null);
 }
 
-const normal = (value) => String(value || "").toLowerCase().replace(/\b(season|episode|s\d+e\d+)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+const normal = (value) => String(value || "")
+  .normalize("NFKD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase()
+  .replace(/\b(season|episode|s\d+e\d+)\b/g, " ")
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim();
 function titleMatch(a, b) {
   const x = normal(a), y = normal(b);
   if (!x || !y) return false;
@@ -113,6 +119,34 @@ async function deleteIds(ids) {
   }
 }
 
+// Recovery for the first migration attempt, where title search selected the
+// similarly named One Piece live-action show and Hunter × Hunter (1999).
+// Their original playlist IDs prove the intended Nxsha/TMDB entries. This is
+// idempotent and can be removed after the repair has run successfully.
+async function repairKnownWrongRemaps() {
+  if (!APPLY) return;
+  const repairs = [
+    { wrongId: "111110", correctId: "37854" },
+    { wrongId: "45952", correctId: "46298" },
+  ];
+  for (const repair of repairs) {
+    const wrongPlaylist = `nxsha-tv-${repair.wrongId}`;
+    const wrong = await db(`movies?select=id,genre&playlist_id=eq.${wrongPlaylist}&limit=1000`);
+    const ids = wrong.filter((row) => (row.genre || []).includes("Anime")).map((row) => row.id);
+    if (!ids.length) continue;
+    const result = await fetchCatalogue(repair.correctId);
+    const correctPlaylist = `nxsha-tv-${repair.correctId}`;
+    const existing = await db(`movies?select=id,season_number,episode_number&playlist_id=eq.${correctPlaylist}&limit=1000`);
+    const existingKeys = new Set(existing.map(epKey));
+    const sample = { title: result.title, genre: ["Anime"], source_type: "synced", rating: "TV-14", match_score: 95 };
+    const missing = makeRows(result, sample, "synced").filter((row) => !existingKeys.has(epKey(row)));
+    await insertRows(missing);
+    await deleteIds(ids);
+    console.log(`RECOVER ${wrongPlaylist} -> ${correctPlaylist}: +${missing.length} -${ids.length}`);
+  }
+}
+
+await repairKnownWrongRemaps();
 const allRows = await readAnime();
 const groups = new Map();
 for (const row of allRows) {
@@ -128,7 +162,11 @@ const summary = { planned: 0, migrated: 0, inserted: 0, deleted: 0, skipped: 0, 
 for (const [oldPlaylist, oldRows] of collections) {
   const oldTitle = oldRows[0].playlist_title || oldRows[0].title;
   try {
-    const result = await fetchCatalogue(oldTitle);
+    // Canonical playlists already contain the exact TMDB ID. Never title-search
+    // those: similarly named remakes (One Piece, Hunter × Hunter) can otherwise
+    // resolve to a different Nxsha show.
+    const canonicalId = oldPlaylist.match(/^nxsha-tv-(\d+)$/)?.[1];
+    const result = await fetchCatalogue(canonicalId || oldTitle);
     if (!titleMatch(oldTitle, result.title)) {
       console.log(`SKIP title mismatch: "${oldTitle}" -> "${result.title}" (#${result.tmdbId})`);
       summary.skipped++;
@@ -152,11 +190,10 @@ for (const [oldPlaylist, oldRows] of collections) {
     if (!APPLY) continue;
 
     // Insert first: a failed remote/API write can never destroy the old collection.
+    // Supabase only returns after every insert chunk succeeds; unlike a
+    // follow-up select this also works for 1000+ episode shows (PostgREST caps
+    // normal select responses at 1000 rows).
     await insertRows(missing);
-    if (missing.length) {
-      const count = await db(`movies?select=id&playlist_id=eq.${encodeURIComponent(canonical)}&limit=10000`);
-      if (count.length < desired.length) throw new Error(`verification failed: expected ${desired.length}, got ${count.length}`);
-    }
     const deleteList = [...legacy, ...obsoleteCanonical];
     await deleteIds(deleteList.map((row) => row.id));
     summary.migrated++;
