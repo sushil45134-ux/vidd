@@ -1,11 +1,12 @@
 name: Anime Episode Sync
 
-# Normal episode sync har 6 ghante. Nxsha/TMDB exact reconciliation roz ek baar:
-# missing aired episodes add, wrong/legacy season rows replace, Season 0 excluded.
+# Normal episode sync aur Nxsha/TMDB exact reconciliation har 6 ghante:
+# naye aired episodes existing anime collection me add hote hain; Season 0 excluded.
 on:
   schedule:
     - cron: "0 */6 * * *"
-    - cron: "30 2 * * *"
+    # Nxsha/TMDB exact catalogue: every 6 hours, 30 min after normal sync
+    - cron: "30 */6 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -53,7 +54,7 @@ jobs:
       - name: Reconcile all anime with Nxsha catalogue
         id: nxsha_reconcile
         continue-on-error: true
-        if: github.event_name == 'schedule' && github.event.schedule == '30 2 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
+        if: github.event_name == 'schedule' && github.event.schedule == '30 */6 * * *' || github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-apply'
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # Preview deployments are Vercel-auth protected for CI. This API
