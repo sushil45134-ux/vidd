@@ -16,6 +16,8 @@ export interface Movie {
   youtubeId?: string;
   embedUrl?: string;
   embedPlatform?: string;
+  /** Database insertion time, used for automatically generated "new today" shelves. */
+  createdAt?: string;
   // Playlist / collection grouping
   playlistId?: string;
   playlistTitle?: string;
