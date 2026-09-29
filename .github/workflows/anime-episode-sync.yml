@@ -3,13 +3,6 @@ name: Anime Episode Sync
 # Normal episode sync har 6 ghante. Nxsha/TMDB exact reconciliation roz ek baar:
 # missing aired episodes add, wrong/legacy season rows replace, Season 0 excluded.
 on:
-  # Preview branch par migration ko ek baar actually run karne ke liye. The
-  # reconciler is idempotent, so a retry only fills still-missing episode keys.
-  push:
-    branches: ["arena/01a0ed8d-vidd"]
-    paths:
-      - "scripts/nxsha-reconcile.mjs"
-      - ".github/workflows/anime-episode-sync.yml"
   schedule:
     - cron: "0 */6 * * *"
     - cron: "30 2 * * *"
