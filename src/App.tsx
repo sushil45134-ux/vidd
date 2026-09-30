@@ -58,6 +58,53 @@ import {
 // noticeably earlier.
 const moviesRepoPromise: Promise<typeof import("./lib/moviesRepo")> = import("./lib/moviesRepo");
 
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element;
+  webkitExitFullscreen?: () => void | Promise<void>;
+};
+
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: () => void | Promise<void>;
+};
+
+/**
+ * Fullscreen must be requested during the original Play click. Waiting for the
+ * lazy player overlay to mount loses the browser's user activation on Chrome,
+ * mobile browsers and many TV webviews, leaving only a viewport-sized overlay
+ * with the browser chrome still visible.
+ */
+function requestPageFullscreen() {
+  if (typeof document === "undefined") return;
+  const doc = document as FullscreenDocument;
+  if (doc.fullscreenElement || doc.webkitFullscreenElement) return;
+
+  const page = document.documentElement as FullscreenElement;
+  try {
+    const result = page.requestFullscreen?.() ?? page.webkitRequestFullscreen?.();
+    if (result && typeof (result as Promise<void>).catch === "function") {
+      void (result as Promise<void>).catch(() => {});
+    }
+  } catch {
+    // Browser policy can still reject fullscreen; the in-player button remains
+    // available as a manual fallback.
+  }
+}
+
+function exitPageFullscreen() {
+  if (typeof document === "undefined") return;
+  const doc = document as FullscreenDocument;
+  if (!doc.fullscreenElement && !doc.webkitFullscreenElement) return;
+
+  try {
+    const result = (doc.exitFullscreen ?? doc.webkitExitFullscreen)?.call(doc);
+    if (result && typeof (result as Promise<void>).catch === "function") {
+      void (result as Promise<void>).catch(() => {});
+    }
+  } catch {
+    // Closing playback must never be blocked by a fullscreen API failure.
+  }
+}
+
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
   cartoon: (m) => m.genre.some((g) => g.toLowerCase() === "cartoon"),
@@ -794,6 +841,10 @@ function App() {
   const { visible: gridVisible, showMore: showMoreGrid } = useVisibleCount(activeCategory);
 
   const handlePlay = useCallback((movie: Movie, opts?: { fromStart?: boolean }) => {
+    // Do this before any state update/lazy mount so the request still belongs
+    // to the user's Play gesture. The fixed player then fills this native
+    // fullscreen page, including iframe-based episodes.
+    requestPageFullscreen();
     setSelectedMovie(null);
     // Auto-resume: any saved progress for this exact video is picked up, no
     // matter which row / modal / screen the Play press came from.
@@ -827,7 +878,10 @@ function App() {
 
   // Stable identity (the TV back-stack relies on mount-time registration).
   const closeModal = useCallback(() => setSelectedMovie(null), []);
-  const closePlayer = useCallback(() => setPlayingMovie(null), []);
+  const closePlayer = useCallback(() => {
+    exitPageFullscreen();
+    setPlayingMovie(null);
+  }, []);
   const closeNotifications = useCallback(() => {
     setShowNotifications(false);
     // Panel band karte hi sab read — badge reset.
