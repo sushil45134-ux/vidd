@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState, useEffect } from "react";
 import type { Movie } from "../data";
 import { VideoPlayer } from "./VideoPlayer";
 import { EmbedPlayer } from "./EmbedPlayer";
+import { ViddPlayer } from "./ViddPlayer";
+import { pickDirectSource } from "../lib/mediaSource";
 
 export default function PlayerOverlay({
   movie,
@@ -54,6 +56,32 @@ export default function PlayerOverlay({
   // no reliable end-of-video event.
   const hasPrev = queue.length > 1 && idx > 0;
   const hasNext = queue.length > 1 && idx < queue.length - 1;
+
+  // ── Vidd's own player, whenever we have real media ──────────────────
+  // An mp4/webm/blob file or an .m3u8 manifest can be played by Vidd
+  // itself, so we never hand those to a third-party iframe. That is what
+  // makes instant fullscreen + landscape possible with zero clicks: the
+  // <video> element is ours, so no cross-origin rule can veto it.
+  const directSrc = !current.youtubeId ? pickDirectSource(current) : null;
+  if (directSrc) {
+    return (
+      <ViddPlayer
+        key={current.id}
+        src={directSrc}
+        title={current.title}
+        subtitle={current.playlistTitle}
+        poster={current.backdrop || current.image}
+        onClose={onClose}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        onPrev={hasPrev ? () => setIdx(idx - 1) : undefined}
+        onNext={hasNext ? () => setIdx(idx + 1) : undefined}
+        startAt={effectiveStartAt}
+        onProgress={handleProgress}
+        onEnded={handleEnded}
+      />
+    );
+  }
 
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).

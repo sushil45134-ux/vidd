@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test:fullscreen": "node --experimental-strip-types scripts/nxsha-fullscreen.test.mjs",
+    "test:player": "node --experimental-strip-types scripts/vidd-player.test.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

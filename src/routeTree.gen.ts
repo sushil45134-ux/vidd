@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PlayerDemoRouteImport } from './routes/player-demo'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
@@ -21,6 +22,11 @@ import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
 import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 
+const PlayerDemoRoute = PlayerDemoRouteImport.update({
+  id: '/player-demo',
+  path: '/player-demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -80,6 +86,7 @@ const ApiAnimeRoute = ApiAnimeRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/player-demo': typeof PlayerDemoRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/player-demo': typeof PlayerDemoRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/player-demo': typeof PlayerDemoRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/player-demo'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/player-demo'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/player-demo'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  PlayerDemoRoute: typeof PlayerDemoRoute
   ApiAnimeRoute: typeof ApiAnimeRoute
   ApiAnimeAutoRoute: typeof ApiAnimeAutoRoute
   ApiAnimeSyncRoute: typeof ApiAnimeSyncRoute
@@ -175,6 +188,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/player-demo': {
+      id: '/player-demo'
+      path: '/player-demo'
+      fullPath: '/player-demo'
+      preLoaderRoute: typeof PlayerDemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -258,6 +278,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  PlayerDemoRoute: PlayerDemoRoute,
   ApiAnimeRoute: ApiAnimeRoute,
   ApiAnimeAutoRoute: ApiAnimeAutoRoute,
   ApiAnimeSyncRoute: ApiAnimeSyncRoute,
