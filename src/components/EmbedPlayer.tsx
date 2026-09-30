@@ -277,6 +277,7 @@ export function EmbedPlayer({
   onEnded,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
+  const isNxsha = kind === "iframe" && /(?:nxsha\.space|web\.nxsha\.app)/i.test(src);
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
@@ -624,24 +625,30 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
-  // Enter native fullscreen immediately when an episode is opened. Some
-  // browsers reject this if the original click's activation has expired, so
-  // failure is intentionally silent and the visible fullscreen control still
-  // provides the fallback.
+  // Do not call requestFullscreen() on an Nxsha iframe from Vidd. Browsers
+  // correctly attribute that request to Vidd (the calling document), which
+  // produces a misleading Vidd fullscreen banner even though the iframe fills
+  // the screen. Only code running inside the cross-origin Nxsha frame can enter
+  // Nxsha-attributed fullscreen; its own bottom-right control does exactly that.
+  // Other providers retain the existing best-effort container fullscreen.
   useEffect(() => {
+    if (isNxsha) return;
     const container = containerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
+      webkitRequestFullscreen?: () => void | Promise<void>;
     }) | null;
-    if (!container || document.fullscreenElement) return;
+    const doc = document as Document & { webkitFullscreenElement?: Element };
+    if (!container || doc.fullscreenElement || doc.webkitFullscreenElement) return;
+
     try {
-      const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
+      const result =
+        container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
       if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => {});
+        void (result as Promise<void>).catch(() => {});
       }
     } catch {
-      // Fullscreen can be blocked by browser policy; do not block playback.
+      // Fullscreen can be blocked by browser policy; keep playback usable.
     }
-  }, [src]);
+  }, [isNxsha, src]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;

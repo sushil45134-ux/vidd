@@ -58,6 +58,26 @@ import {
 // noticeably earlier.
 const moviesRepoPromise: Promise<typeof import("./lib/moviesRepo")> = import("./lib/moviesRepo");
 
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element;
+  webkitExitFullscreen?: () => void | Promise<void>;
+};
+
+function exitPageFullscreen() {
+  if (typeof document === "undefined") return;
+  const doc = document as FullscreenDocument;
+  if (!doc.fullscreenElement && !doc.webkitFullscreenElement) return;
+
+  try {
+    const result = (doc.exitFullscreen ?? doc.webkitExitFullscreen)?.call(doc);
+    if (result && typeof (result as Promise<void>).catch === "function") {
+      void (result as Promise<void>).catch(() => {});
+    }
+  } catch {
+    // Closing playback must never be blocked by a fullscreen API failure.
+  }
+}
+
 const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
   anime: (m) => m.genre.some((g) => g.toLowerCase() === "anime"),
   cartoon: (m) => m.genre.some((g) => g.toLowerCase() === "cartoon"),
@@ -827,7 +847,10 @@ function App() {
 
   // Stable identity (the TV back-stack relies on mount-time registration).
   const closeModal = useCallback(() => setSelectedMovie(null), []);
-  const closePlayer = useCallback(() => setPlayingMovie(null), []);
+  const closePlayer = useCallback(() => {
+    exitPageFullscreen();
+    setPlayingMovie(null);
+  }, []);
   const closeNotifications = useCallback(() => {
     setShowNotifications(false);
     // Panel band karte hi sab read — badge reset.
