@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
@@ -277,7 +277,6 @@ export function EmbedPlayer({
   onEnded,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
-  const isNxsha = kind === "iframe" && /(?:nxsha\.space|web\.nxsha\.app)/i.test(src);
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
@@ -625,30 +624,29 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
-  // Do not call requestFullscreen() on an Nxsha iframe from Vidd. Browsers
-  // correctly attribute that request to Vidd (the calling document), which
-  // produces a misleading Vidd fullscreen banner even though the iframe fills
-  // the screen. Only code running inside the cross-origin Nxsha frame can enter
-  // Nxsha-attributed fullscreen; its own bottom-right control does exactly that.
-  // Other providers retain the existing best-effort container fullscreen.
-  useEffect(() => {
-    if (isNxsha) return;
-    const container = containerRef.current as (HTMLDivElement & {
+  // Fullscreen the provider iframe itself so Vidd's close button and surrounding
+  // chrome disappear. The browser attributes this programmatic request to Vidd,
+  // but the visible fullscreen surface is provider-only and its own controls
+  // remain fully usable. Browsers may still reject it when user activation has
+  // expired; the provider's bottom-right control remains the fallback.
+  useLayoutEffect(() => {
+    const target = (kind === "iframe" && !isDailymotion
+      ? iframeRef.current
+      : containerRef.current) as (HTMLElement & {
       webkitRequestFullscreen?: () => void | Promise<void>;
     }) | null;
     const doc = document as Document & { webkitFullscreenElement?: Element };
-    if (!container || doc.fullscreenElement || doc.webkitFullscreenElement) return;
+    if (!target || doc.fullscreenElement || doc.webkitFullscreenElement) return;
 
     try {
-      const result =
-        container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
+      const result = target.requestFullscreen?.() ?? target.webkitRequestFullscreen?.();
       if (result && typeof (result as Promise<void>).catch === "function") {
         void (result as Promise<void>).catch(() => {});
       }
     } catch {
       // Fullscreen can be blocked by browser policy; keep playback usable.
     }
-  }, [isNxsha, src]);
+  }, [kind, isDailymotion, src]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
