@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
@@ -624,24 +624,31 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
-  // Enter native fullscreen immediately when an episode is opened. Some
-  // browsers reject this if the original click's activation has expired, so
-  // failure is intentionally silent and the visible fullscreen control still
-  // provides the fallback.
-  useEffect(() => {
-    const container = containerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
+  // Nxsha and other iframe episodes must fullscreen the provider iframe itself,
+  // not Vidd's surrounding container. Fullscreening the container keeps Vidd's
+  // close button and overlays visible; fullscreening the iframe produces the
+  // provider-only view (the same result as its own bottom-right fullscreen
+  // control). A layout effect runs during the Play click's React commit, while
+  // browsers are most likely to retain the required user activation.
+  useLayoutEffect(() => {
+    const target = (kind === "iframe" && !isDailymotion
+      ? iframeRef.current
+      : containerRef.current) as (HTMLElement & {
+      webkitRequestFullscreen?: () => void | Promise<void>;
     }) | null;
-    if (!container || document.fullscreenElement) return;
+    const doc = document as Document & { webkitFullscreenElement?: Element };
+    if (!target || doc.fullscreenElement || doc.webkitFullscreenElement) return;
+
     try {
-      const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
+      const result = target.requestFullscreen?.() ?? target.webkitRequestFullscreen?.();
       if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => {});
+        void (result as Promise<void>).catch(() => {});
       }
     } catch {
-      // Fullscreen can be blocked by browser policy; do not block playback.
+      // Fullscreen can be blocked by browser policy. In that case the provider's
+      // own fullscreen control remains available as the manual fallback.
     }
-  }, [src]);
+  }, [kind, isDailymotion, src]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
