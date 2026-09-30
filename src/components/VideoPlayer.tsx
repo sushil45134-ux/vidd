@@ -137,9 +137,11 @@ export function VideoPlayer({
   // mounted. The play click normally supplies the browser's user activation;
   // the catch keeps providers/browsers that block automatic fullscreen usable.
   useEffect(() => {
-    const player = playerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
-    }) | null;
+    const player = playerRef.current as
+      | (HTMLDivElement & {
+          webkitRequestFullscreen?: () => void;
+        })
+      | null;
     if (!player || document.fullscreenElement) return;
     try {
       const result = player.requestFullscreen?.() ?? player.webkitRequestFullscreen?.();
