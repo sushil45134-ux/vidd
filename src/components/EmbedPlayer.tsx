@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { isNxshaEmbedUrl, startNxshaFullscreenBot } from "../lib/nxshaFullscreenBot";
 
 interface EmbedPlayerProps {
   src: string;
@@ -278,6 +279,7 @@ export function EmbedPlayer({
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
+  const isNxsha = kind === "iframe" && !isDailymotion && isNxshaEmbedUrl(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
   const dailymotionContainerId = `dm-player-${dailymotionReactId.replace(/[^A-Za-z0-9_-]/g, "")}`;
@@ -624,14 +626,29 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
-  // Enter native fullscreen immediately when an episode is opened. Some
-  // browsers reject this if the original click's activation has expired, so
-  // failure is intentionally silent and the visible fullscreen control still
-  // provides the fallback.
+  // Nxsha: the fullscreen bot puts the NXSHA IFRAME itself into native
+  // fullscreen the instant the episode opens — not Vidd's container — so the
+  // user lands directly in Nxsha's fullscreen with zero extra clicks. If the
+  // browser blocks the instant attempt, the first tap/click retries it.
   useEffect(() => {
-    const container = containerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
-    }) | null;
+    if (!isNxsha) return;
+    return startNxshaFullscreenBot({
+      iframe: iframeRef.current,
+      fallback: containerRef.current,
+    });
+  }, [src, isNxsha]);
+
+  // Other embeds/videos: enter native fullscreen (on the player container)
+  // immediately when an episode is opened. Some browsers reject this if the
+  // original click's activation has expired, so failure is intentionally
+  // silent and the visible fullscreen control still provides the fallback.
+  useEffect(() => {
+    if (isNxsha) return; // handled by the Nxsha fullscreen bot above
+    const container = containerRef.current as
+      | (HTMLDivElement & {
+          webkitRequestFullscreen?: () => void;
+        })
+      | null;
     if (!container || document.fullscreenElement) return;
     try {
       const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
@@ -641,7 +658,7 @@ export function EmbedPlayer({
     } catch {
       // Fullscreen can be blocked by browser policy; do not block playback.
     }
-  }, [src]);
+  }, [src, isNxsha]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
