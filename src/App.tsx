@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense, type ReactNode } from "react";
+import PlayerOverlay from "./components/PlayerOverlay";
 import { getRouteApi } from "@tanstack/react-router";
 import Navbar from "./components/Navbar";
 import HeroBanner from "./components/HeroBanner";
@@ -15,9 +16,10 @@ const NotificationPanel = lazy(() => import("./components/NotificationPanel"));
 const UnifiedSearch = lazy(() => import("./components/UnifiedSearch"));
 const AnimeSection = lazy(() => import("./components/AnimeSection"));
 
-// Heavy modals / overlays — loaded on demand to keep the initial bundle small.
+// PlayerOverlay is deliberately eager: when Play is pressed, its Nxsha iframe
+// must exist in the same browser-activation turn to request native fullscreen.
+// The remaining heavy modals stay on demand to keep the initial bundle small.
 const MovieModal = lazy(() => import("./components/MovieModal"));
-const PlayerOverlay = lazy(() => import("./components/PlayerOverlay"));
 const UploadModal = lazy(() => import("./components/UploadModal"));
 const PlaylistSync = lazy(() => import("./components/PlaylistSync"));
 const AiAssistant = lazy(() => import("./components/AiAssistant"));
@@ -484,7 +486,7 @@ function App() {
 
     loadLibrary();
 
-    // Warm on-demand modal/player chunks when idle so first open is instant.
+    // Warm on-demand modal chunks when idle so first open is instant.
     // Also warm on the very first interaction (pointer/key) — on slow
     // networks idle may never fire before the first tap, and an unwarm
     // chunk is exactly the "tap a movie, nothing happens" report.
@@ -493,7 +495,6 @@ function App() {
       if (warmed) return;
       warmed = true;
       import("./components/MovieModal").catch(() => {});
-      import("./components/PlayerOverlay").catch(() => {});
     };
     const warmOnInteract = () => warmOverlays();
     window.addEventListener("pointerdown", warmOnInteract, { once: true, capture: true });

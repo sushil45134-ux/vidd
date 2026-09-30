@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
@@ -88,6 +88,43 @@ function normalizeEmbedUrl(url: string): string {
   let normalized = normalizeDailymotionUrl(url);
   normalized = normalizeNxshaUrl(normalized);
   return normalized;
+}
+
+/** A cross-origin Nxsha player cannot be controlled from this page, but its
+ * iframe itself can be the fullscreen element. That puts Nxsha's complete
+ * player UI on screen instead of fullscreening the Vidd wrapper/video. */
+function isNxshaEmbed(url: string): boolean {
+  try {
+    return new URL(url).hostname.toLowerCase().includes("nxsha");
+  } catch {
+    return /nxsha/i.test(url);
+  }
+}
+
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+};
+
+/**
+ * Start fullscreen while the Play interaction is still active. Browser policy
+ * deliberately rejects true fullscreen without a user gesture; callers always
+ * leave the player usable when that happens.
+ */
+function requestElementFullscreen(element: FullscreenElement | null): void {
+  if (!element) return;
+  try {
+    const result = element.requestFullscreen?.() ?? element.webkitRequestFullscreen?.();
+    if (result && typeof (result as Promise<void>).catch === "function") {
+      (result as Promise<void>).catch(() => {});
+    }
+  } catch {
+    // Fullscreen remains optional because browsers can reject stale gestures.
+  }
 }
 
 function getDailymotionVideoId(url: string): string | null {
@@ -277,6 +314,7 @@ export function EmbedPlayer({
   onEnded,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
+  const isNxsha = kind === "iframe" && isNxshaEmbed(iframeSrc);
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
@@ -380,9 +418,14 @@ export function EmbedPlayer({
   });
 
   useEffect(() => {
-    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    const doc = document as FullscreenDocument;
+    const h = () => setIsFullscreen(!!(doc.fullscreenElement || doc.webkitFullscreenElement));
     document.addEventListener("fullscreenchange", h);
-    return () => document.removeEventListener("fullscreenchange", h);
+    document.addEventListener("webkitfullscreenchange", h);
+    return () => {
+      document.removeEventListener("fullscreenchange", h);
+      document.removeEventListener("webkitfullscreenchange", h);
+    };
   }, []);
 
   // Use Dailymotion's Web SDK for Dailymotion videos. The old iframe postMessage API is
@@ -624,32 +667,36 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
-  // Enter native fullscreen immediately when an episode is opened. Some
-  // browsers reject this if the original click's activation has expired, so
-  // failure is intentionally silent and the visible fullscreen control still
-  // provides the fallback.
-  useEffect(() => {
-    const container = containerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
-    }) | null;
-    if (!container || document.fullscreenElement) return;
-    try {
-      const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
-      if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => {});
-      }
-    } catch {
-      // Fullscreen can be blocked by browser policy; do not block playback.
-    }
-  }, [src]);
+  // Nxsha is cross-origin, so this app cannot call its internal video
+  // controls. Fullscreen the <iframe> itself instead: the user sees Nxsha's
+  // own player edge-to-edge, not Vidd's wrapper. A layout effect runs before
+  // paint and gives this request the best chance to inherit the Play click's
+  // browser activation — no second fullscreen click is needed.
+  //
+  // Direct uploads and other providers retain the existing wrapper
+  // fullscreen behaviour; only Nxsha swaps the target to its iframe.
+  useLayoutEffect(() => {
+    const doc = document as FullscreenDocument;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) return;
+    const target = isNxsha ? iframeRef.current : containerRef.current;
+    requestElementFullscreen(target);
+  }, [src, isNxsha]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen();
+    const doc = document as FullscreenDocument;
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+      requestElementFullscreen(containerRef.current);
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen();
+      try {
+        const result = doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.();
+        if (result && typeof (result as Promise<void>).catch === "function") {
+          (result as Promise<void>).catch(() => {});
+        }
+      } catch {
+        // Keep the player usable in browser shells without an exit API.
+      }
       setIsFullscreen(false);
     }
   };
