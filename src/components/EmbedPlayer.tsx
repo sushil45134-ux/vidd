@@ -1,7 +1,17 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import {
+  currentFullscreenElement,
+  exitFullscreen,
+  releaseOrientation,
+  requestFullscreenOn,
+  startNxshaFullscreenBot,
+  supportsTopLayerPopover,
+  withNxshaFullscreenHints,
+  type NxshaFullscreenStatus,
+} from "../lib/nxshaFullscreenBot";
 
 interface EmbedPlayerProps {
   src: string;
@@ -67,21 +77,12 @@ function normalizeDailymotionUrl(url: string): string {
 }
 
 /**
- * Ensure Nxsha embeds carry the ad-blocking query flag.
+ * Ensure Nxsha embeds carry the ad-blocking query flag plus the
+ * autoplay/fullscreen hints the fullscreen bot relies on.
+ * See `src/lib/nxshaFullscreenBot.ts`.
  */
 function normalizeNxshaUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    if (u.hostname.toLowerCase().includes("nxsha")) {
-      if (!u.searchParams.has("disable_app_ad")) {
-        u.searchParams.set("disable_app_ad", "true");
-      }
-      return u.toString();
-    }
-    return url;
-  } catch {
-    return url;
-  }
+  return withNxshaFullscreenHints(url);
 }
 
 function normalizeEmbedUrl(url: string): string {
@@ -294,7 +295,14 @@ export function EmbedPlayer({
   const dailymotionRootRef = useRef<HTMLDivElement>(null);
   const dailymotionPlayerRef = useRef<any>(null);
   const dailymotionStoppedRef = useRef(false);
+  // Top-layer escape hatch — the only thing that still paints once the
+  // cross-origin embed owns the screen.
+  const fsExitRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [botStatus, setBotStatus] = useState<NxshaFullscreenStatus>("idle");
+  /** True only while the provider's iframe — not Vidd's wrapper — is the
+   *  fullscreen element, i.e. when Vidd's normal controls stop painting. */
+  const [embedOwnsScreen, setEmbedOwnsScreen] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
 
@@ -367,8 +375,8 @@ export function EmbedPlayer({
       }
 
       if (e.key === "Escape") {
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
+        if (currentFullscreenElement()) {
+          exitFullscreen();
           setIsFullscreen(false);
         } else onClose();
       } else if (e.key === "f") {
@@ -380,9 +388,13 @@ export function EmbedPlayer({
   });
 
   useEffect(() => {
-    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    const h = () => setIsFullscreen(!!currentFullscreenElement());
     document.addEventListener("fullscreenchange", h);
-    return () => document.removeEventListener("fullscreenchange", h);
+    document.addEventListener("webkitfullscreenchange", h);
+    return () => {
+      document.removeEventListener("fullscreenchange", h);
+      document.removeEventListener("webkitfullscreenchange", h);
+    };
   }, []);
 
   // Use Dailymotion's Web SDK for Dailymotion videos. The old iframe postMessage API is
@@ -624,35 +636,59 @@ export function EmbedPlayer({
     };
   }, [dailymotionContainerId, dailymotionVideoId, isDailymotion, startAt]);
 
-  // Enter native fullscreen immediately when an episode is opened. Some
-  // browsers reject this if the original click's activation has expired, so
-  // failure is intentionally silent and the visible fullscreen control still
-  // provides the fallback.
+  // Nxsha Fullscreen Bot — the moment an episode opens, put the *provider's*
+  // iframe on the screen (not Vidd's wrapper) and rotate to landscape, with
+  // no fullscreen button for the user to find. The bot owns the retry ladder,
+  // the user-activation rules and the stand-down-on-exit behaviour; see
+  // src/lib/nxshaFullscreenBot.ts. Dailymotion keeps its SDK path.
   useEffect(() => {
-    const container = containerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
-    }) | null;
-    if (!container || document.fullscreenElement) return;
-    try {
-      const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
-      if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => {});
-      }
-    } catch {
-      // Fullscreen can be blocked by browser policy; do not block playback.
-    }
-  }, [src]);
+    if (kind !== "iframe" || isDailymotion) return;
+    return startNxshaFullscreenBot({
+      getIframe: () => iframeRef.current,
+      getFallback: () => containerRef.current,
+      onStatus: (status, target) => {
+        setBotStatus(status);
+        // Only the iframe-as-fullscreen-element case hides Vidd's chrome.
+        setEmbedOwnsScreen(status === "on" && target === iframeRef.current);
+      },
+    });
+  }, [kind, isDailymotion, src]);
 
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+  // The escape hatch only exists where the top layer does. Deciding this in
+  // an effect (never during render) keeps the SSR and hydration trees equal,
+  // and stops a browser without popover support — a TV, mostly — from
+  // painting two stray buttons over the player.
+  const [canTopLayer, setCanTopLayer] = useState(false);
+  useEffect(() => setCanTopLayer(supportsTopLayerPopover()), []);
+
+  // The bot hands the screen to the cross-origin iframe, which means Vidd's
+  // own chrome stops painting. This promotes the escape hatch to the top
+  // layer, the one place that still draws above a fullscreen element.
+  useEffect(() => {
+    const popover = fsExitRef.current;
+    if (!popover || typeof popover.showPopover !== "function") return;
+    try {
+      if (embedOwnsScreen) popover.showPopover();
+      else popover.hidePopover();
+    } catch {
+      // Popover state races with fullscreen teardown; never fatal.
     }
-  };
+  }, [embedOwnsScreen]);
+
+  useEffect(() => releaseOrientation, []);
+
+  // Manual control (the `f` key, and the button on direct video files).
+  // Iframes fullscreen the embed itself so the toggle matches what the bot
+  // does; direct <video> keeps using Vidd's wrapper, which holds its chrome.
+  const toggleFullscreen = useCallback(() => {
+    if (currentFullscreenElement()) {
+      exitFullscreen();
+      setIsFullscreen(false);
+      return;
+    }
+    const target = kind === "iframe" && !isDailymotion ? iframeRef.current : containerRef.current;
+    void requestFullscreenOn(target ?? containerRef.current).then((ok) => setIsFullscreen(ok));
+  }, [kind, isDailymotion]);
 
   const isTv = useIsTvBrowser();
   return (
@@ -660,6 +696,10 @@ export function EmbedPlayer({
       className={`${
         isTv ? "tv-custom-player " : ""
       }fixed inset-0 z-[100] bg-black animate-fadeIn flex items-center justify-center`}
+      // Observable bot state: idle | trying | waiting | on | released.
+      // Handy in DevTools and in scripts/nxsha-fullscreen.test.mjs.
+      data-nxsha-fullscreen={botStatus}
+      data-nxsha-embed-owns-screen={embedOwnsScreen ? "true" : "false"}
     >
       <div ref={containerRef} className="relative w-full h-full bg-black">
         {kind === "iframe" && isDailymotion && dailymotionVideoId ? (
@@ -677,7 +717,11 @@ export function EmbedPlayer({
             allowFullScreen
             title="Video player"
             referrerPolicy="no-referrer-when-downgrade"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+            // `allow-orientation-lock` lets the provider's own player rotate
+            // to landscape too — without it the sandbox silently blocks the
+            // rotation that makes a fullscreen episode fill a phone screen.
+            // Popups stay blocked: that is what kills the ad tabs.
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation allow-orientation-lock"
           />
         ) : (
           <video
@@ -781,6 +825,42 @@ export function EmbedPlayer({
             </button>
           </div>
         )}
+      </div>
+
+      {/*
+        Escape hatch for bot-driven fullscreen. Once the Nxsha iframe is the
+        fullscreen element, nothing else in this tree paints — a popover is
+        promoted to the top layer, which is the one place that still draws
+        above it. Without this the user would be stuck in the provider's UI.
+        `manual` so a stray tap on the video cannot light-dismiss it.
+      */}
+      <div
+        ref={fsExitRef}
+        popover="manual"
+        className="pointer-events-none fixed inset-x-0 top-0 bottom-auto z-[120] m-0 h-auto w-full items-start justify-between overflow-visible border-0 bg-transparent p-0"
+        // Inline display beats both the UA popover stylesheet and Tailwind,
+        // so an unsupported browser can never leave these buttons on screen.
+        style={{ display: canTopLayer && embedOwnsScreen ? "flex" : "none" }}
+      >
+        <button
+          onClick={() => {
+            exitFullscreen();
+            onClose();
+          }}
+          className="pointer-events-auto m-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/90"
+          title="Close (Esc)"
+          aria-label="Close player"
+        >
+          <X size={20} className="text-white" />
+        </button>
+        <button
+          onClick={() => exitFullscreen()}
+          className="pointer-events-auto m-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition-all hover:bg-black/90"
+          title="Exit fullscreen (Esc)"
+          aria-label="Exit fullscreen"
+        >
+          <Minimize size={18} className="text-white" />
+        </button>
       </div>
     </div>
   );
