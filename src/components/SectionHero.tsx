@@ -3,6 +3,7 @@ import { Play } from "lucide-react";
 import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { useAndroidPhone } from "../hooks/useAndroidPhone";
 import SmartImage from "./SmartImage";
 
 interface SectionHeroProps {
@@ -21,6 +22,7 @@ interface SectionHeroProps {
  */
 function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHeroProps) {
   const IS_TV = useIsTvBrowser();
+  const isAndroidPhone = useAndroidPhone();
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -52,12 +54,12 @@ function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHer
 
   const item = movies[index % movies.length];
   // One URL list for both layers (browser downloads it once, shows it twice).
-  const heroSources = movieImageSources(item, "hero");
+  const heroSources = movieImageSources(item, isAndroidPhone ? "poster" : "hero");
 
   return (
     <div className="px-4 md:px-12 mb-8">
       <div
-        className="relative h-[220px] md:h-[320px] rounded-2xl overflow-hidden ring-1 ring-white/10 bg-[#101014] cursor-pointer group"
+        className={`relative h-[220px] md:h-[320px] rounded-2xl overflow-hidden ring-1 ring-white/10 bg-[#101014] cursor-pointer group ${isAndroidPhone ? "android-section-hero" : ""}`}
         onClick={() => onMoreInfo(item)}
         tabIndex={0}
         role="button"
@@ -91,7 +93,7 @@ function SectionHero({ movies, onMoreInfo, onPlay, loading = false }: SectionHer
             fetchPriority="high"
             loading="eager"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-contain animate-fade-in"
+            className={`absolute inset-0 w-full h-full animate-fade-in ${isAndroidPhone ? "object-cover" : "object-contain"}`}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/80 to-transparent" />

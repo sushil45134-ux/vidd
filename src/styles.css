@@ -1053,17 +1053,22 @@
 }
 
 .android-phone-hero > div:first-child {
-  height: min(56.25vw, 300px);
+  height: 100%;
   background: #000;
 }
 
+/* Portrait artwork fills the handset hero; the stronger lower fade keeps the
+ * title/actions readable without shrinking the vertical poster. */
 .android-phone-hero > div:first-child::after {
   content: "";
   position: absolute;
-  inset: auto 0 -80px;
-  height: 100px;
-  background: linear-gradient(to bottom, transparent, #000);
+  inset: 35% 0 0;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.92));
   pointer-events: none;
+}
+
+.android-section-hero {
+  height: min(72svh, 620px) !important;
 }
 
 .android-trailer-frame {

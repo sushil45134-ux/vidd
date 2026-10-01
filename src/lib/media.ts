@@ -102,12 +102,14 @@ function knownSeriesArtwork(movie: Movie): string[] {
   return KNOWN_SERIES_ARTWORK.filter(({ match }) => match.test(names)).map(({ url }) => url);
 }
 
-export function movieImageSources(movie: Movie, mode: "hero" | "card" = "card") {
+export function movieImageSources(movie: Movie, mode: "hero" | "card" | "poster" = "card") {
   const card = mode === "card";
   const primary =
     mode === "hero"
       ? [movie.backdrop, movie.thumbnailUrl, movie.image]
-      : [movie.thumbnailUrl, movie.image, movie.backdrop];
+      : mode === "poster"
+        ? [movie.image, movie.thumbnailUrl, movie.backdrop]
+        : [movie.thumbnailUrl, movie.image, movie.backdrop];
 
   return unique([
     ...primary.filter(isRealPoster).flatMap((url) => resolveYouTubeThumb(url, card)),
