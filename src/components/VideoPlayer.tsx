@@ -780,35 +780,37 @@ export function VideoPlayer({
 
   const toggleFullscreen = useCallback(() => {
     if (!playerRef.current) return;
-    if (isTv) {
-      // Chromium 69 may only expose the prefixed fullscreen API.
-      const doc = document as Document & {
-        webkitFullscreenElement?: Element;
-        webkitExitFullscreen?: () => void;
-      };
-      const element = playerRef.current as HTMLDivElement & {
-        webkitRequestFullscreen?: () => void;
-      };
-      try {
-        const result =
-          doc.fullscreenElement || doc.webkitFullscreenElement
-            ? (doc.exitFullscreen || doc.webkitExitFullscreen)?.call(doc)
-            : (element.requestFullscreen || element.webkitRequestFullscreen)?.call(element);
-        // Some TV browser shells disallow fullscreen. Keep controls usable.
-        if (result) result.catch(() => {});
-      } catch (_) {
-        /* The TV shell can reject fullscreen even following remote input. */
+    // Android WebViews and older Chrome/Samsung browsers may expose only the
+    // prefixed API. Always use the same guarded path instead of limiting that
+    // fallback to TVs.
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    const element = playerRef.current as HTMLDivElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    };
+    const active = doc.fullscreenElement || doc.webkitFullscreenElement;
+    try {
+      const result = active
+        ? (doc.exitFullscreen || doc.webkitExitFullscreen)?.call(doc)
+        : (element.requestFullscreen || element.webkitRequestFullscreen)?.call(element);
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        void (result as Promise<void>).catch(() => {});
       }
-      return;
+      if (!active) {
+        void (
+          screen.orientation as ScreenOrientation & {
+            lock?: (orientation: "landscape") => Promise<void>;
+          }
+        )
+          .lock?.("landscape")
+          .catch(() => {});
+      }
+    } catch {
+      // Some browser shells disallow fullscreen. Keep controls usable.
     }
-    if (!document.fullscreenElement) {
-      playerRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  }, [isTv]);
+  }, []);
 
   const skip = useCallback((seconds: number) => {
     if (!ytPlayerRef.current) return;
@@ -1016,17 +1018,16 @@ export function VideoPlayer({
       setIsFullscreen(
         !!(
           document.fullscreenElement ||
-          (isTv &&
-            (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement)
+          (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement
         ),
       );
     document.addEventListener("fullscreenchange", h);
-    if (isTv) document.addEventListener("webkitfullscreenchange", h);
+    document.addEventListener("webkitfullscreenchange", h);
     return () => {
       document.removeEventListener("fullscreenchange", h);
-      if (isTv) document.removeEventListener("webkitfullscreenchange", h);
+      document.removeEventListener("webkitfullscreenchange", h);
     };
-  }, [isTv]);
+  }, []);
 
   const getSpeedLabel = (s: number) => (s === 1 ? "Normal" : `${s}x`);
 
