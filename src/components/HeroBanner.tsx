@@ -129,12 +129,12 @@ function HeroBanner({
     >
       <div className="absolute inset-0" key={item.id}>
         <SmartImage
-          src={movieImageSources(item, isAndroidPhone ? "poster" : "hero")}
+          src={movieImageSources(item, "hero")}
           alt={item.title}
           fetchPriority="high"
           loading="eager"
           decoding="async"
-          className="absolute inset-0 w-full h-full object-cover animate-fade-in"
+          className={`absolute inset-0 w-full h-full animate-fade-in ${isAndroidPhone ? "object-contain object-top" : "object-cover"}`}
         />
 
         {overlayVisible && (

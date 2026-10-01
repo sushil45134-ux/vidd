@@ -115,7 +115,12 @@ function MovieCard({
 
   // movieImageSources() builds + dedupes URL arrays; memoize so hover/focus
   // toggles (and parent re-renders) don't rebuild them per render.
-  const imageSources = useMemo(() => movieImageSources(movie), [movie]);
+  // Android rows use the title's real portrait key art (`movie.image`) rather
+  // than stretching/cropping a YouTube 16:9 thumbnail into a tall frame.
+  const imageSources = useMemo(
+    () => movieImageSources(movie, isAndroidPhone ? "poster" : "card"),
+    [movie, isAndroidPhone],
+  );
 
   return (
     <div

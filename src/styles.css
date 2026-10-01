@@ -1043,7 +1043,9 @@
 /* Android handset presentation. These classes are only emitted after Android
  * UA detection, so iPhone, desktop and TV retain their existing geometry. */
 .android-portrait-card .movie-card-media {
-  padding-bottom: 177.7778%; /* 9:16 Crunchyroll-style poster */
+  /* Crunchyroll-style anime key art is closer to 2:3 than the overly narrow
+   * 9:16 frame. The reference artwork is 1107×1600 (about 1:1.45). */
+  padding-bottom: 150%;
 }
 
 .android-phone-hero {
@@ -1053,22 +1055,17 @@
 }
 
 .android-phone-hero > div:first-child {
-  height: 100%;
+  height: min(56.25vw, 300px);
   background: #000;
 }
 
-/* Portrait artwork fills the handset hero; the stronger lower fade keeps the
- * title/actions readable without shrinking the vertical poster. */
 .android-phone-hero > div:first-child::after {
   content: "";
   position: absolute;
-  inset: 35% 0 0;
-  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.92));
+  inset: auto 0 -80px;
+  height: 100px;
+  background: linear-gradient(to bottom, transparent, #000);
   pointer-events: none;
-}
-
-.android-section-hero {
-  height: min(72svh, 620px) !important;
 }
 
 .android-trailer-frame {
