@@ -117,7 +117,15 @@ export function movieImageSources(movie: Movie, mode: "hero" | "card" | "poster"
   // key art and finally the neutral placeholder instead of showing a cropped
   // PC image.
   if (mode === "poster") {
+    const title = movie.playlistTitle || movie.title;
+    const anime = movie.genre.some((genre) => genre.toLowerCase() === "anime");
+    // Resolve genuinely separate portrait key art for Android. The endpoint
+    // uses AniList for anime and TVmaze for movies/shows, then redirects to the
+    // original high-resolution poster. Stored `image` remains an offline
+    // fallback, never the desktop thumbnail/backdrop chain.
+    const remotePoster = `/api/portrait-poster?q=${encodeURIComponent(title)}&anime=${anime ? "1" : "0"}`;
     return unique([
+      remotePoster,
       ...primary.filter(isRealPoster),
       ...knownSeriesArtwork(movie),
       FALLBACK_THUMBNAIL,
