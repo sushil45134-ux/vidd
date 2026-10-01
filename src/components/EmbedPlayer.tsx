@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { useAndroidPhone } from "../hooks/useAndroidPhone";
+import { useScreenWakeLock } from "../hooks/useScreenWakeLock";
 
 interface EmbedPlayerProps {
   src: string;
@@ -66,13 +68,22 @@ function normalizeDailymotionUrl(url: string): string {
   }
 }
 
+/** Nxsha is the only third-party player that needs the Android wake lock. */
+function isNxshaUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.toLowerCase().includes("nxsha");
+  } catch {
+    return /nxsha/i.test(url);
+  }
+}
+
 /**
  * Ensure Nxsha embeds carry the ad-blocking query flag.
  */
 function normalizeNxshaUrl(url: string): string {
   try {
     const u = new URL(url);
-    if (u.hostname.toLowerCase().includes("nxsha")) {
+    if (isNxshaUrl(url)) {
       if (!u.searchParams.has("disable_app_ad")) {
         u.searchParams.set("disable_app_ad", "true");
       }
@@ -297,6 +308,13 @@ export function EmbedPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
+  const isAndroidPhone = useAndroidPhone();
+  const isNxsha = kind === "iframe" && isNxshaUrl(src);
+
+  // Nxsha is a cross-origin iframe, so its playback state cannot be observed
+  // by the parent page. Keep only Nxsha awake on Android handsets; PC, TV,
+  // YouTube, direct videos, and other providers remain untouched.
+  useScreenWakeLock(isAndroidPhone && isNxsha);
 
   useEffect(() => {
     setPlayerSrc(iframeSrc);
