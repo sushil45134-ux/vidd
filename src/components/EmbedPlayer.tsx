@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { useAndroidPhone } from "../hooks/useAndroidPhone";
+import { useScreenWakeLock } from "../hooks/useScreenWakeLock";
 
 interface EmbedPlayerProps {
   src: string;
@@ -297,6 +299,13 @@ export function EmbedPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
+  const [isDirectVideoPlaying, setIsDirectVideoPlaying] = useState(false);
+  const isAndroidPhone = useAndroidPhone();
+
+  // Third-party iframes do not expose their play/pause state to the parent,
+  // so keep the screen awake for the lifetime of an open iframe player. For a
+  // direct <video>, follow its real play state so pausing releases the lock.
+  useScreenWakeLock(isAndroidPhone && (kind === "iframe" || isDirectVideoPlaying));
 
   useEffect(() => {
     setPlayerSrc(iframeSrc);
@@ -720,6 +729,7 @@ export function EmbedPlayer({
             controls
             autoPlay
             className="absolute inset-0 w-full h-full bg-black"
+            onPlay={() => setIsDirectVideoPlaying(true)}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
               if ((startAt ?? 0) > 0 && v.duration > 0) {
@@ -745,6 +755,7 @@ export function EmbedPlayer({
               }
             }}
             onPause={(e) => {
+              setIsDirectVideoPlaying(false);
               const v = e.currentTarget;
               if (!(v.duration > 0)) return;
               lastReportAtRef.current = Date.now();
@@ -755,6 +766,7 @@ export function EmbedPlayer({
               }
             }}
             onEnded={() => {
+              setIsDirectVideoPlaying(false);
               try {
                 onEndedRef.current?.();
               } catch {

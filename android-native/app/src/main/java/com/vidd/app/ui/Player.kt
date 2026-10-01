@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
+import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebViewClient
@@ -77,9 +78,13 @@ fun PlayerScreen(id: Long, onBack: () -> Unit, onEpisode: (Long) -> Unit) {
     val landscape =
         LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Screen se hatne par rotation normal karo
+    // Player screen khuli ho to Android ka screen timeout disable rakho.
+    // Ye YouTube/iframe WebViews ke liye bhi zaruri hai, kyunki unka media
+    // element app ke process se directly visible nahi hota.
     DisposableEffect(Unit) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }

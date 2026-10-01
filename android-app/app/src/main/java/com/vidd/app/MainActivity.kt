@@ -8,7 +8,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -90,6 +92,24 @@ class MainActivity : AppCompatActivity() {
         splashView = findViewById(R.id.splashView)
         errorView = findViewById(R.id.errorView)
         fullscreenContainer = findViewById(R.id.fullscreenContainer)
+
+        // Screen Wake Lock is not available in some Android System WebView
+        // versions. The web player calls this bridge while playback is active,
+        // giving the app the same native keep-awake behaviour as a video app.
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun setKeepScreenOn(keepScreenOn: Boolean) {
+                if (!isTrustedPage(webView.url)) return
+                runOnUiThread {
+                    if (keepScreenOn) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+            }
+        }, "ViddAndroid")
+
         findViewById<Button>(R.id.retryButton).setOnClickListener {
             errorView.visibility = View.GONE
             splashView.visibility = View.VISIBLE
@@ -257,6 +277,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Sirf apni app/site ko native screen flag badalne do. */
+    private fun isTrustedPage(url: String?): Boolean {
+        val host = runCatching { Uri.parse(url ?: "").host?.lowercase() }.getOrNull()
+            ?: return false
+        return host == siteHost || host.endsWith(".${siteHost ?: "§"}")
+    }
+
     /** Video/CDN hosts jo app ke andar hi khulne chahiye. */
     private fun isMediaHost(host: String): Boolean {
         val mediaHosts = listOf(
@@ -307,6 +334,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
