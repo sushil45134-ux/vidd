@@ -68,13 +68,22 @@ function normalizeDailymotionUrl(url: string): string {
   }
 }
 
+/** Nxsha is the only third-party player that needs the Android wake lock. */
+function isNxshaUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.toLowerCase().includes("nxsha");
+  } catch {
+    return /nxsha/i.test(url);
+  }
+}
+
 /**
  * Ensure Nxsha embeds carry the ad-blocking query flag.
  */
 function normalizeNxshaUrl(url: string): string {
   try {
     const u = new URL(url);
-    if (u.hostname.toLowerCase().includes("nxsha")) {
+    if (isNxshaUrl(url)) {
       if (!u.searchParams.has("disable_app_ad")) {
         u.searchParams.set("disable_app_ad", "true");
       }
@@ -299,13 +308,13 @@ export function EmbedPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
-  const [isDirectVideoPlaying, setIsDirectVideoPlaying] = useState(false);
   const isAndroidPhone = useAndroidPhone();
+  const isNxsha = kind === "iframe" && isNxshaUrl(src);
 
-  // Third-party iframes do not expose their play/pause state to the parent,
-  // so keep the screen awake for the lifetime of an open iframe player. For a
-  // direct <video>, follow its real play state so pausing releases the lock.
-  useScreenWakeLock(isAndroidPhone && (kind === "iframe" || isDirectVideoPlaying));
+  // Nxsha is a cross-origin iframe, so its playback state cannot be observed
+  // by the parent page. Keep only Nxsha awake on Android handsets; PC, TV,
+  // YouTube, direct videos, and other providers remain untouched.
+  useScreenWakeLock(isAndroidPhone && isNxsha);
 
   useEffect(() => {
     setPlayerSrc(iframeSrc);
@@ -729,7 +738,6 @@ export function EmbedPlayer({
             controls
             autoPlay
             className="absolute inset-0 w-full h-full bg-black"
-            onPlay={() => setIsDirectVideoPlaying(true)}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
               if ((startAt ?? 0) > 0 && v.duration > 0) {
@@ -755,7 +763,6 @@ export function EmbedPlayer({
               }
             }}
             onPause={(e) => {
-              setIsDirectVideoPlaying(false);
               const v = e.currentTarget;
               if (!(v.duration > 0)) return;
               lastReportAtRef.current = Date.now();
@@ -766,7 +773,6 @@ export function EmbedPlayer({
               }
             }}
             onEnded={() => {
-              setIsDirectVideoPlaying(false);
               try {
                 onEndedRef.current?.();
               } catch {

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import { useAndroidPhone } from "../hooks/useAndroidPhone";
-import { useScreenWakeLock } from "../hooks/useScreenWakeLock";
 import type { YouTubePlayer, YouTubeWindow, YouTubeEvent } from "../lib/youtubePlayer";
 import {
   Play,
@@ -133,11 +132,43 @@ export function VideoPlayer({
   const [tvControlsHidden, setTvControlsHidden] = useState(false);
   const [tvIdleTick, setTvIdleTick] = useState(0);
 
-  // YouTube's API reports play/pause reliably. Keep the fallback iframe awake
-  // too: cross-origin embed controls cannot report their state to this page.
-  // The hook also falls back to the native Android WebView bridge when the
-  // browser has no Screen Wake Lock API.
-  useScreenWakeLock(isAndroidPhone && (isPlaying || useSimpleEmbed));
+  // Keep an Android handset awake while a video is actually playing, matching
+  // native video apps. The lock is released on pause/close and re-acquired
+  // after returning from another app because Android drops it when hidden.
+  useEffect(() => {
+    if (!isAndroidPhone || !isPlaying || !("wakeLock" in navigator)) return;
+    let released = false;
+    let lock: { release: () => Promise<void> } | null = null;
+
+    const acquire = async () => {
+      if (released || document.visibilityState !== "visible") return;
+      try {
+        lock = await (
+          navigator as Navigator & {
+            wakeLock: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> };
+          }
+        ).wakeLock.request("screen");
+      } catch {
+        // Unsupported permissions/battery policies must not interrupt playback.
+      }
+    };
+    const onVisibility = () => {
+      // Screen Wake Lock is automatically released when the document hides.
+      if (document.visibilityState !== "visible") {
+        lock = null;
+      } else if (!lock) {
+        void acquire();
+      }
+    };
+    void acquire();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      released = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      void lock?.release().catch(() => {});
+      lock = null;
+    };
+  }, [isAndroidPhone, isPlaying, videoId]);
 
   // Remote BACK closes the player first (on top of the details modal).
   useEffect(() => registerTvBackHandler(onClose), [onClose]);
