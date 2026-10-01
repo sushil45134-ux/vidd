@@ -5,6 +5,7 @@ import type { Movie } from "../data";
 import { movieImageSources } from "../lib/media";
 import SmartImage from "./SmartImage";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { useAndroidPhone } from "../hooks/useAndroidPhone";
 
 interface MovieCardProps {
   movie: Movie;
@@ -40,6 +41,7 @@ function MovieCard({
   onEditThumbnail,
 }: MovieCardProps) {
   const IS_TV = useIsTvBrowser();
+  const isAndroidPhone = useAndroidPhone();
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   // TVs have no hover. Rendering the full action row (Play / My List / Like /
@@ -113,12 +115,23 @@ function MovieCard({
 
   // movieImageSources() builds + dedupes URL arrays; memoize so hover/focus
   // toggles (and parent re-renders) don't rebuild them per render.
-  const imageSources = useMemo(() => movieImageSources(movie), [movie]);
+  // Android rows use the title's real portrait key art (`movie.image`) rather
+  // than stretching/cropping a YouTube 16:9 thumbnail into a tall frame.
+  const imageSources = useMemo(
+    () => movieImageSources(movie, isAndroidPhone ? "poster" : "card"),
+    [movie, isAndroidPhone],
+  );
 
   return (
     <div
-      className={`movie-card ${isLarge ? "movie-card-large" : ""} relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
-        isLarge ? "w-[280px] md:w-[360px]" : "w-[220px] md:w-[300px]"
+      className={`movie-card ${isLarge ? "movie-card-large" : ""} ${isAndroidPhone ? "android-portrait-card" : ""} relative flex-shrink-0 cursor-pointer transition-transform duration-300 ${
+        isAndroidPhone
+          ? isLarge
+            ? "w-[168px]"
+            : "w-[148px]"
+          : isLarge
+            ? "w-[280px] md:w-[360px]"
+            : "w-[220px] md:w-[300px]"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

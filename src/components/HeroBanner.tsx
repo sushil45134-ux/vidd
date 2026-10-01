@@ -6,6 +6,7 @@ import { movieImageSources } from "../lib/media";
 import { isTvBrowser } from "../lib/browser";
 import Logo from "./Logo";
 import SmartImage from "./SmartImage";
+import { useAndroidPhone } from "../hooks/useAndroidPhone";
 
 interface HeroBannerProps {
   movies: Movie[];
@@ -28,6 +29,7 @@ function HeroBanner({
   loading = false,
 }: HeroBannerProps) {
   const [index, setIndex] = useState(0);
+  const isAndroidPhone = useAndroidPhone();
   const cfg = useSiteConfig();
   const overlayVisible = cfg.heroOverlayVisible !== false;
 
@@ -122,7 +124,9 @@ function HeroBanner({
   const description = cfg.heroDescription?.trim() || item.description;
 
   return (
-    <div className="tv-hero relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden">
+    <div
+      className={`tv-hero ${isAndroidPhone ? "android-phone-hero" : ""} relative w-full h-[calc(100vh-4rem)] min-h-[520px] overflow-hidden`}
+    >
       <div className="absolute inset-0" key={item.id}>
         <SmartImage
           src={movieImageSources(item, "hero")}
@@ -130,7 +134,7 @@ function HeroBanner({
           fetchPriority="high"
           loading="eager"
           decoding="async"
-          className="absolute inset-0 w-full h-full object-cover animate-fade-in"
+          className={`absolute inset-0 w-full h-full animate-fade-in ${isAndroidPhone ? "object-contain object-top" : "object-cover"}`}
         />
 
         {overlayVisible && (

@@ -102,12 +102,35 @@ function knownSeriesArtwork(movie: Movie): string[] {
   return KNOWN_SERIES_ARTWORK.filter(({ match }) => match.test(names)).map(({ url }) => url);
 }
 
-export function movieImageSources(movie: Movie, mode: "hero" | "card" = "card") {
+export function movieImageSources(movie: Movie, mode: "hero" | "card" | "poster" = "card") {
   const card = mode === "card";
   const primary =
     mode === "hero"
       ? [movie.backdrop, movie.thumbnailUrl, movie.image]
-      : [movie.thumbnailUrl, movie.image, movie.backdrop];
+      : mode === "poster"
+        ? [movie.image, movie.thumbnailUrl, movie.backdrop]
+        : [movie.thumbnailUrl, movie.image, movie.backdrop];
+
+  // Android portrait cards must never fall through to desktop's 16:9
+  // thumbnail/backdrop or a YouTube frame. `image` is the dedicated poster
+  // slot populated by anime/TMDB imports; if it is absent, use known portrait
+  // key art and finally the neutral placeholder instead of showing a cropped
+  // PC image.
+  if (mode === "poster") {
+    const title = movie.playlistTitle || movie.title;
+    const anime = movie.genre.some((genre) => genre.toLowerCase() === "anime");
+    // Resolve genuinely separate portrait key art for Android. The endpoint
+    // uses AniList for anime and TVmaze for movies/shows, then redirects to the
+    // original high-resolution poster. Stored `image` remains an offline
+    // fallback, never the desktop thumbnail/backdrop chain.
+    const remotePoster = `/api/portrait-poster?q=${encodeURIComponent(title)}&anime=${anime ? "1" : "0"}`;
+    return unique([
+      remotePoster,
+      ...primary.filter(isRealPoster),
+      ...knownSeriesArtwork(movie),
+      FALLBACK_THUMBNAIL,
+    ]);
+  }
 
   return unique([
     ...primary.filter(isRealPoster).flatMap((url) => resolveYouTubeThumb(url, card)),

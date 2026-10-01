@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
+import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
 import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
@@ -34,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiSupabaseRoute = ApiSupabaseRouteImport.update({
   id: '/api/supabase',
   path: '/api/supabase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPortraitPosterRoute = ApiPortraitPosterRouteImport.update({
+  id: '/api/portrait-poster',
+  path: '/api/portrait-poster',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiNxshaFetchRoute = ApiNxshaFetchRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
+  '/api/portrait-poster': typeof ApiPortraitPosterRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
+  '/api/portrait-poster': typeof ApiPortraitPosterRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesById {
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/api/config': typeof ApiConfigRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
+  '/api/portrait-poster': typeof ApiPortraitPosterRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/api/config'
     | '/api/movies'
     | '/api/nxsha-fetch'
+    | '/api/portrait-poster'
     | '/api/supabase'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/api/config'
     | '/api/movies'
     | '/api/nxsha-fetch'
+    | '/api/portrait-poster'
     | '/api/supabase'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/api/config'
     | '/api/movies'
     | '/api/nxsha-fetch'
+    | '/api/portrait-poster'
     | '/api/supabase'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   ApiConfigRoute: typeof ApiConfigRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiNxshaFetchRoute: typeof ApiNxshaFetchRoute
+  ApiPortraitPosterRoute: typeof ApiPortraitPosterRoute
   ApiSupabaseRoute: typeof ApiSupabaseRoute
 }
 
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/api/supabase'
       fullPath: '/api/supabase'
       preLoaderRoute: typeof ApiSupabaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/portrait-poster': {
+      id: '/api/portrait-poster'
+      path: '/api/portrait-poster'
+      fullPath: '/api/portrait-poster'
+      preLoaderRoute: typeof ApiPortraitPosterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/nxsha-fetch': {
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiConfigRoute: ApiConfigRoute,
   ApiMoviesRoute: ApiMoviesRoute,
   ApiNxshaFetchRoute: ApiNxshaFetchRoute,
+  ApiPortraitPosterRoute: ApiPortraitPosterRoute,
   ApiSupabaseRoute: ApiSupabaseRoute,
 }
 export const routeTree = rootRouteImport

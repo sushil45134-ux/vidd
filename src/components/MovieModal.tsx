@@ -24,6 +24,7 @@ import {
 } from "../lib/heroBanners";
 import { registerTvBackHandler } from "../lib/spatialNav";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
+import { useAndroidPhone } from "../hooks/useAndroidPhone";
 import {
   episodeTag,
   formatClock,
@@ -60,6 +61,7 @@ export default function MovieModal({
   canEditThumbnail = false,
   onEditThumbnail,
 }: MovieModalProps) {
+  const isAndroidPhone = useAndroidPhone();
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const [trailerIds, setTrailerIds] = useState<string[]>([]);
   const [trailerIndex, setTrailerIndex] = useState(0);
@@ -77,9 +79,10 @@ export default function MovieModal({
   const isCollection = !!(movie.isCollection && movie.episodes && movie.episodes.length > 0);
   const seasons: Season[] = useMemo(() => {
     if (!isCollection) return [];
-    const source = movie.seasons && movie.seasons.length > 0
-      ? movie.seasons
-      : [{ seasonNumber: 1, episodes: movie.episodes! }];
+    const source =
+      movie.seasons && movie.seasons.length > 0
+        ? movie.seasons
+        : [{ seasonNumber: 1, episodes: movie.episodes! }];
     const isAnime = movie.genre.some((g) => g.toLowerCase() === "anime");
     const isNxsha = movie.episodes!.some(
       (episode) =>
@@ -274,7 +277,8 @@ export default function MovieModal({
     setShowTrailerPlayer(false);
     if (kind !== "Anime" || isTv) return;
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } })
+      .connection;
     if (reducedMotion || connection?.saveData) return;
 
     const tmdbId = (movie.playlistId || movie.episodes?.[0]?.playlistId || "").match(
@@ -327,7 +331,10 @@ export default function MovieModal({
       document
         .querySelectorAll<HTMLIFrameElement>('iframe[data-anime-trailer="true"]')
         .forEach((frame) =>
-          frame.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: trailerId }), "*"),
+          frame.contentWindow?.postMessage(
+            JSON.stringify({ event: "listening", id: trailerId }),
+            "*",
+          ),
         );
       if (++attempts >= 8) window.clearInterval(timer);
     };
@@ -376,7 +383,9 @@ export default function MovieModal({
       >
         {showTrailerPlayer && trailerId && (
           <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/95 p-3 md:p-8">
-            <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/15">
+            <div
+              className={`relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/15 ${isAndroidPhone ? "android-trailer-frame" : ""}`}
+            >
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailerId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
                 title={`${movie.title} official trailer`}
@@ -397,7 +406,9 @@ export default function MovieModal({
         )}
 
         {/* Hero — legacy-media padding-ratio is the Chromium 69 aspect-ratio fallback */}
-        <div className="legacy-media relative aspect-[16/9] w-full">
+        <div
+          className={`legacy-media relative aspect-[16/9] w-full ${isAndroidPhone ? "android-modal-hero" : ""}`}
+        >
           <SmartImage src={heroImage} alt={heroTitle} className="w-full h-full object-cover" />
           {trailerId && (
             <iframe
@@ -642,7 +653,9 @@ export default function MovieModal({
         {/* Season cards OR Episodes row OR More Like This */}
         <div className="relative px-6 md:px-12 py-6">
           {showSeasonPicker ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${isAndroidPhone ? "android-season-grid" : ""}`}
+            >
               {seasons.map((s) => (
                 <SeasonCard
                   key={s.seasonNumber}
