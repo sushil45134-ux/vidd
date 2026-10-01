@@ -111,6 +111,19 @@ export function movieImageSources(movie: Movie, mode: "hero" | "card" | "poster"
         ? [movie.image, movie.thumbnailUrl, movie.backdrop]
         : [movie.thumbnailUrl, movie.image, movie.backdrop];
 
+  // Android portrait cards must never fall through to desktop's 16:9
+  // thumbnail/backdrop or a YouTube frame. `image` is the dedicated poster
+  // slot populated by anime/TMDB imports; if it is absent, use known portrait
+  // key art and finally the neutral placeholder instead of showing a cropped
+  // PC image.
+  if (mode === "poster") {
+    return unique([
+      ...primary.filter(isRealPoster),
+      ...knownSeriesArtwork(movie),
+      FALLBACK_THUMBNAIL,
+    ]);
+  }
+
   return unique([
     ...primary.filter(isRealPoster).flatMap((url) => resolveYouTubeThumb(url, card)),
     ...(card
