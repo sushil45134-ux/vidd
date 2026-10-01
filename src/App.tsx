@@ -1042,13 +1042,23 @@ function App() {
     const pid = playingMovie?.playlistId;
     if (!playingMovie || !pid) return undefined;
     const sortByEp = (a: Movie, b: Movie) =>
-      (a.seasonNumber || 1) - (b.seasonNumber || 1) ||
-      (a.episodeNumber || 0) - (b.episodeNumber || 0);
-    const pick = (list: Movie[]) => {
-      const siblings = list.filter((m) => m.playlistId === pid).sort(sortByEp);
-      return siblings.length > 1 ? siblings : undefined;
-    };
-    return pick(syncedMovies) ?? pick(uploadedMovies) ?? pick(animeEpisodes);
+      (a.seasonNumber ?? 1) - (b.seasonNumber ?? 1) ||
+      (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0);
+
+    // A playlist can be split between uploaded, synced and live-anime data
+    // (especially just after adding a season). Picking the first non-empty
+    // source meant the episode the user clicked could be absent from the
+    // player queue; PlayerOverlay then fell back to queue[0] and played a
+    // completely different episode. Build one authoritative queue instead.
+    const byId = new Map<number, Movie>();
+    for (const episode of [...syncedMovies, ...uploadedMovies, ...animeEpisodes]) {
+      if (episode.playlistId === pid) byId.set(episode.id, episode);
+    }
+    // Keep the exact object selected in the modal. Collection-building may
+    // decorate it (season remap/artwork), and it must always win on ID clashes.
+    byId.set(playingMovie.id, playingMovie);
+    const siblings = Array.from(byId.values()).sort(sortByEp);
+    return siblings.length > 1 ? siblings : undefined;
   }, [playingMovie, syncedMovies, uploadedMovies, animeEpisodes]);
 
   // Admin banners split by page — the home hero only ever shows "home"

@@ -380,9 +380,19 @@ export function EmbedPlayer({
   });
 
   useEffect(() => {
-    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    const h = () =>
+      setIsFullscreen(
+        !!(
+          document.fullscreenElement ||
+          (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement
+        ),
+      );
     document.addEventListener("fullscreenchange", h);
-    return () => document.removeEventListener("fullscreenchange", h);
+    document.addEventListener("webkitfullscreenchange", h);
+    return () => {
+      document.removeEventListener("fullscreenchange", h);
+      document.removeEventListener("webkitfullscreenchange", h);
+    };
   }, []);
 
   // Use Dailymotion's Web SDK for Dailymotion videos. The old iframe postMessage API is
@@ -629,9 +639,11 @@ export function EmbedPlayer({
   // failure is intentionally silent and the visible fullscreen control still
   // provides the fallback.
   useEffect(() => {
-    const container = containerRef.current as (HTMLDivElement & {
-      webkitRequestFullscreen?: () => void;
-    }) | null;
+    const container = containerRef.current as
+      | (HTMLDivElement & {
+          webkitRequestFullscreen?: () => void;
+        })
+      | null;
     if (!container || document.fullscreenElement) return;
     try {
       const result = container.requestFullscreen?.() ?? container.webkitRequestFullscreen?.();
@@ -644,13 +656,36 @@ export function EmbedPlayer({
   }, [src]);
 
   const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+    const container = containerRef.current as
+      | (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void })
+      | null;
+    if (!container) return;
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    const active = doc.fullscreenElement || doc.webkitFullscreenElement;
+
+    try {
+      const result = active
+        ? (doc.exitFullscreen || doc.webkitExitFullscreen)?.call(doc)
+        : (container.requestFullscreen || container.webkitRequestFullscreen)?.call(container);
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        void (result as Promise<void>).catch(() => {});
+      }
+      if (!active) {
+        // Android supports orientation locking only after fullscreen succeeds;
+        // failure is harmless on browsers which do not expose it.
+        void (
+          screen.orientation as ScreenOrientation & {
+            lock?: (orientation: "landscape") => Promise<void>;
+          }
+        )
+          .lock?.("landscape")
+          .catch(() => {});
+      }
+    } catch {
+      // Keep playback usable when a browser/WebView blocks native fullscreen.
     }
   };
 
@@ -765,22 +800,23 @@ export function EmbedPlayer({
           <X size={20} className="text-white" />
         </button>
 
-        {/* Video files only: Fullscreen button */}
-        {kind === "video" && (
-          <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-            <button
-              onClick={toggleFullscreen}
-              className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
-              title="Fullscreen (f)"
-            >
-              {isFullscreen ? (
-                <Minimize size={18} className="text-white" />
-              ) : (
-                <Maximize size={18} className="text-white" />
-              )}
-            </button>
-          </div>
-        )}
+        {/* Native fullscreen must be triggered by a real tap on Android.
+            Keep this control available for iframe providers too; their own
+            controls cannot fullscreen Vidd's cross-origin parent reliably. */}
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          <button
+            onClick={toggleFullscreen}
+            className="w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? (
+              <Minimize size={19} className="text-white" />
+            ) : (
+              <Maximize size={19} className="text-white" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -23,12 +23,25 @@ export default function PlayerOverlay({
 }) {
   const queue = useMemo(() => {
     if (!episodes || episodes.length < 2) return [];
-    return episodes.filter((e) => !!e.youtubeId || !!e.embedUrl || !!e.videoUrl);
-  }, [episodes]);
+    const playable = episodes.filter((e) => !!e.youtubeId || !!e.embedUrl || !!e.videoUrl);
+    const selectedIsPlayable = !!movie.youtubeId || !!movie.embedUrl || !!movie.videoUrl;
+
+    // Never let a stale/partial sibling list replace the episode the user
+    // actually selected. Previously, when that episode was missing, initialIdx
+    // silently became 0 and the first (wrong) episode started playing.
+    if (selectedIsPlayable && !playable.some((episode) => episode.id === movie.id)) {
+      return [...playable, movie].sort(
+        (a, b) =>
+          (a.seasonNumber ?? 1) - (b.seasonNumber ?? 1) ||
+          (a.episodeNumber ?? 0) - (b.episodeNumber ?? 0),
+      );
+    }
+    return playable;
+  }, [episodes, movie]);
 
   const initialIdx = useMemo(() => {
     const i = queue.findIndex((e) => e.id === movie.id);
-    return i >= 0 ? i : 0;
+    return i >= 0 ? i : -1;
   }, [queue, movie.id]);
 
   const [idx, setIdx] = useState(initialIdx);
