@@ -1,0 +1,52 @@
+Nxsha anime-movies embed · mode=APPLY
+movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&disable_app_ad=true
+movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&disable_app_ad=true
+movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&disable_app_ad=true
+movie 741: "5 Centimeters per Second" (2007) -> https://nxsha.space/embed/movie/38142?lang=hi&disable_app_ad=true
+movie 675: "The Garden of Words" (2013) -> https://nxsha.space/embed/movie/198375?lang=hi&disable_app_ad=true
+movie 13011: "Flavors of Youth" (2018) -> https://nxsha.space/embed/movie/513347?lang=hi&disable_app_ad=true
+movie 983: "Spirited Away" (2001) -> https://nxsha.space/embed/movie/129?lang=hi&disable_app_ad=true
+movie 984: "Howl's Moving Castle" (2004) -> https://nxsha.space/embed/movie/4935?lang=hi&disable_app_ad=true
+movie 985: "Princess Mononoke" (1997) -> https://nxsha.space/embed/movie/128?lang=hi&disable_app_ad=true
+movie 7896: "My Neighbor Totoro" (1988) -> https://nxsha.space/embed/movie/8392?lang=hi&disable_app_ad=true
+movie 7895: "The Boy and the Heron" (2023) -> https://nxsha.space/embed/movie/508883?lang=hi&disable_app_ad=true
+movie 982: "Jujutsu Kaisen 0" (2021) -> https://nxsha.space/embed/movie/810693?lang=hi&disable_app_ad=true
+movie 13010: "Chainsaw Man - The Movie: Reze Arc" (2025) -> https://nxsha.space/embed/movie/1218925?lang=hi&disable_app_ad=true
+movie 13012: "Wolf Children" (2012) -> https://nxsha.space/embed/movie/110420?lang=hi&disable_app_ad=true
+movie 13009: "Demon Slayer: Kimetsu No Yaiba Infinity Castle" (2025) -> https://nxsha.space/embed/movie/1311031?lang=hi&disable_app_ad=true
+movie 515: "SPY x FAMILY CODE: White" (2023) -> https://nxsha.space/embed/movie/1062807?lang=hi&disable_app_ad=true
+insert: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (2020) -> https://nxsha.space/embed/movie/635302?lang=hi&disable_app_ad=true
+insert: "One Piece Film: Red" (2022) -> https://nxsha.space/embed/movie/900667?lang=hi&disable_app_ad=true
+insert: "One Piece: Stampede" (2019) -> https://nxsha.space/embed/movie/568012?lang=hi&disable_app_ad=true
+insert: "One Piece Film: GOLD" (2016) -> https://nxsha.space/embed/movie/374205?lang=hi&disable_app_ad=true
+insert: "Dragon Ball Super: Broly" (2018) -> https://nxsha.space/embed/movie/503314?lang=hi&disable_app_ad=true
+insert: "Dragon Ball Super: Super Hero" (2022) -> https://nxsha.space/embed/movie/610150?lang=hi&disable_app_ad=true
+insert: "Dragon Ball Z: Broly - The Legendary Super Saiyan" (1993) -> https://nxsha.space/embed/movie/34433?lang=hi&disable_app_ad=true
+insert: "The Last: Naruto the Movie" (2014) -> https://nxsha.space/embed/movie/317442?lang=hi&disable_app_ad=true
+insert: "Boruto: Naruto the Movie" (2015) -> https://nxsha.space/embed/movie/347201?lang=hi&disable_app_ad=true
+insert: "Road to Ninja: Naruto the Movie" (2012) -> https://nxsha.space/embed/movie/118406?lang=hi&disable_app_ad=true
+insert: "My Hero Academia: Two Heroes" (2018) -> https://nxsha.space/embed/movie/505262?lang=hi&disable_app_ad=true
+insert: "My Hero Academia: Heroes Rising" (2019) -> https://nxsha.space/embed/movie/592350?lang=hi&disable_app_ad=true
+insert: "My Hero Academia: World Heroes' Mission" (2021) -> https://nxsha.space/embed/movie/768744?lang=hi&disable_app_ad=true
+insert: "My Hero Academia: You're Next" (2024) -> https://nxsha.space/embed/movie/1159311?lang=hi&disable_app_ad=true
+insert: "Summer Wars" (2009) -> https://nxsha.space/embed/movie/28874?lang=hi&disable_app_ad=true
+insert: "The Boy and the Beast" (2015) -> https://nxsha.space/embed/movie/315465?lang=hi&disable_app_ad=true
+insert: "Mirai" (2018) -> https://nxsha.space/embed/movie/475215?lang=hi&disable_app_ad=true
+insert: "Belle" (2021) -> https://nxsha.space/embed/movie/776305?lang=hi&disable_app_ad=true
+insert: "Josee, the Tiger and the Fish" (2020) -> https://nxsha.space/embed/movie/652837?lang=hi&disable_app_ad=true
+insert: "A Whisker Away" (2020) -> https://nxsha.space/embed/movie/667520?lang=hi&disable_app_ad=true
+insert: "Hello World" (2019) -> https://nxsha.space/embed/movie/604605?lang=hi&disable_app_ad=true
+insert: "Bubble" (2022) -> https://nxsha.space/embed/movie/912598?lang=hi&disable_app_ad=true
+insert: "Words Bubble Up Like Soda Pop" (2021) -> https://nxsha.space/embed/movie/579741?lang=hi&disable_app_ad=true
+insert: "The Girl Who Leapt Through Time" (2006) -> https://nxsha.space/embed/movie/14069?lang=hi&disable_app_ad=true
+insert: "The First Slam Dunk" (2022) -> https://nxsha.space/embed/movie/783675?lang=hi&disable_app_ad=true
+insert: "HAIKYU!! The Dumpster Battle" (2024) -> https://nxsha.space/embed/movie/1012201?lang=hi&disable_app_ad=true
+insert: "BLUE LOCK THE MOVIE -EPISODE NAGI-" (2024) -> https://nxsha.space/embed/movie/1104844?lang=hi&disable_app_ad=true
+insert: "Black Clover: Sword of the Wizard King" (2023) -> https://nxsha.space/embed/movie/812225?lang=hi&disable_app_ad=true
+insert: "Renegade Immortal: Battle of the Immortal Slayer" (2026) -> https://nxsha.space/embed/movie/1599191?lang=hi&disable_app_ad=true
+new movies: inserted=29 already-present=0
+rows removed (4): row_nxsha_shinkai "MAKOTO SHINKAI MOVIES" · row_nxsha_ghibli "STUDIO GHIBLI MOVIES" · row_nxsha_blockbuster "BLOCKBUSTER ANIME MOVIES" · row_nxsha_family "HEARTWARMING FAMILY MOVIES"
+rows top (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
+rows bottom (9): "NEW ANIME MOVIES" · "DEMON SLAYER MOVIES" · "ONE PIECE MOVIES" · "DRAGON BALL MOVIES" · "NARUTO MOVIES" · "MY HERO ACADEMIA MOVIES" · "MAMORU HOSODA MOVIES" · "ROMANCE ANIME MOVIES" · "SPORTS ANIME MOVIES"
+verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN | NEW ANIME MOVIES | DEMON SLAYER MOVIES | ONE PIECE MOVIES | DRAGON BALL MOVIES | NARUTO MOVIES | MY HERO ACADEMIA MOVIES | MAMORU HOSODA MOVIES | ROMANCE ANIME MOVIES | SPORTS ANIME MOVIES
+DONE — live site updated.
