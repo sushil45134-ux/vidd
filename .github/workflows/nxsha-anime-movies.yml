@@ -1,0 +1,35 @@
+name: Nxsha Anime Movies Embed
+
+# Movies section ke anime films ko Nxsha movie player se re-embed karta hai
+# aur proper rows banata hai (EMOTIONAL MOVIES + WATCH AGAIN untouched).
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "APPLY (false = dry run, true = live site par likho)"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Re-embed anime movies from Nxsha
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPLY: ${{ inputs.apply == 'true' && '1' || '0' }}
+        run: node scripts/nxsha-anime-movies-embed.mjs
