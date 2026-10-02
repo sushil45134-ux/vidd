@@ -1,0 +1,20 @@
+Nxsha anime-movies embed · mode=APPLY
+movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&disable_app_ad=true
+movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&disable_app_ad=true
+movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&disable_app_ad=true
+movie 741: "5 Centimeters per Second" (2007) -> https://nxsha.space/embed/movie/38142?lang=hi&disable_app_ad=true
+movie 675: "The Garden of Words" (2013) -> https://nxsha.space/embed/movie/198375?lang=hi&disable_app_ad=true
+movie 13011: "Flavors of Youth" (2018) -> https://nxsha.space/embed/movie/513347?lang=hi&disable_app_ad=true
+movie 983: "Spirited Away" (2001) -> https://nxsha.space/embed/movie/129?lang=hi&disable_app_ad=true
+movie 984: "Howl's Moving Castle" (2004) -> https://nxsha.space/embed/movie/4935?lang=hi&disable_app_ad=true
+movie 985: "Princess Mononoke" (1997) -> https://nxsha.space/embed/movie/128?lang=hi&disable_app_ad=true
+movie 7896: "My Neighbor Totoro" (1988) -> https://nxsha.space/embed/movie/8392?lang=hi&disable_app_ad=true
+movie 7895: "The Boy and the Heron" (2023) -> https://nxsha.space/embed/movie/508883?lang=hi&disable_app_ad=true
+movie 982: "Jujutsu Kaisen 0" (2021) -> https://nxsha.space/embed/movie/810693?lang=hi&disable_app_ad=true
+movie 13010: "Chainsaw Man - The Movie: Reze Arc" (2025) -> https://nxsha.space/embed/movie/1218925?lang=hi&disable_app_ad=true
+movie 13012: "Wolf Children" (2012) -> https://nxsha.space/embed/movie/110420?lang=hi&disable_app_ad=true
+rows removed (4): row_1789235192803 "POPULAR MOVIES" · row_1789235688005 "TOP RATED MOVIES" · row_1789236193639 "ROMANCE MOVIES" · row_1789469914510 "Studio Ghibli Movies"
+rows added (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
+rows kept: EMOTIONAL MOVIES · WATCH AGAIN · 30 non-movies rows
+verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN
+DONE — live site updated.
