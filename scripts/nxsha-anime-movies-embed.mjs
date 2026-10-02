@@ -59,7 +59,8 @@ const embed = (tmdbId) => `https://nxsha.space/embed/movie/${tmdbId}?lang=hi&dis
 /**
  * Library ke anime films → Nxsha TMDB ids (sab nxsha.space/search se verified).
  * NOTE: EMOTIONAL MOVIES row ke films (743, 677, 676) aur WATCH AGAIN ke
- * films (33, 34, 35, 775, 979, 3629, 13009) jaan-boojh kar list me NAHI hain.
+ * baki films (33, 34, 35, 775, 979, 3629) jaan-boojh kar list me NAHI hain.
+ * Demon Slayer Infinity Castle (13009) user request par Nxsha se embed hai.
  */
 const MOVIES = [
   { id: 980,   tmdb: 372058,  title: "Your Name",                        year: 2016 },
@@ -76,6 +77,8 @@ const MOVIES = [
   { id: 982,   tmdb: 810693,  title: "Jujutsu Kaisen 0",                 year: 2021 },
   { id: 13010, tmdb: 1218925, title: "Chainsaw Man - The Movie: Reze Arc", year: 2025 },
   { id: 13012, tmdb: 110420,  title: "Wolf Children",                    year: 2012 },
+  // Title same rakha hai taaki WATCH AGAIN row ka plannedTitle match karta rahe.
+  { id: 13009, tmdb: 1311031, title: "Demon Slayer: Kimetsu No Yaiba Infinity Castle", year: 2025 },
 ];
 
 const byId = new Map(MOVIES.map((m) => [m.id, m]));
@@ -84,12 +87,6 @@ const ref = (id) => {
   if (!m) throw new Error(`Unknown movie id ${id}`);
   return `embed:${embed(m.tmdb)}`;
 };
-
-/** Demon Slayer Infinity Castle (13009) WATCH AGAIN ka film hai — embed
- *  untouched, bas BLOCKBUSTER row me bhi dikhana hai (existing ref se). */
-const DEMON_SLAYER_ID = 13009;
-const DEMON_SLAYER_REF =
-  "embed:https://streams.iqsmartgames.com/embed/movie/tt32820897?key=e11a7debaaa4f5d25b671706ffe4d2acb56efbd4";
 
 /** Movies-section rows jo kabhi nahi chhede jaate. */
 const KEEP_ROW_IDS = new Set([
@@ -111,12 +108,7 @@ const row = (id, title, ids, extraRefs = {}) => ({
 const NEW_ROWS = [
   row("row_nxsha_shinkai", "MAKOTO SHINKAI MOVIES", [980, 981, 19, 741, 675, 13011]),
   row("row_nxsha_ghibli", "STUDIO GHIBLI MOVIES", [983, 984, 985, 7896, 7895]),
-  row(
-    "row_nxsha_blockbuster",
-    "BLOCKBUSTER ANIME MOVIES",
-    [DEMON_SLAYER_ID, 982, 13010],
-    { [DEMON_SLAYER_ID]: DEMON_SLAYER_REF },
-  ),
+  row("row_nxsha_blockbuster", "BLOCKBUSTER ANIME MOVIES", [13009, 982, 13010]),
   row("row_nxsha_family", "HEARTWARMING FAMILY MOVIES", [13012, 7896, 983, 13011]),
 ];
 
