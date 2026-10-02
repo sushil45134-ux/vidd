@@ -16,71 +16,108 @@ movie 13012: "Wolf Children" (2012) -> https://nxsha.space/embed/movie/110420?la
 movie 13009: "Demon Slayer: Kimetsu No Yaiba Infinity Castle" (2025) -> https://nxsha.space/embed/movie/1311031?lang=hi&server=GbruHindi&disable_app_ad=true
 movie 515: "SPY x FAMILY CODE: White" (2023) -> https://nxsha.space/embed/movie/1062807?lang=hi&server=GbruHindi&disable_app_ad=true
 
-hindi check: 63 franchise movies (Shinchan/Doraemon/Pokemon) ...
-  hindi ???  : "Crayon Shin-chan: Jungle That Invites Storm" (2000) [tmdb 117087] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Action Mask vs. Leotard Devil" (1993) [tmdb 128868] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: The Storm Called: The Adult Empire Strikes Back" (2001) [tmdb 37280] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Pursuit of the Balls of Darkness" (1997) [tmdb 89458] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Great Adventure in Henderland" (1996) [tmdb 128871] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Unkokusai's Ambition" (1995) [tmdb 104154] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: The Hidden Treasure of the Buri Buri Kingdom" (1994) [tmdb 109526] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Roar! Kasukabe Animal Kingdom" (2009) [tmdb 128887] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: The Legend Called: Dance! Amigo!" (2006) [tmdb 128883] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Super-Dimension! The Storm Called My Bride" (2010) [tmdb 117352] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Fierceness That Invites Storm! Me and the Space Princess" (2012) [tmdb 163772] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: My Moving Story! Cactus Large Attack!" (2015) [tmdb 371236] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Invasion!! Alien Shiriri" (2017) [tmdb 453575] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~" (2019) [tmdb 596302] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan the Movie: Our Dinosaur Diary" (2024) [tmdb 1221404] -> keep (API error, safe side)
-  hindi ???  : "Crayon Shin-chan the Movie: Super Hot! The Spicy Kasukabe Dancers" (2025) [tmdb 1404404] -> keep (API error, safe side)
-  hindi ???  : "Stand by Me Doraemon" (2014) [tmdb 265712] -> keep (API error, safe side)
-  hindi ???  : "Stand by Me Doraemon 2" (2020) [tmdb 728754] -> keep (API error, safe side)
-  hindi ???  : "Doraemon the Movie: Nobita's Art World Tales" (2025) [tmdb 1372489] -> keep (API error, safe side)
-  hindi ???  : "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil" (2026) [tmdb 1542261] -> keep (API error, safe side)
-  hindi ???  : "Doraemon the Movie: Nobita's Sky Utopia" (2023) [tmdb 1030587] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's New Dinosaur" (2020) [tmdb 682153] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Chronicle of the Moon Exploration" (2019) [tmdb 575222] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Treasure Island" (2018) [tmdb 495925] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Great Adventure in the Antarctic Kachi Kochi" (2017) [tmdb 462677] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Space Heroes" (2015) [tmdb 350650] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Secret Gadget Museum" (2013) [tmdb 218726] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Dinosaur" (2006) [tmdb 70841] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Windmasters" (2003) [tmdb 98613] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Robot Kingdom" (2002) [tmdb 162095] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Winged Braves" (2001) [tmdb 162092] -> keep (API error, safe side)
-  hindi ???  : "Doraemon Comes Back" (1998) [tmdb 326148] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Spiral City" (1997) [tmdb 163394] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Three Visionary Swordsmen" (1994) [tmdb 161715] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Tin Labyrinth" (1993) [tmdb 161822] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita and the Steel Troops" (1986) [tmdb 88625] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Dorabian Nights" (1991) [tmdb 188403] -> keep (API error, safe side)
-  hindi ???  : "Doraemon: Nobita's Dinosaur" (1980) [tmdb 64789] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: The First Movie" (1998) [tmdb 10228] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie 2000" (1999) [tmdb 12599] -> keep (API error, safe side)
-  hindi ???  : "Pokemon 3: The Movie" (2000) [tmdb 10991] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Mewtwo Returns" (2001) [tmdb 36897] -> keep (API error, safe side)
-  hindi ???  : "Pokemon 4Ever" (2001) [tmdb 12600] -> keep (API error, safe side)
-  hindi ???  : "Pokemon Heroes" (2002) [tmdb 33875] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Jirachi Wish Maker" (2003) [tmdb 36218] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Destiny Deoxys" (2004) [tmdb 34065] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Lucario and the Mystery of Mew" (2005) [tmdb 34067] -> keep (API error, safe side)
-  hindi ???  : "Pokemon Ranger and the Temple of the Sea" (2006) [tmdb 16808] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: The Rise of Darkrai" (2007) [tmdb 25961] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Giratina and the Sky Warrior" (2008) [tmdb 47292] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: White - Victini and Zekrom" (2011) [tmdb 88557] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Zoroark - Master of Illusions" (2010) [tmdb 50087] -> keep (API error, safe side)
-  hindi ???  : "Pokemon: Arceus and the Jewel of Life" (2009) [tmdb 39057] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Black - Victini and Reshiram" (2011) [tmdb 115223] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Kyurem vs. the Sword of Justice" (2012) [tmdb 150213] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Genesect and the Legend Awakened" (2013) [tmdb 227679] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Hoopa and the Clash of Ages" (2015) [tmdb 350499] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Diancie and the Cocoon of Destruction" (2014) [tmdb 303903] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Volcanion and the Mechanical Marvel" (2016) [tmdb 382190] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: I Choose You!" (2017) [tmdb 436931] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Mewtwo Strikes Back - Evolution" (2019) [tmdb 571891] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: The Power of Us" (2018) [tmdb 494407] -> keep (API error, safe side)
-  hindi ???  : "Pokemon the Movie: Secrets of the Jungle" (2020) [tmdb 662708] -> keep (API error, safe side)
-hindi check done: available=0 not-available=0 unknown-kept=63
-Error: Hindi check me ek bhi movie pass nahi hui — nxsha API shayad down hai, kuch delete NAHI kiya.
-    at main (file:///home/runner/work/vidd/vidd/scripts/nxsha-anime-movies-embed.mjs:463:11)
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+hindi-only filter: 6 franchise movies without Hindi dub drop hongi:
+  drop sc-104154: "Crayon Shin-chan: Unkokusai's Ambition" — Unkokusai's Ambition (1995) — kisi Hindi dub list me nahi
+  drop sc-128883: "Crayon Shin-chan: The Legend Called: Dance! Amigo!" — The Legend Called: Dance! Amigo! (2006) — Hindi dub nahi
+  drop sc-453575: "Crayon Shin-chan: Invasion!! Alien Shiriri" — Invasion!! Alien Shiriri (2017) — Hindi dub nahi
+  drop sc-596302: "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~" — Honeymoon Hurricane (2019) — Hindi dub nahi
+  drop dm-326148: "Doraemon Comes Back" — Doraemon Comes Back (1998) — 27-min short, Hindi dub nahi
+  drop dm-1542261: "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil" — Castle of the Undersea Devil remake (2026) — abhi release nahi hui
+exists 26928: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train"
+exists 26929: "One Piece Film: Red"
+exists 26930: "One Piece: Stampede"
+exists 26931: "One Piece Film: GOLD"
+exists 26932: "Dragon Ball Super: Broly"
+exists 26933: "Dragon Ball Super: Super Hero"
+exists 26934: "Dragon Ball Z: Broly - The Legendary Super Saiyan"
+exists 26935: "The Last: Naruto the Movie"
+exists 26936: "Boruto: Naruto the Movie"
+exists 26937: "Road to Ninja: Naruto the Movie"
+exists 26938: "My Hero Academia: Two Heroes"
+exists 26939: "My Hero Academia: Heroes Rising"
+exists 26940: "My Hero Academia: World Heroes' Mission"
+exists 26941: "My Hero Academia: You're Next"
+exists 26942: "Summer Wars"
+exists 26943: "The Boy and the Beast"
+exists 26944: "Mirai"
+exists 26945: "Belle"
+exists 26946: "Josee, the Tiger and the Fish"
+exists 26947: "A Whisker Away"
+exists 26948: "Hello World"
+exists 26949: "Bubble"
+exists 26950: "Words Bubble Up Like Soda Pop"
+exists 26951: "The Girl Who Leapt Through Time"
+exists 26952: "The First Slam Dunk"
+exists 26953: "HAIKYU!! The Dumpster Battle"
+exists 26954: "BLUE LOCK THE MOVIE -EPISODE NAGI-"
+exists 26955: "Black Clover: Sword of the Wizard King"
+exists 26956: "Renegade Immortal: Battle of the Immortal Slayer"
+exists 26957: "Crayon Shin-chan: The Storm Called: The Adult Empire Strikes Back"
+exists 26958: "Crayon Shin-chan: Jungle That Invites Storm"
+exists 26959: "Crayon Shin-chan: Great Adventure in Henderland"
+exists 26960: "Crayon Shin-chan: Pursuit of the Balls of Darkness"
+exists 26961: "Crayon Shin-chan: Action Mask vs. Leotard Devil"
+exists 26962: "Crayon Shin-chan: The Hidden Treasure of the Buri Buri Kingdom"
+delete 26963: "Crayon Shin-chan: Unkokusai's Ambition" (Hindi dub nahi mila)
+delete 26964: "Crayon Shin-chan: The Legend Called: Dance! Amigo!" (Hindi dub nahi mila)
+exists 26965: "Crayon Shin-chan: Roar! Kasukabe Animal Kingdom"
+exists 26966: "Crayon Shin-chan: Super-Dimension! The Storm Called My Bride"
+exists 26967: "Crayon Shin-chan: Fierceness That Invites Storm! Me and the Space Princess"
+exists 26968: "Crayon Shin-chan: My Moving Story! Cactus Large Attack!"
+delete 26969: "Crayon Shin-chan: Invasion!! Alien Shiriri" (Hindi dub nahi mila)
+delete 26970: "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~" (Hindi dub nahi mila)
+exists 26971: "Crayon Shin-chan the Movie: Our Dinosaur Diary"
+exists 26972: "Crayon Shin-chan the Movie: Super Hot! The Spicy Kasukabe Dancers"
+exists 26973: "Stand by Me Doraemon"
+exists 26974: "Stand by Me Doraemon 2"
+exists 26975: "Doraemon the Movie: Nobita's Art World Tales"
+delete 26976: "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil" (Hindi dub nahi mila)
+exists 26977: "Doraemon the Movie: Nobita's Sky Utopia"
+exists 26978: "Doraemon: Nobita's New Dinosaur"
+exists 26979: "Doraemon: Nobita's Chronicle of the Moon Exploration"
+exists 26980: "Doraemon: Nobita's Treasure Island"
+exists 26981: "Doraemon: Nobita's Great Adventure in the Antarctic Kachi Kochi"
+exists 26982: "Doraemon: Nobita and the Space Heroes"
+exists 26983: "Doraemon: Nobita's Secret Gadget Museum"
+exists 26984: "Doraemon: Nobita's Dinosaur"
+exists 26985: "Doraemon: Nobita and the Windmasters"
+exists 26986: "Doraemon: Nobita and the Robot Kingdom"
+exists 26987: "Doraemon: Nobita and the Winged Braves"
+delete 26988: "Doraemon Comes Back" (Hindi dub nahi mila)
+exists 26989: "Doraemon: Nobita and the Spiral City"
+exists 26990: "Doraemon: Nobita's Three Visionary Swordsmen"
+exists 26991: "Doraemon: Nobita and the Tin Labyrinth"
+exists 26992: "Doraemon: Nobita's Dorabian Nights"
+exists 26993: "Doraemon: Nobita and the Steel Troops"
+exists 26994: "Doraemon: Nobita's Dinosaur"
+exists 26995: "Pokemon: The First Movie"
+exists 26996: "Pokemon the Movie 2000"
+exists 26997: "Pokemon 3: The Movie"
+exists 26998: "Pokemon 4Ever"
+exists 26999: "Pokemon: Mewtwo Returns"
+exists 27000: "Pokemon Heroes"
+exists 27001: "Pokemon: Jirachi Wish Maker"
+exists 27002: "Pokemon: Destiny Deoxys"
+exists 27003: "Pokemon: Lucario and the Mystery of Mew"
+exists 27004: "Pokemon Ranger and the Temple of the Sea"
+exists 27005: "Pokemon: The Rise of Darkrai"
+exists 27006: "Pokemon: Giratina and the Sky Warrior"
+exists 27007: "Pokemon: Arceus and the Jewel of Life"
+exists 27008: "Pokemon: Zoroark - Master of Illusions"
+exists 27009: "Pokemon the Movie: White - Victini and Zekrom"
+exists 27010: "Pokemon the Movie: Black - Victini and Reshiram"
+exists 27011: "Pokemon the Movie: Kyurem vs. the Sword of Justice"
+exists 27012: "Pokemon the Movie: Genesect and the Legend Awakened"
+exists 27013: "Pokemon the Movie: Diancie and the Cocoon of Destruction"
+exists 27014: "Pokemon the Movie: Hoopa and the Clash of Ages"
+exists 27015: "Pokemon the Movie: Volcanion and the Mechanical Marvel"
+exists 27016: "Pokemon the Movie: I Choose You!"
+exists 27017: "Pokemon the Movie: The Power of Us"
+exists 27018: "Pokemon the Movie: Mewtwo Strikes Back - Evolution"
+exists 27019: "Pokemon the Movie: Secrets of the Jungle"
+new movies: inserted=0 already-present=86 url-migrated=0 deleted-non-hindi=6
+rows removed (16): row_nxsha_shinkai "MAKOTO SHINKAI MOVIES" · row_nxsha_ghibli "STUDIO GHIBLI MOVIES" · row_nxsha_blockbuster "BLOCKBUSTER ANIME MOVIES" · row_nxsha_family "HEARTWARMING FAMILY MOVIES" · row_nxsha_new "NEW ANIME MOVIES" · row_nxsha_demonslayer "DEMON SLAYER MOVIES" · row_nxsha_onepiece "ONE PIECE MOVIES" · row_nxsha_dragonball "DRAGON BALL MOVIES" · row_nxsha_naruto "NARUTO MOVIES" · row_nxsha_mha "MY HERO ACADEMIA MOVIES" · row_nxsha_hosoda "MAMORU HOSODA MOVIES" · row_nxsha_romance "ROMANCE ANIME MOVIES" · row_nxsha_sports "SPORTS ANIME MOVIES" · row_nxsha_shinchan "SHINCHAN MOVIES" · row_nxsha_doraemon "DORAEMON MOVIES" · row_nxsha_pokemon "POKEMON MOVIES"
+rows top (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
+rows bottom (12): "NEW ANIME MOVIES" · "DEMON SLAYER MOVIES" · "ONE PIECE MOVIES" · "DRAGON BALL MOVIES" · "NARUTO MOVIES" · "MY HERO ACADEMIA MOVIES" · "MAMORU HOSODA MOVIES" · "ROMANCE ANIME MOVIES" · "SPORTS ANIME MOVIES" · "SHINCHAN MOVIES" · "DORAEMON MOVIES" · "POKEMON MOVIES"
+verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN | NEW ANIME MOVIES | DEMON SLAYER MOVIES | ONE PIECE MOVIES | DRAGON BALL MOVIES | NARUTO MOVIES | MY HERO ACADEMIA MOVIES | MAMORU HOSODA MOVIES | ROMANCE ANIME MOVIES | SPORTS ANIME MOVIES | SHINCHAN MOVIES | DORAEMON MOVIES | POKEMON MOVIES
+DONE — live site updated.
