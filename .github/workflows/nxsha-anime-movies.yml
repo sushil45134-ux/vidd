@@ -1,0 +1,67 @@
+name: Nxsha Anime Movies Embed
+
+# Movies section ke anime films ko Nxsha movie player se re-embed karta hai
+# aur proper rows banata hai (EMOTIONAL MOVIES + WATCH AGAIN untouched).
+#
+# Trigger: is branch par .github/nxsha-movies-run.txt push karo —
+#   file content "dry"   -> sirf plan print hota hai
+#   file content "apply" -> live site par likha jata hai
+on:
+  push:
+    branches:
+      - arena/01a0fd17-vidd
+    paths:
+      - ".github/nxsha-movies-run.txt"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "APPLY (false = dry run, true = live site par likho)"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve mode
+        id: mode
+        run: |
+          MODE="dry"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ "${{ inputs.apply }}" = "true" ] && MODE="apply"
+          elif [ -f .github/nxsha-movies-run.txt ]; then
+            MODE="$(tr -d '[:space:]' < .github/nxsha-movies-run.txt)"
+          fi
+          echo "apply=$([ "$MODE" = "apply" ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+          echo "Mode: $MODE"
+
+      - name: Re-embed anime movies from Nxsha
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPLY: ${{ steps.mode.outputs.apply }}
+        run: |
+          set -o pipefail
+          node scripts/nxsha-anime-movies-embed.mjs 2>&1 | tee nxsha-anime-movies-report.txt
+
+      - name: Save report on branch
+        if: always() && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nxsha-anime-movies-report.txt
+          git commit -m "chore: save nxsha anime movies embed report [skip ci]" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
