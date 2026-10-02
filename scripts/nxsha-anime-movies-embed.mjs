@@ -63,122 +63,6 @@ const embed = (tmdbId) =>
 const oldEmbed = (tmdbId) => `https://nxsha.space/embed/movie/${tmdbId}?lang=hi&disable_app_ad=true`;
 const poster = (p) => `https://image.tmdb.org/t/p/w500${p}`;
 
-// ---------------------------------------------------------------------------
-// Nxsha internal API (web.nxsha.app) — Hindi-availability check.
-// Payload CryptoJS.AES (OpenSSL "Salted__" format, MD5 EVP KDF) se encrypted
-// hota hai; wahi scheme yahan pure node:crypto me implement hai.
-// ---------------------------------------------------------------------------
-import { createHash, createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-
-const NX_API = "https://web.nxsha.app";
-const NX_KEY = "S8x!Jk4ZP1uG8$my";
-const NX_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-
-function nxEvpKdf(password, salt) {
-  let data = Buffer.alloc(0);
-  let prev = Buffer.alloc(0);
-  while (data.length < 48) {
-    prev = createHash("md5").update(Buffer.concat([prev, Buffer.from(password), salt])).digest();
-    data = Buffer.concat([data, prev]);
-  }
-  return { key: data.subarray(0, 32), iv: data.subarray(32, 48) };
-}
-
-function nxEncode(obj) {
-  const payload = JSON.stringify({
-    ...obj,
-    _req_ts: Date.now(),
-    _req_salt: Math.random().toString(36).slice(2, 12),
-  });
-  const salt = randomBytes(8);
-  const { key, iv } = nxEvpKdf(NX_KEY, salt);
-  const cipher = createCipheriv("aes-256-cbc", key, iv);
-  const ct = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
-  const b64 = Buffer.concat([Buffer.from("Salted__"), salt, ct]).toString("base64");
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function nxDecode(str) {
-  if (!str) return null;
-  let b64 = String(str).replace(/-/g, "+").replace(/_/g, "/");
-  while (b64.length % 4) b64 += "=";
-  const raw = Buffer.from(b64, "base64");
-  if (raw.subarray(0, 8).toString("latin1") !== "Salted__") return null;
-  const salt = raw.subarray(8, 16);
-  const { key, iv } = nxEvpKdf(NX_KEY, salt);
-  const decipher = createDecipheriv("aes-256-cbc", key, iv);
-  const text = Buffer.concat([decipher.update(raw.subarray(16)), decipher.final()]).toString("utf8");
-  try {
-    const obj = JSON.parse(text);
-    delete obj._req_ts;
-    delete obj._req_salt;
-    return obj;
-  } catch {
-    return null;
-  }
-}
-
-async function nxGet(path, payload) {
-  const url = `${NX_API}${path}?q=${encodeURIComponent(nxEncode(payload))}`;
-  let lastError;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const res = await fetch(url, {
-        headers: { "User-Agent": NX_UA, Accept: "*/*", Referer: `${NX_API}/` },
-        signal: AbortSignal.timeout(20000),
-      });
-      if (!res.ok) throw new Error(`nxsha ${path} -> HTTP ${res.status}`);
-      const json = await res.json();
-      return nxDecode(json?._hash);
-    } catch (error) {
-      lastError = error;
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-    }
-  }
-  throw lastError;
-}
-
-/**
- * Kya is movie par Hindi server (GbruHindi jaisa) ki playable stream hai?
- * Return: true / false / null (API error — pakka pata nahi chala).
- */
-async function nxHasHindi(tmdbId) {
-  const base = { tmdbId: String(tmdbId), type: "movie", season: "1", episode: "1", imdb_id: "", method: "stream" };
-  let servers;
-  try {
-    const res = await nxGet("/api/servers", base);
-    servers = Array.isArray(res?.servers) ? res.servers : [];
-  } catch {
-    return null;
-  }
-  const hindi = servers.filter((s) => /hindi/i.test(`${s?.name || ""} ${s?.scraper || ""} ${s?.id || ""}`));
-  if (hindi.length === 0) return false;
-  let sawError = false;
-  for (const s of hindi) {
-    try {
-      const src = await nxGet("/api/sources", { ...base, provider: s.scraper || s.id });
-      if (Array.isArray(src?.sources) && src.sources.length > 0) return true;
-    } catch {
-      sawError = true;
-    }
-  }
-  return sawError ? null : false;
-}
-
-/** Simple concurrency pool. */
-async function nxPool(items, limit, worker) {
-  const results = [];
-  let i = 0;
-  async function next() {
-    while (i < items.length) {
-      const idx = i++;
-      results[idx] = await worker(items[idx], idx);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, next));
-  return results;
-}
-
 /**
  * Library ke existing anime films → Nxsha TMDB ids (nxsha.space/search se verified).
  * NOTE: EMOTIONAL MOVIES row ke films (743, 677, 676) aur WATCH AGAIN ke
@@ -388,10 +272,22 @@ const topRows = () => [
   row("row_nxsha_family", "HEARTWARMING FAMILY MOVIES", [13012, 7896, 983, 13011]),
 ];
 
-/** Franchise key hai? (Shinchan / Doraemon / Pokemon — Hindi-only filter inhi par lagta hai) */
-const isFranchiseKey = (k) => typeof k === "string" && /^(sc|dm|pk)-\d+$/.test(k);
-/** Hindi check me FAIL hui franchise keys (rows se hata di jaati hain, DB se delete). */
-const droppedKeys = new Set();
+/**
+ * Franchise movies jin par Hindi dub EXIST hi nahi karta (researched:
+ * Hungama-era 13 + Letterboxd Hindi-dub 18 + Sony Yay 2024-26 premieres,
+ * Doraemon Hindi lists). In 3 rows me "sirf hindi wala" rakhne ke liye
+ * ye DB se delete hoti hain aur rows se hat jaati hain.
+ */
+const NO_HINDI = [
+  ["sc-104154", "Unkokusai's Ambition (1995) — kisi Hindi dub list me nahi"],
+  ["sc-128883", "The Legend Called: Dance! Amigo! (2006) — Hindi dub nahi"],
+  ["sc-453575", "Invasion!! Alien Shiriri (2017) — Hindi dub nahi"],
+  ["sc-596302", "Honeymoon Hurricane (2019) — Hindi dub nahi"],
+  ["dm-326148", "Doraemon Comes Back (1998) — 27-min short, Hindi dub nahi"],
+  ["dm-1542261", "Castle of the Undersea Devil remake (2026) — abhi release nahi hui"],
+];
+/** Hindi-unavailable franchise keys (rows se hata di jaati hain, DB se delete). */
+const droppedKeys = new Set(NO_HINDI.map(([k]) => k));
 const keepKey = (k) => !droppedKeys.has(k);
 
 /** WATCH AGAIN ke niche append hone wale naye specific rows. */
@@ -435,32 +331,11 @@ async function main() {
     }
   }
 
-  // ---------- 1.5) franchise movies: Hindi-availability check (nxsha API) ----------
-  // Shinchan/Doraemon/Pokemon me sirf wahi movies rakhni hain jin par Hindi
-  // server (GbruHindi) ki stream really available hai. API error (null) par
-  // movie SAFE side par rakhi jaati hai (delete nahi hoti).
-  const franchise = NEW_MOVIES.filter((m) => isFranchiseKey(m.key));
-  console.log(`\nhindi check: ${franchise.length} franchise movies (Shinchan/Doraemon/Pokemon) ...`);
-  let hindiYes = 0;
-  let hindiNo = 0;
-  let hindiUnknown = 0;
-  await nxPool(franchise, 5, async (m) => {
-    const ok = await nxHasHindi(m.tmdb);
-    if (ok === true) {
-      hindiYes++;
-      console.log(`  hindi OK   : "${m.title}" (${m.year}) [tmdb ${m.tmdb}]`);
-    } else if (ok === false) {
-      hindiNo++;
-      droppedKeys.add(m.key);
-      console.log(`  hindi NAHI : "${m.title}" (${m.year}) [tmdb ${m.tmdb}] -> drop`);
-    } else {
-      hindiUnknown++;
-      console.log(`  hindi ???  : "${m.title}" (${m.year}) [tmdb ${m.tmdb}] -> keep (API error, safe side)`);
-    }
-  });
-  console.log(`hindi check done: available=${hindiYes} not-available=${hindiNo} unknown-kept=${hindiUnknown}`);
-  if (franchise.length > 0 && hindiYes === 0) {
-    throw new Error("Hindi check me ek bhi movie pass nahi hui — nxsha API shayad down hai, kuch delete NAHI kiya.");
+  // ---------- 1.5) franchise rows: Hindi-only filter ----------
+  console.log(`\nhindi-only filter: ${NO_HINDI.length} franchise movies without Hindi dub drop hongi:`);
+  for (const [key, reason] of NO_HINDI) {
+    const m = byKey.get(key);
+    console.log(`  drop ${key}: "${m?.title || "?"}" — ${reason}`);
   }
 
   // ---------- 2) new movies: insert-if-missing (old/new URL dono match) ----------
