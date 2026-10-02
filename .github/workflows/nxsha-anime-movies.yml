@@ -24,7 +24,7 @@ on:
           - "true"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   embed:
@@ -53,4 +53,15 @@ jobs:
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           APPLY: ${{ steps.mode.outputs.apply }}
-        run: node scripts/nxsha-anime-movies-embed.mjs
+        run: |
+          set -o pipefail
+          node scripts/nxsha-anime-movies-embed.mjs 2>&1 | tee nxsha-anime-movies-report.txt
+
+      - name: Save report on branch
+        if: always() && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nxsha-anime-movies-report.txt
+          git commit -m "chore: save nxsha anime movies embed report [skip ci]" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
