@@ -18,6 +18,8 @@ on:
           - normal
           - nxsha-dry-run
           - nxsha-apply
+          - anime-movies-dry-run
+          - anime-movies-apply
       limit:
         description: "Nxsha migration collection limit (0 = all)"
         required: false
@@ -42,6 +44,19 @@ jobs:
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/anime-sync.mjs
+
+      - name: Nxsha anime movies embed (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'anime-movies-dry-run'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/nxsha-anime-movies-embed.mjs
+
+      - name: Nxsha anime movies embed (apply)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'anime-movies-apply'
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPLY: "1"
+        run: node scripts/nxsha-anime-movies-embed.mjs
 
       - name: Nxsha exact catalogue dry run
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'nxsha-dry-run'
