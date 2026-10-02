@@ -1,4 +1,4 @@
-Nxsha anime-movies embed · mode=APPLY
+Nxsha anime-movies embed · mode=DRY-RUN
 movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&server=GbruHindi&disable_app_ad=true
 movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&server=GbruHindi&disable_app_ad=true
 movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&server=GbruHindi&disable_app_ad=true
@@ -58,20 +58,15 @@ exists 26959: "Crayon Shin-chan: Great Adventure in Henderland"
 exists 26960: "Crayon Shin-chan: Pursuit of the Balls of Darkness"
 exists 26961: "Crayon Shin-chan: Action Mask vs. Leotard Devil"
 exists 26962: "Crayon Shin-chan: The Hidden Treasure of the Buri Buri Kingdom"
-delete 26963: "Crayon Shin-chan: Unkokusai's Ambition" (Hindi dub nahi mila)
-delete 26964: "Crayon Shin-chan: The Legend Called: Dance! Amigo!" (Hindi dub nahi mila)
 exists 26965: "Crayon Shin-chan: Roar! Kasukabe Animal Kingdom"
 exists 26966: "Crayon Shin-chan: Super-Dimension! The Storm Called My Bride"
 exists 26967: "Crayon Shin-chan: Fierceness That Invites Storm! Me and the Space Princess"
 exists 26968: "Crayon Shin-chan: My Moving Story! Cactus Large Attack!"
-delete 26969: "Crayon Shin-chan: Invasion!! Alien Shiriri" (Hindi dub nahi mila)
-delete 26970: "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~" (Hindi dub nahi mila)
 exists 26971: "Crayon Shin-chan the Movie: Our Dinosaur Diary"
 exists 26972: "Crayon Shin-chan the Movie: Super Hot! The Spicy Kasukabe Dancers"
 exists 26973: "Stand by Me Doraemon"
 exists 26974: "Stand by Me Doraemon 2"
 exists 26975: "Doraemon the Movie: Nobita's Art World Tales"
-delete 26976: "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil" (Hindi dub nahi mila)
 exists 26977: "Doraemon the Movie: Nobita's Sky Utopia"
 exists 26978: "Doraemon: Nobita's New Dinosaur"
 exists 26979: "Doraemon: Nobita's Chronicle of the Moon Exploration"
@@ -83,7 +78,6 @@ exists 26984: "Doraemon: Nobita's Dinosaur"
 exists 26985: "Doraemon: Nobita and the Windmasters"
 exists 26986: "Doraemon: Nobita and the Robot Kingdom"
 exists 26987: "Doraemon: Nobita and the Winged Braves"
-delete 26988: "Doraemon Comes Back" (Hindi dub nahi mila)
 exists 26989: "Doraemon: Nobita and the Spiral City"
 exists 26990: "Doraemon: Nobita's Three Visionary Swordsmen"
 exists 26991: "Doraemon: Nobita and the Tin Labyrinth"
@@ -115,9 +109,8 @@ exists 27016: "Pokemon the Movie: I Choose You!"
 exists 27017: "Pokemon the Movie: The Power of Us"
 exists 27018: "Pokemon the Movie: Mewtwo Strikes Back - Evolution"
 exists 27019: "Pokemon the Movie: Secrets of the Jungle"
-new movies: inserted=0 already-present=86 url-migrated=0 deleted-non-hindi=6
+new movies: inserted=0 already-present=86 url-migrated=0 deleted-non-hindi=0
 rows removed (16): row_nxsha_shinkai "MAKOTO SHINKAI MOVIES" · row_nxsha_ghibli "STUDIO GHIBLI MOVIES" · row_nxsha_blockbuster "BLOCKBUSTER ANIME MOVIES" · row_nxsha_family "HEARTWARMING FAMILY MOVIES" · row_nxsha_new "NEW ANIME MOVIES" · row_nxsha_demonslayer "DEMON SLAYER MOVIES" · row_nxsha_onepiece "ONE PIECE MOVIES" · row_nxsha_dragonball "DRAGON BALL MOVIES" · row_nxsha_naruto "NARUTO MOVIES" · row_nxsha_mha "MY HERO ACADEMIA MOVIES" · row_nxsha_hosoda "MAMORU HOSODA MOVIES" · row_nxsha_romance "ROMANCE ANIME MOVIES" · row_nxsha_sports "SPORTS ANIME MOVIES" · row_nxsha_shinchan "SHINCHAN MOVIES" · row_nxsha_doraemon "DORAEMON MOVIES" · row_nxsha_pokemon "POKEMON MOVIES"
 rows top (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
 rows bottom (12): "NEW ANIME MOVIES" · "DEMON SLAYER MOVIES" · "ONE PIECE MOVIES" · "DRAGON BALL MOVIES" · "NARUTO MOVIES" · "MY HERO ACADEMIA MOVIES" · "MAMORU HOSODA MOVIES" · "ROMANCE ANIME MOVIES" · "SPORTS ANIME MOVIES" · "SHINCHAN MOVIES" · "DORAEMON MOVIES" · "POKEMON MOVIES"
-verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN | NEW ANIME MOVIES | DEMON SLAYER MOVIES | ONE PIECE MOVIES | DRAGON BALL MOVIES | NARUTO MOVIES | MY HERO ACADEMIA MOVIES | MAMORU HOSODA MOVIES | ROMANCE ANIME MOVIES | SPORTS ANIME MOVIES | SHINCHAN MOVIES | DORAEMON MOVIES | POKEMON MOVIES
-DONE — live site updated.
+DRY-RUN complete (APPLY=1 to write).
