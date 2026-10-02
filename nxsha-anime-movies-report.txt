@@ -1,4 +1,4 @@
-Nxsha anime-movies embed · mode=DRY-RUN
+Nxsha anime-movies embed · mode=APPLY
 movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&disable_app_ad=true
 movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&disable_app_ad=true
 movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&disable_app_ad=true
@@ -13,7 +13,9 @@ movie 7895: "The Boy and the Heron" (2023) -> https://nxsha.space/embed/movie/50
 movie 982: "Jujutsu Kaisen 0" (2021) -> https://nxsha.space/embed/movie/810693?lang=hi&disable_app_ad=true
 movie 13010: "Chainsaw Man - The Movie: Reze Arc" (2025) -> https://nxsha.space/embed/movie/1218925?lang=hi&disable_app_ad=true
 movie 13012: "Wolf Children" (2012) -> https://nxsha.space/embed/movie/110420?lang=hi&disable_app_ad=true
+movie 13009: "Demon Slayer: Kimetsu No Yaiba Infinity Castle" (2025) -> https://nxsha.space/embed/movie/1311031?lang=hi&disable_app_ad=true
 rows removed (4): row_nxsha_shinkai "MAKOTO SHINKAI MOVIES" · row_nxsha_ghibli "STUDIO GHIBLI MOVIES" · row_nxsha_blockbuster "BLOCKBUSTER ANIME MOVIES" · row_nxsha_family "HEARTWARMING FAMILY MOVIES"
 rows added (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
 rows kept: EMOTIONAL MOVIES · WATCH AGAIN · 30 non-movies rows
-DRY-RUN complete (APPLY=1 to write).
+verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN
+DONE — live site updated.
