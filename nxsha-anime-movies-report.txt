@@ -1,114 +1,115 @@
-Nxsha anime-movies embed · mode=DRY-RUN
-movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&disable_app_ad=true
-movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&disable_app_ad=true
-movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&disable_app_ad=true
-movie 741: "5 Centimeters per Second" (2007) -> https://nxsha.space/embed/movie/38142?lang=hi&disable_app_ad=true
-movie 675: "The Garden of Words" (2013) -> https://nxsha.space/embed/movie/198375?lang=hi&disable_app_ad=true
-movie 13011: "Flavors of Youth" (2018) -> https://nxsha.space/embed/movie/513347?lang=hi&disable_app_ad=true
-movie 983: "Spirited Away" (2001) -> https://nxsha.space/embed/movie/129?lang=hi&disable_app_ad=true
-movie 984: "Howl's Moving Castle" (2004) -> https://nxsha.space/embed/movie/4935?lang=hi&disable_app_ad=true
-movie 985: "Princess Mononoke" (1997) -> https://nxsha.space/embed/movie/128?lang=hi&disable_app_ad=true
-movie 7896: "My Neighbor Totoro" (1988) -> https://nxsha.space/embed/movie/8392?lang=hi&disable_app_ad=true
-movie 7895: "The Boy and the Heron" (2023) -> https://nxsha.space/embed/movie/508883?lang=hi&disable_app_ad=true
-movie 982: "Jujutsu Kaisen 0" (2021) -> https://nxsha.space/embed/movie/810693?lang=hi&disable_app_ad=true
-movie 13010: "Chainsaw Man - The Movie: Reze Arc" (2025) -> https://nxsha.space/embed/movie/1218925?lang=hi&disable_app_ad=true
-movie 13012: "Wolf Children" (2012) -> https://nxsha.space/embed/movie/110420?lang=hi&disable_app_ad=true
-movie 13009: "Demon Slayer: Kimetsu No Yaiba Infinity Castle" (2025) -> https://nxsha.space/embed/movie/1311031?lang=hi&disable_app_ad=true
-movie 515: "SPY x FAMILY CODE: White" (2023) -> https://nxsha.space/embed/movie/1062807?lang=hi&disable_app_ad=true
-exists 26928: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train"
-exists 26929: "One Piece Film: Red"
-exists 26930: "One Piece: Stampede"
-exists 26931: "One Piece Film: GOLD"
-exists 26932: "Dragon Ball Super: Broly"
-exists 26933: "Dragon Ball Super: Super Hero"
-exists 26934: "Dragon Ball Z: Broly - The Legendary Super Saiyan"
-exists 26935: "The Last: Naruto the Movie"
-exists 26936: "Boruto: Naruto the Movie"
-exists 26937: "Road to Ninja: Naruto the Movie"
-exists 26938: "My Hero Academia: Two Heroes"
-exists 26939: "My Hero Academia: Heroes Rising"
-exists 26940: "My Hero Academia: World Heroes' Mission"
-exists 26941: "My Hero Academia: You're Next"
-exists 26942: "Summer Wars"
-exists 26943: "The Boy and the Beast"
-exists 26944: "Mirai"
-exists 26945: "Belle"
-exists 26946: "Josee, the Tiger and the Fish"
-exists 26947: "A Whisker Away"
-exists 26948: "Hello World"
-exists 26949: "Bubble"
-exists 26950: "Words Bubble Up Like Soda Pop"
-exists 26951: "The Girl Who Leapt Through Time"
-exists 26952: "The First Slam Dunk"
-exists 26953: "HAIKYU!! The Dumpster Battle"
-exists 26954: "BLUE LOCK THE MOVIE -EPISODE NAGI-"
-exists 26955: "Black Clover: Sword of the Wizard King"
-exists 26956: "Renegade Immortal: Battle of the Immortal Slayer"
-exists 26957: "Crayon Shin-chan: The Storm Called: The Adult Empire Strikes Back"
-exists 26958: "Crayon Shin-chan: Jungle That Invites Storm"
-exists 26959: "Crayon Shin-chan: Great Adventure in Henderland"
-exists 26960: "Crayon Shin-chan: Pursuit of the Balls of Darkness"
-exists 26961: "Crayon Shin-chan: Action Mask vs. Leotard Devil"
-exists 26962: "Crayon Shin-chan: The Hidden Treasure of the Buri Buri Kingdom"
-exists 26963: "Crayon Shin-chan: Unkokusai's Ambition"
-exists 26964: "Crayon Shin-chan: The Legend Called: Dance! Amigo!"
-exists 26965: "Crayon Shin-chan: Roar! Kasukabe Animal Kingdom"
-exists 26966: "Crayon Shin-chan: Super-Dimension! The Storm Called My Bride"
-exists 26967: "Crayon Shin-chan: Fierceness That Invites Storm! Me and the Space Princess"
-exists 26968: "Crayon Shin-chan: My Moving Story! Cactus Large Attack!"
-exists 26969: "Crayon Shin-chan: Invasion!! Alien Shiriri"
-exists 26970: "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~"
-exists 26971: "Crayon Shin-chan the Movie: Our Dinosaur Diary"
-exists 26972: "Crayon Shin-chan the Movie: Super Hot! The Spicy Kasukabe Dancers"
-exists 26973: "Stand by Me Doraemon"
-exists 26974: "Stand by Me Doraemon 2"
-exists 26975: "Doraemon the Movie: Nobita's Art World Tales"
-exists 26976: "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil"
-exists 26977: "Doraemon the Movie: Nobita's Sky Utopia"
-exists 26978: "Doraemon: Nobita's New Dinosaur"
-exists 26979: "Doraemon: Nobita's Chronicle of the Moon Exploration"
-exists 26980: "Doraemon: Nobita's Treasure Island"
-exists 26981: "Doraemon: Nobita's Great Adventure in the Antarctic Kachi Kochi"
-exists 26982: "Doraemon: Nobita and the Space Heroes"
-exists 26983: "Doraemon: Nobita's Secret Gadget Museum"
-exists 26984: "Doraemon: Nobita's Dinosaur"
-exists 26985: "Doraemon: Nobita and the Windmasters"
-exists 26986: "Doraemon: Nobita and the Robot Kingdom"
-exists 26987: "Doraemon: Nobita and the Winged Braves"
-exists 26988: "Doraemon Comes Back"
-exists 26989: "Doraemon: Nobita and the Spiral City"
-exists 26990: "Doraemon: Nobita's Three Visionary Swordsmen"
-exists 26991: "Doraemon: Nobita and the Tin Labyrinth"
-exists 26992: "Doraemon: Nobita's Dorabian Nights"
-exists 26993: "Doraemon: Nobita and the Steel Troops"
-exists 26994: "Doraemon: Nobita's Dinosaur"
-exists 26995: "Pokemon: The First Movie"
-exists 26996: "Pokemon the Movie 2000"
-exists 26997: "Pokemon 3: The Movie"
-exists 26998: "Pokemon 4Ever"
-exists 26999: "Pokemon: Mewtwo Returns"
-exists 27000: "Pokemon Heroes"
-exists 27001: "Pokemon: Jirachi Wish Maker"
-exists 27002: "Pokemon: Destiny Deoxys"
-exists 27003: "Pokemon: Lucario and the Mystery of Mew"
-exists 27004: "Pokemon Ranger and the Temple of the Sea"
-exists 27005: "Pokemon: The Rise of Darkrai"
-exists 27006: "Pokemon: Giratina and the Sky Warrior"
-exists 27007: "Pokemon: Arceus and the Jewel of Life"
-exists 27008: "Pokemon: Zoroark - Master of Illusions"
-exists 27009: "Pokemon the Movie: White - Victini and Zekrom"
-exists 27010: "Pokemon the Movie: Black - Victini and Reshiram"
-exists 27011: "Pokemon the Movie: Kyurem vs. the Sword of Justice"
-exists 27012: "Pokemon the Movie: Genesect and the Legend Awakened"
-exists 27013: "Pokemon the Movie: Diancie and the Cocoon of Destruction"
-exists 27014: "Pokemon the Movie: Hoopa and the Clash of Ages"
-exists 27015: "Pokemon the Movie: Volcanion and the Mechanical Marvel"
-exists 27016: "Pokemon the Movie: I Choose You!"
-exists 27017: "Pokemon the Movie: The Power of Us"
-exists 27018: "Pokemon the Movie: Mewtwo Strikes Back - Evolution"
-exists 27019: "Pokemon the Movie: Secrets of the Jungle"
-new movies: inserted=0 already-present=92
+Nxsha anime-movies embed · mode=APPLY
+movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 741: "5 Centimeters per Second" (2007) -> https://nxsha.space/embed/movie/38142?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 675: "The Garden of Words" (2013) -> https://nxsha.space/embed/movie/198375?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 13011: "Flavors of Youth" (2018) -> https://nxsha.space/embed/movie/513347?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 983: "Spirited Away" (2001) -> https://nxsha.space/embed/movie/129?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 984: "Howl's Moving Castle" (2004) -> https://nxsha.space/embed/movie/4935?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 985: "Princess Mononoke" (1997) -> https://nxsha.space/embed/movie/128?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 7896: "My Neighbor Totoro" (1988) -> https://nxsha.space/embed/movie/8392?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 7895: "The Boy and the Heron" (2023) -> https://nxsha.space/embed/movie/508883?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 982: "Jujutsu Kaisen 0" (2021) -> https://nxsha.space/embed/movie/810693?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 13010: "Chainsaw Man - The Movie: Reze Arc" (2025) -> https://nxsha.space/embed/movie/1218925?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 13012: "Wolf Children" (2012) -> https://nxsha.space/embed/movie/110420?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 13009: "Demon Slayer: Kimetsu No Yaiba Infinity Castle" (2025) -> https://nxsha.space/embed/movie/1311031?lang=hi&server=GbruHindi&disable_app_ad=true
+movie 515: "SPY x FAMILY CODE: White" (2023) -> https://nxsha.space/embed/movie/1062807?lang=hi&server=GbruHindi&disable_app_ad=true
+migrate 26928: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" -> GbruHindi server
+migrate 26929: "One Piece Film: Red" -> GbruHindi server
+migrate 26930: "One Piece: Stampede" -> GbruHindi server
+migrate 26931: "One Piece Film: GOLD" -> GbruHindi server
+migrate 26932: "Dragon Ball Super: Broly" -> GbruHindi server
+migrate 26933: "Dragon Ball Super: Super Hero" -> GbruHindi server
+migrate 26934: "Dragon Ball Z: Broly - The Legendary Super Saiyan" -> GbruHindi server
+migrate 26935: "The Last: Naruto the Movie" -> GbruHindi server
+migrate 26936: "Boruto: Naruto the Movie" -> GbruHindi server
+migrate 26937: "Road to Ninja: Naruto the Movie" -> GbruHindi server
+migrate 26938: "My Hero Academia: Two Heroes" -> GbruHindi server
+migrate 26939: "My Hero Academia: Heroes Rising" -> GbruHindi server
+migrate 26940: "My Hero Academia: World Heroes' Mission" -> GbruHindi server
+migrate 26941: "My Hero Academia: You're Next" -> GbruHindi server
+migrate 26942: "Summer Wars" -> GbruHindi server
+migrate 26943: "The Boy and the Beast" -> GbruHindi server
+migrate 26944: "Mirai" -> GbruHindi server
+migrate 26945: "Belle" -> GbruHindi server
+migrate 26946: "Josee, the Tiger and the Fish" -> GbruHindi server
+migrate 26947: "A Whisker Away" -> GbruHindi server
+migrate 26948: "Hello World" -> GbruHindi server
+migrate 26949: "Bubble" -> GbruHindi server
+migrate 26950: "Words Bubble Up Like Soda Pop" -> GbruHindi server
+migrate 26951: "The Girl Who Leapt Through Time" -> GbruHindi server
+migrate 26952: "The First Slam Dunk" -> GbruHindi server
+migrate 26953: "HAIKYU!! The Dumpster Battle" -> GbruHindi server
+migrate 26954: "BLUE LOCK THE MOVIE -EPISODE NAGI-" -> GbruHindi server
+migrate 26955: "Black Clover: Sword of the Wizard King" -> GbruHindi server
+migrate 26956: "Renegade Immortal: Battle of the Immortal Slayer" -> GbruHindi server
+migrate 26957: "Crayon Shin-chan: The Storm Called: The Adult Empire Strikes Back" -> GbruHindi server
+migrate 26958: "Crayon Shin-chan: Jungle That Invites Storm" -> GbruHindi server
+migrate 26959: "Crayon Shin-chan: Great Adventure in Henderland" -> GbruHindi server
+migrate 26960: "Crayon Shin-chan: Pursuit of the Balls of Darkness" -> GbruHindi server
+migrate 26961: "Crayon Shin-chan: Action Mask vs. Leotard Devil" -> GbruHindi server
+migrate 26962: "Crayon Shin-chan: The Hidden Treasure of the Buri Buri Kingdom" -> GbruHindi server
+migrate 26963: "Crayon Shin-chan: Unkokusai's Ambition" -> GbruHindi server
+migrate 26964: "Crayon Shin-chan: The Legend Called: Dance! Amigo!" -> GbruHindi server
+migrate 26965: "Crayon Shin-chan: Roar! Kasukabe Animal Kingdom" -> GbruHindi server
+migrate 26966: "Crayon Shin-chan: Super-Dimension! The Storm Called My Bride" -> GbruHindi server
+migrate 26967: "Crayon Shin-chan: Fierceness That Invites Storm! Me and the Space Princess" -> GbruHindi server
+migrate 26968: "Crayon Shin-chan: My Moving Story! Cactus Large Attack!" -> GbruHindi server
+migrate 26969: "Crayon Shin-chan: Invasion!! Alien Shiriri" -> GbruHindi server
+migrate 26970: "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~" -> GbruHindi server
+migrate 26971: "Crayon Shin-chan the Movie: Our Dinosaur Diary" -> GbruHindi server
+migrate 26972: "Crayon Shin-chan the Movie: Super Hot! The Spicy Kasukabe Dancers" -> GbruHindi server
+migrate 26973: "Stand by Me Doraemon" -> GbruHindi server
+migrate 26974: "Stand by Me Doraemon 2" -> GbruHindi server
+migrate 26975: "Doraemon the Movie: Nobita's Art World Tales" -> GbruHindi server
+migrate 26976: "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil" -> GbruHindi server
+migrate 26977: "Doraemon the Movie: Nobita's Sky Utopia" -> GbruHindi server
+migrate 26978: "Doraemon: Nobita's New Dinosaur" -> GbruHindi server
+migrate 26979: "Doraemon: Nobita's Chronicle of the Moon Exploration" -> GbruHindi server
+migrate 26980: "Doraemon: Nobita's Treasure Island" -> GbruHindi server
+migrate 26981: "Doraemon: Nobita's Great Adventure in the Antarctic Kachi Kochi" -> GbruHindi server
+migrate 26982: "Doraemon: Nobita and the Space Heroes" -> GbruHindi server
+migrate 26983: "Doraemon: Nobita's Secret Gadget Museum" -> GbruHindi server
+migrate 26984: "Doraemon: Nobita's Dinosaur" -> GbruHindi server
+migrate 26985: "Doraemon: Nobita and the Windmasters" -> GbruHindi server
+migrate 26986: "Doraemon: Nobita and the Robot Kingdom" -> GbruHindi server
+migrate 26987: "Doraemon: Nobita and the Winged Braves" -> GbruHindi server
+migrate 26988: "Doraemon Comes Back" -> GbruHindi server
+migrate 26989: "Doraemon: Nobita and the Spiral City" -> GbruHindi server
+migrate 26990: "Doraemon: Nobita's Three Visionary Swordsmen" -> GbruHindi server
+migrate 26991: "Doraemon: Nobita and the Tin Labyrinth" -> GbruHindi server
+migrate 26992: "Doraemon: Nobita's Dorabian Nights" -> GbruHindi server
+migrate 26993: "Doraemon: Nobita and the Steel Troops" -> GbruHindi server
+migrate 26994: "Doraemon: Nobita's Dinosaur" -> GbruHindi server
+migrate 26995: "Pokemon: The First Movie" -> GbruHindi server
+migrate 26996: "Pokemon the Movie 2000" -> GbruHindi server
+migrate 26997: "Pokemon 3: The Movie" -> GbruHindi server
+migrate 26998: "Pokemon 4Ever" -> GbruHindi server
+migrate 26999: "Pokemon: Mewtwo Returns" -> GbruHindi server
+migrate 27000: "Pokemon Heroes" -> GbruHindi server
+migrate 27001: "Pokemon: Jirachi Wish Maker" -> GbruHindi server
+migrate 27002: "Pokemon: Destiny Deoxys" -> GbruHindi server
+migrate 27003: "Pokemon: Lucario and the Mystery of Mew" -> GbruHindi server
+migrate 27004: "Pokemon Ranger and the Temple of the Sea" -> GbruHindi server
+migrate 27005: "Pokemon: The Rise of Darkrai" -> GbruHindi server
+migrate 27006: "Pokemon: Giratina and the Sky Warrior" -> GbruHindi server
+migrate 27007: "Pokemon: Arceus and the Jewel of Life" -> GbruHindi server
+migrate 27008: "Pokemon: Zoroark - Master of Illusions" -> GbruHindi server
+migrate 27009: "Pokemon the Movie: White - Victini and Zekrom" -> GbruHindi server
+migrate 27010: "Pokemon the Movie: Black - Victini and Reshiram" -> GbruHindi server
+migrate 27011: "Pokemon the Movie: Kyurem vs. the Sword of Justice" -> GbruHindi server
+migrate 27012: "Pokemon the Movie: Genesect and the Legend Awakened" -> GbruHindi server
+migrate 27013: "Pokemon the Movie: Diancie and the Cocoon of Destruction" -> GbruHindi server
+migrate 27014: "Pokemon the Movie: Hoopa and the Clash of Ages" -> GbruHindi server
+migrate 27015: "Pokemon the Movie: Volcanion and the Mechanical Marvel" -> GbruHindi server
+migrate 27016: "Pokemon the Movie: I Choose You!" -> GbruHindi server
+migrate 27017: "Pokemon the Movie: The Power of Us" -> GbruHindi server
+migrate 27018: "Pokemon the Movie: Mewtwo Strikes Back - Evolution" -> GbruHindi server
+migrate 27019: "Pokemon the Movie: Secrets of the Jungle" -> GbruHindi server
+new movies: inserted=0 already-present=92 url-migrated=92
 rows removed (16): row_nxsha_shinkai "MAKOTO SHINKAI MOVIES" · row_nxsha_ghibli "STUDIO GHIBLI MOVIES" · row_nxsha_blockbuster "BLOCKBUSTER ANIME MOVIES" · row_nxsha_family "HEARTWARMING FAMILY MOVIES" · row_nxsha_new "NEW ANIME MOVIES" · row_nxsha_demonslayer "DEMON SLAYER MOVIES" · row_nxsha_onepiece "ONE PIECE MOVIES" · row_nxsha_dragonball "DRAGON BALL MOVIES" · row_nxsha_naruto "NARUTO MOVIES" · row_nxsha_mha "MY HERO ACADEMIA MOVIES" · row_nxsha_hosoda "MAMORU HOSODA MOVIES" · row_nxsha_romance "ROMANCE ANIME MOVIES" · row_nxsha_sports "SPORTS ANIME MOVIES" · row_nxsha_shinchan "SHINCHAN MOVIES" · row_nxsha_doraemon "DORAEMON MOVIES" · row_nxsha_pokemon "POKEMON MOVIES"
 rows top (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
 rows bottom (12): "NEW ANIME MOVIES" · "DEMON SLAYER MOVIES" · "ONE PIECE MOVIES" · "DRAGON BALL MOVIES" · "NARUTO MOVIES" · "MY HERO ACADEMIA MOVIES" · "MAMORU HOSODA MOVIES" · "ROMANCE ANIME MOVIES" · "SPORTS ANIME MOVIES" · "SHINCHAN MOVIES" · "DORAEMON MOVIES" · "POKEMON MOVIES"
-DRY-RUN complete (APPLY=1 to write).
+verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN | NEW ANIME MOVIES | DEMON SLAYER MOVIES | ONE PIECE MOVIES | DRAGON BALL MOVIES | NARUTO MOVIES | MY HERO ACADEMIA MOVIES | MAMORU HOSODA MOVIES | ROMANCE ANIME MOVIES | SPORTS ANIME MOVIES | SHINCHAN MOVIES | DORAEMON MOVIES | POKEMON MOVIES
+DONE — live site updated.
