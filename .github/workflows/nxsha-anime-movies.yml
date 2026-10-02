@@ -2,7 +2,16 @@ name: Nxsha Anime Movies Embed
 
 # Movies section ke anime films ko Nxsha movie player se re-embed karta hai
 # aur proper rows banata hai (EMOTIONAL MOVIES + WATCH AGAIN untouched).
+#
+# Trigger: is branch par .github/nxsha-movies-run.txt push karo —
+#   file content "dry"   -> sirf plan print hota hai
+#   file content "apply" -> live site par likha jata hai
 on:
+  push:
+    branches:
+      - arena/01a0fd17-vidd
+    paths:
+      - ".github/nxsha-movies-run.txt"
   workflow_dispatch:
     inputs:
       apply:
@@ -28,8 +37,20 @@ jobs:
         with:
           node-version: 20
 
+      - name: Resolve mode
+        id: mode
+        run: |
+          MODE="dry"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ "${{ inputs.apply }}" = "true" ] && MODE="apply"
+          elif [ -f .github/nxsha-movies-run.txt ]; then
+            MODE="$(tr -d '[:space:]' < .github/nxsha-movies-run.txt)"
+          fi
+          echo "apply=$([ "$MODE" = "apply" ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+          echo "Mode: $MODE"
+
       - name: Re-embed anime movies from Nxsha
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          APPLY: ${{ inputs.apply == 'true' && '1' || '0' }}
+          APPLY: ${{ steps.mode.outputs.apply }}
         run: node scripts/nxsha-anime-movies-embed.mjs
