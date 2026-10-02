@@ -1,4 +1,4 @@
-Nxsha anime-movies embed · mode=DRY-RUN
+Nxsha anime-movies embed · mode=APPLY
 movie 980: "Your Name" (2016) -> https://nxsha.space/embed/movie/372058?lang=hi&disable_app_ad=true
 movie 981: "Suzume" (2022) -> https://nxsha.space/embed/movie/916224?lang=hi&disable_app_ad=true
 movie 19: "Weathering with You" (2019) -> https://nxsha.space/embed/movie/568160?lang=hi&disable_app_ad=true
@@ -44,8 +44,72 @@ exists 26953: "HAIKYU!! The Dumpster Battle"
 exists 26954: "BLUE LOCK THE MOVIE -EPISODE NAGI-"
 exists 26955: "Black Clover: Sword of the Wizard King"
 exists 26956: "Renegade Immortal: Battle of the Immortal Slayer"
-new movies: inserted=0 already-present=29
+insert: "Crayon Shin-chan: The Storm Called: The Adult Empire Strikes Back" (2001) -> https://nxsha.space/embed/movie/37280?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Jungle That Invites Storm" (2000) -> https://nxsha.space/embed/movie/117087?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Great Adventure in Henderland" (1996) -> https://nxsha.space/embed/movie/128871?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Pursuit of the Balls of Darkness" (1997) -> https://nxsha.space/embed/movie/89458?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Action Mask vs. Leotard Devil" (1993) -> https://nxsha.space/embed/movie/128868?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: The Hidden Treasure of the Buri Buri Kingdom" (1994) -> https://nxsha.space/embed/movie/109526?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Unkokusai's Ambition" (1995) -> https://nxsha.space/embed/movie/104154?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: The Legend Called: Dance! Amigo!" (2006) -> https://nxsha.space/embed/movie/128883?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Roar! Kasukabe Animal Kingdom" (2009) -> https://nxsha.space/embed/movie/128887?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Super-Dimension! The Storm Called My Bride" (2010) -> https://nxsha.space/embed/movie/117352?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Fierceness That Invites Storm! Me and the Space Princess" (2012) -> https://nxsha.space/embed/movie/163772?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: My Moving Story! Cactus Large Attack!" (2015) -> https://nxsha.space/embed/movie/371236?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Invasion!! Alien Shiriri" (2017) -> https://nxsha.space/embed/movie/453575?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan: Honeymoon Hurricane ~The Lost Hiroshi~" (2019) -> https://nxsha.space/embed/movie/596302?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan the Movie: Our Dinosaur Diary" (2024) -> https://nxsha.space/embed/movie/1221404?lang=hi&disable_app_ad=true
+insert: "Crayon Shin-chan the Movie: Super Hot! The Spicy Kasukabe Dancers" (2025) -> https://nxsha.space/embed/movie/1404404?lang=hi&disable_app_ad=true
+insert: "Stand by Me Doraemon" (2014) -> https://nxsha.space/embed/movie/265712?lang=hi&disable_app_ad=true
+insert: "Stand by Me Doraemon 2" (2020) -> https://nxsha.space/embed/movie/728754?lang=hi&disable_app_ad=true
+insert: "Doraemon the Movie: Nobita's Art World Tales" (2025) -> https://nxsha.space/embed/movie/1372489?lang=hi&disable_app_ad=true
+insert: "Doraemon the Movie: New Nobita and the Castle of the Undersea Devil" (2026) -> https://nxsha.space/embed/movie/1542261?lang=hi&disable_app_ad=true
+insert: "Doraemon the Movie: Nobita's Sky Utopia" (2023) -> https://nxsha.space/embed/movie/1030587?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's New Dinosaur" (2020) -> https://nxsha.space/embed/movie/682153?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Chronicle of the Moon Exploration" (2019) -> https://nxsha.space/embed/movie/575222?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Treasure Island" (2018) -> https://nxsha.space/embed/movie/495925?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Great Adventure in the Antarctic Kachi Kochi" (2017) -> https://nxsha.space/embed/movie/462677?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Space Heroes" (2015) -> https://nxsha.space/embed/movie/350650?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Secret Gadget Museum" (2013) -> https://nxsha.space/embed/movie/218726?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Dinosaur" (2006) -> https://nxsha.space/embed/movie/70841?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Windmasters" (2003) -> https://nxsha.space/embed/movie/98613?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Robot Kingdom" (2002) -> https://nxsha.space/embed/movie/162095?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Winged Braves" (2001) -> https://nxsha.space/embed/movie/162092?lang=hi&disable_app_ad=true
+insert: "Doraemon Comes Back" (1998) -> https://nxsha.space/embed/movie/326148?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Spiral City" (1997) -> https://nxsha.space/embed/movie/163394?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Three Visionary Swordsmen" (1994) -> https://nxsha.space/embed/movie/161715?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Tin Labyrinth" (1993) -> https://nxsha.space/embed/movie/161822?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Dorabian Nights" (1991) -> https://nxsha.space/embed/movie/188403?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita and the Steel Troops" (1986) -> https://nxsha.space/embed/movie/88625?lang=hi&disable_app_ad=true
+insert: "Doraemon: Nobita's Dinosaur" (1980) -> https://nxsha.space/embed/movie/64789?lang=hi&disable_app_ad=true
+insert: "Pokemon: The First Movie" (1998) -> https://nxsha.space/embed/movie/10228?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie 2000" (1999) -> https://nxsha.space/embed/movie/12599?lang=hi&disable_app_ad=true
+insert: "Pokemon 3: The Movie" (2000) -> https://nxsha.space/embed/movie/10991?lang=hi&disable_app_ad=true
+insert: "Pokemon 4Ever" (2001) -> https://nxsha.space/embed/movie/12600?lang=hi&disable_app_ad=true
+insert: "Pokemon: Mewtwo Returns" (2001) -> https://nxsha.space/embed/movie/36897?lang=hi&disable_app_ad=true
+insert: "Pokemon Heroes" (2002) -> https://nxsha.space/embed/movie/33875?lang=hi&disable_app_ad=true
+insert: "Pokemon: Jirachi Wish Maker" (2003) -> https://nxsha.space/embed/movie/36218?lang=hi&disable_app_ad=true
+insert: "Pokemon: Destiny Deoxys" (2004) -> https://nxsha.space/embed/movie/34065?lang=hi&disable_app_ad=true
+insert: "Pokemon: Lucario and the Mystery of Mew" (2005) -> https://nxsha.space/embed/movie/34067?lang=hi&disable_app_ad=true
+insert: "Pokemon Ranger and the Temple of the Sea" (2006) -> https://nxsha.space/embed/movie/16808?lang=hi&disable_app_ad=true
+insert: "Pokemon: The Rise of Darkrai" (2007) -> https://nxsha.space/embed/movie/25961?lang=hi&disable_app_ad=true
+insert: "Pokemon: Giratina and the Sky Warrior" (2008) -> https://nxsha.space/embed/movie/47292?lang=hi&disable_app_ad=true
+insert: "Pokemon: Arceus and the Jewel of Life" (2009) -> https://nxsha.space/embed/movie/39057?lang=hi&disable_app_ad=true
+insert: "Pokemon: Zoroark - Master of Illusions" (2010) -> https://nxsha.space/embed/movie/50087?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: White - Victini and Zekrom" (2011) -> https://nxsha.space/embed/movie/88557?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Black - Victini and Reshiram" (2011) -> https://nxsha.space/embed/movie/115223?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Kyurem vs. the Sword of Justice" (2012) -> https://nxsha.space/embed/movie/150213?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Genesect and the Legend Awakened" (2013) -> https://nxsha.space/embed/movie/227679?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Diancie and the Cocoon of Destruction" (2014) -> https://nxsha.space/embed/movie/303903?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Hoopa and the Clash of Ages" (2015) -> https://nxsha.space/embed/movie/350499?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Volcanion and the Mechanical Marvel" (2016) -> https://nxsha.space/embed/movie/382190?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: I Choose You!" (2017) -> https://nxsha.space/embed/movie/436931?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: The Power of Us" (2018) -> https://nxsha.space/embed/movie/494407?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Mewtwo Strikes Back - Evolution" (2019) -> https://nxsha.space/embed/movie/571891?lang=hi&disable_app_ad=true
+insert: "Pokemon the Movie: Secrets of the Jungle" (2020) -> https://nxsha.space/embed/movie/662708?lang=hi&disable_app_ad=true
+new movies: inserted=63 already-present=29
 rows removed (13): row_nxsha_shinkai "MAKOTO SHINKAI MOVIES" · row_nxsha_ghibli "STUDIO GHIBLI MOVIES" · row_nxsha_blockbuster "BLOCKBUSTER ANIME MOVIES" · row_nxsha_family "HEARTWARMING FAMILY MOVIES" · row_nxsha_new "NEW ANIME MOVIES" · row_nxsha_demonslayer "DEMON SLAYER MOVIES" · row_nxsha_onepiece "ONE PIECE MOVIES" · row_nxsha_dragonball "DRAGON BALL MOVIES" · row_nxsha_naruto "NARUTO MOVIES" · row_nxsha_mha "MY HERO ACADEMIA MOVIES" · row_nxsha_hosoda "MAMORU HOSODA MOVIES" · row_nxsha_romance "ROMANCE ANIME MOVIES" · row_nxsha_sports "SPORTS ANIME MOVIES"
 rows top (4): "MAKOTO SHINKAI MOVIES" · "STUDIO GHIBLI MOVIES" · "BLOCKBUSTER ANIME MOVIES" · "HEARTWARMING FAMILY MOVIES"
-rows bottom (9): "NEW ANIME MOVIES" · "DEMON SLAYER MOVIES" · "ONE PIECE MOVIES" · "DRAGON BALL MOVIES" · "NARUTO MOVIES" · "MY HERO ACADEMIA MOVIES" · "MAMORU HOSODA MOVIES" · "ROMANCE ANIME MOVIES" · "SPORTS ANIME MOVIES"
-DRY-RUN complete (APPLY=1 to write).
+rows bottom (12): "NEW ANIME MOVIES" · "DEMON SLAYER MOVIES" · "ONE PIECE MOVIES" · "DRAGON BALL MOVIES" · "NARUTO MOVIES" · "MY HERO ACADEMIA MOVIES" · "MAMORU HOSODA MOVIES" · "ROMANCE ANIME MOVIES" · "SPORTS ANIME MOVIES" · "SHINCHAN MOVIES" · "DORAEMON MOVIES" · "POKEMON MOVIES"
+verify movies-section rows: MAKOTO SHINKAI MOVIES | STUDIO GHIBLI MOVIES | BLOCKBUSTER ANIME MOVIES | HEARTWARMING FAMILY MOVIES | EMOTIONAL MOVIES | WATCH AGAIN | NEW ANIME MOVIES | DEMON SLAYER MOVIES | ONE PIECE MOVIES | DRAGON BALL MOVIES | NARUTO MOVIES | MY HERO ACADEMIA MOVIES | MAMORU HOSODA MOVIES | ROMANCE ANIME MOVIES | SPORTS ANIME MOVIES | SHINCHAN MOVIES | DORAEMON MOVIES | POKEMON MOVIES
+DONE — live site updated.
