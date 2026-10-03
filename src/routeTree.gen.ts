@@ -9,74 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ApiAnimeRouteImport } from './routes/api/anime'
-import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
-import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
-import { Route as ApiAnimeTrailerRouteImport } from './routes/api/anime-trailer'
-import { Route as ApiAuthRouteImport } from './routes/api/auth'
-import { Route as ApiConfigRouteImport } from './routes/api/config'
-import { Route as ApiExtractRouteImport } from './routes/api/extract'
-import { Route as ApiMoviesRouteImport } from './routes/api/movies'
-import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
-import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
-import { Route as ApiStreamRouteImport } from './routes/api/stream'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
+import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
+import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
+import { Route as ApiMoviesRouteImport } from './routes/api/movies'
+import { Route as ApiConfigRouteImport } from './routes/api/config'
+import { Route as ApiAuthRouteImport } from './routes/api/auth'
+import { Route as ApiAnimeTrailerRouteImport } from './routes/api/anime-trailer'
+import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
+import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
+import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAnimeRoute = ApiAnimeRouteImport.update({
-  id: '/api/anime',
-  path: '/api/anime',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAnimeAutoRoute = ApiAnimeAutoRouteImport.update({
-  id: '/api/anime-auto',
-  path: '/api/anime-auto',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAnimeSyncRoute = ApiAnimeSyncRouteImport.update({
-  id: '/api/anime-sync',
-  path: '/api/anime-sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAnimeTrailerRoute = ApiAnimeTrailerRouteImport.update({
-  id: '/api/anime-trailer',
-  path: '/api/anime-trailer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthRoute = ApiAuthRouteImport.update({
-  id: '/api/auth',
-  path: '/api/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiConfigRoute = ApiConfigRouteImport.update({
-  id: '/api/config',
-  path: '/api/config',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiExtractRoute = ApiExtractRouteImport.update({
-  id: '/api/extract',
-  path: '/api/extract',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMoviesRoute = ApiMoviesRouteImport.update({
-  id: '/api/movies',
-  path: '/api/movies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiNxshaFetchRoute = ApiNxshaFetchRouteImport.update({
-  id: '/api/nxsha-fetch',
-  path: '/api/nxsha-fetch',
+const ApiSupabaseRoute = ApiSupabaseRouteImport.update({
+  id: '/api/supabase',
+  path: '/api/supabase',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPortraitPosterRoute = ApiPortraitPosterRouteImport.update({
@@ -84,14 +42,44 @@ const ApiPortraitPosterRoute = ApiPortraitPosterRouteImport.update({
   path: '/api/portrait-poster',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiStreamRoute = ApiStreamRouteImport.update({
-  id: '/api/stream',
-  path: '/api/stream',
+const ApiNxshaFetchRoute = ApiNxshaFetchRouteImport.update({
+  id: '/api/nxsha-fetch',
+  path: '/api/nxsha-fetch',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSupabaseRoute = ApiSupabaseRouteImport.update({
-  id: '/api/supabase',
-  path: '/api/supabase',
+const ApiMoviesRoute = ApiMoviesRouteImport.update({
+  id: '/api/movies',
+  path: '/api/movies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConfigRoute = ApiConfigRouteImport.update({
+  id: '/api/config',
+  path: '/api/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRoute = ApiAuthRouteImport.update({
+  id: '/api/auth',
+  path: '/api/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnimeTrailerRoute = ApiAnimeTrailerRouteImport.update({
+  id: '/api/anime-trailer',
+  path: '/api/anime-trailer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnimeSyncRoute = ApiAnimeSyncRouteImport.update({
+  id: '/api/anime-sync',
+  path: '/api/anime-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnimeAutoRoute = ApiAnimeAutoRouteImport.update({
+  id: '/api/anime-auto',
+  path: '/api/anime-auto',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnimeRoute = ApiAnimeRouteImport.update({
+  id: '/api/anime',
+  path: '/api/anime',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -104,11 +92,9 @@ export interface FileRoutesByFullPath {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
-  '/api/extract': typeof ApiExtractRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
-  '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesByTo {
@@ -120,11 +106,9 @@ export interface FileRoutesByTo {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
-  '/api/extract': typeof ApiExtractRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
-  '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRoutesById {
@@ -137,11 +121,9 @@ export interface FileRoutesById {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
-  '/api/extract': typeof ApiExtractRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
-  '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
 }
 export interface FileRouteTypes {
@@ -155,11 +137,9 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
-    | '/api/extract'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
-    | '/api/stream'
     | '/api/supabase'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -171,11 +151,9 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
-    | '/api/extract'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
-    | '/api/stream'
     | '/api/supabase'
   id:
     | '__root__'
@@ -187,11 +165,9 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
-    | '/api/extract'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
-    | '/api/stream'
     | '/api/supabase'
   fileRoutesById: FileRoutesById
 }
@@ -204,23 +180,14 @@ export interface RootRouteChildren {
   ApiAnimeTrailerRoute: typeof ApiAnimeTrailerRoute
   ApiAuthRoute: typeof ApiAuthRoute
   ApiConfigRoute: typeof ApiConfigRoute
-  ApiExtractRoute: typeof ApiExtractRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiNxshaFetchRoute: typeof ApiNxshaFetchRoute
   ApiPortraitPosterRoute: typeof ApiPortraitPosterRoute
-  ApiStreamRoute: typeof ApiStreamRoute
   ApiSupabaseRoute: typeof ApiSupabaseRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -228,67 +195,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/anime': {
-      id: '/api/anime'
-      path: '/api/anime'
-      fullPath: '/api/anime'
-      preLoaderRoute: typeof ApiAnimeRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/anime-auto': {
-      id: '/api/anime-auto'
-      path: '/api/anime-auto'
-      fullPath: '/api/anime-auto'
-      preLoaderRoute: typeof ApiAnimeAutoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/anime-sync': {
-      id: '/api/anime-sync'
-      path: '/api/anime-sync'
-      fullPath: '/api/anime-sync'
-      preLoaderRoute: typeof ApiAnimeSyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/anime-trailer': {
-      id: '/api/anime-trailer'
-      path: '/api/anime-trailer'
-      fullPath: '/api/anime-trailer'
-      preLoaderRoute: typeof ApiAnimeTrailerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth': {
-      id: '/api/auth'
-      path: '/api/auth'
-      fullPath: '/api/auth'
-      preLoaderRoute: typeof ApiAuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/config': {
-      id: '/api/config'
-      path: '/api/config'
-      fullPath: '/api/config'
-      preLoaderRoute: typeof ApiConfigRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/extract': {
-      id: '/api/extract'
-      path: '/api/extract'
-      fullPath: '/api/extract'
-      preLoaderRoute: typeof ApiExtractRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/movies': {
-      id: '/api/movies'
-      path: '/api/movies'
-      fullPath: '/api/movies'
-      preLoaderRoute: typeof ApiMoviesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/nxsha-fetch': {
-      id: '/api/nxsha-fetch'
-      path: '/api/nxsha-fetch'
-      fullPath: '/api/nxsha-fetch'
-      preLoaderRoute: typeof ApiNxshaFetchRouteImport
+    '/api/supabase': {
+      id: '/api/supabase'
+      path: '/api/supabase'
+      fullPath: '/api/supabase'
+      preLoaderRoute: typeof ApiSupabaseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/portrait-poster': {
@@ -298,18 +216,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPortraitPosterRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/stream': {
-      id: '/api/stream'
-      path: '/api/stream'
-      fullPath: '/api/stream'
-      preLoaderRoute: typeof ApiStreamRouteImport
+    '/api/nxsha-fetch': {
+      id: '/api/nxsha-fetch'
+      path: '/api/nxsha-fetch'
+      fullPath: '/api/nxsha-fetch'
+      preLoaderRoute: typeof ApiNxshaFetchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/supabase': {
-      id: '/api/supabase'
-      path: '/api/supabase'
-      fullPath: '/api/supabase'
-      preLoaderRoute: typeof ApiSupabaseRouteImport
+    '/api/movies': {
+      id: '/api/movies'
+      path: '/api/movies'
+      fullPath: '/api/movies'
+      preLoaderRoute: typeof ApiMoviesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/config': {
+      id: '/api/config'
+      path: '/api/config'
+      fullPath: '/api/config'
+      preLoaderRoute: typeof ApiConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth': {
+      id: '/api/auth'
+      path: '/api/auth'
+      fullPath: '/api/auth'
+      preLoaderRoute: typeof ApiAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/anime-trailer': {
+      id: '/api/anime-trailer'
+      path: '/api/anime-trailer'
+      fullPath: '/api/anime-trailer'
+      preLoaderRoute: typeof ApiAnimeTrailerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/anime-sync': {
+      id: '/api/anime-sync'
+      path: '/api/anime-sync'
+      fullPath: '/api/anime-sync'
+      preLoaderRoute: typeof ApiAnimeSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/anime-auto': {
+      id: '/api/anime-auto'
+      path: '/api/anime-auto'
+      fullPath: '/api/anime-auto'
+      preLoaderRoute: typeof ApiAnimeAutoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/anime': {
+      id: '/api/anime'
+      path: '/api/anime'
+      fullPath: '/api/anime'
+      preLoaderRoute: typeof ApiAnimeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -324,11 +284,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnimeTrailerRoute: ApiAnimeTrailerRoute,
   ApiAuthRoute: ApiAuthRoute,
   ApiConfigRoute: ApiConfigRoute,
-  ApiExtractRoute: ApiExtractRoute,
   ApiMoviesRoute: ApiMoviesRoute,
   ApiNxshaFetchRoute: ApiNxshaFetchRoute,
   ApiPortraitPosterRoute: ApiPortraitPosterRoute,
-  ApiStreamRoute: ApiStreamRoute,
   ApiSupabaseRoute: ApiSupabaseRoute,
 }
 export const routeTree = rootRouteImport

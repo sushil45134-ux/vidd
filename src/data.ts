@@ -44,4 +44,11 @@ export const myListDefault: Movie[] = [];
 export const newReleases: Movie[] = [];
 export const allMovies: Movie[] = [];
 
-export type Category = "home" | "movies" | "anime" | "cartoon" | "ott" | "mylist" | "discover";
+export type Category =
+  | "home"
+  | "movies"
+  | "anime"
+  | "cartoon"
+  | "ott"
+  | "mylist"
+  | "discover";

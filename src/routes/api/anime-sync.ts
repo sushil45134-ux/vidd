@@ -97,27 +97,16 @@ query ($id: Int) {
 `;
 
 // AniList responses are untyped GraphQL JSON — same convention as anime-auto.ts
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let lastAnilistCall = 0;
 async function anilistFetch(query: string, variables: Record<string, unknown>): Promise<any> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const gap = 700 - (Date.now() - lastAnilistCall);
     if (gap > 0) await new Promise((r) => setTimeout(r, gap));
     lastAnilistCall = Date.now();
-    const res = await fetch(ANILIST_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ query, variables }),
-    });
-    if (res.status === 429) {
-      if (attempt === 3) throw new Error("AniList 429");
-      await new Promise((r) => setTimeout(r, 20000 * (attempt + 1)));
-      continue;
-    }
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`AniList ${res.status}: ${txt.slice(0, 200)}`);
-    }
+    const res = await fetch(ANILIST_URL, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query, variables }) });
+    if (res.status === 429) { if (attempt === 3) throw new Error("AniList 429"); await new Promise((r) => setTimeout(r, 20000 * (attempt + 1))); continue; }
+    if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(`AniList ${res.status}: ${txt.slice(0, 200)}`); }
     const json = await res.json();
     if (json.errors) throw new Error(`AniList error: ${JSON.stringify(json.errors).slice(0, 300)}`);
     return json.data;
@@ -127,15 +116,8 @@ async function anilistFetch(query: string, variables: Record<string, unknown>): 
 async function anilistBatchSearch(titles: string[]): Promise<SyncMedia[][]> {
   const out: SyncMedia[][] = [];
   for (let start = 0; start < titles.length; start += 10) {
-    const chunk = titles.slice(start, start + 10),
-      vars: Record<string, unknown> = {},
-      fields: string[] = [];
-    chunk.forEach((title, i) => {
-      vars[`q${i}`] = title;
-      fields.push(
-        `q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`,
-      );
-    });
+    const chunk = titles.slice(start, start + 10), vars: Record<string, unknown> = {}, fields: string[] = [];
+    chunk.forEach((title, i) => { vars[`q${i}`] = title; fields.push(`q${i}: Page(perPage: 10) { media(search: $q${i}, type: ANIME, sort: POPULARITY_DESC) { ${SYNC_FIELDS} } }`); });
     const defs = chunk.map((_, i) => `$q${i}: String`).join(", ");
     const data = await anilistFetch(`query (${defs}) { ${fields.join(" ")} }`, vars);
     out.push(...chunk.map((_, i) => data?.[`q${i}`]?.media || []));
@@ -145,24 +127,12 @@ async function anilistBatchSearch(titles: string[]): Promise<SyncMedia[][]> {
 async function anilistBatchDetails(ids: (number | undefined)[]): Promise<(SyncMedia | null)[]> {
   const out: (SyncMedia | null)[] = Array(ids.length).fill(null);
   for (let start = 0; start < ids.length; start += 10) {
-    const chunk = ids.slice(start, start + 10),
-      vars: Record<string, unknown> = {},
-      fields: string[] = [],
-      positions: [number, number][] = [];
-    chunk.forEach((id, i) => {
-      if (id == null) return;
-      vars[`i${i}`] = id;
-      positions.push([i, start + i]);
-      fields.push(
-        `i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`,
-      );
-    });
+    const chunk = ids.slice(start, start + 10), vars: Record<string, unknown> = {}, fields: string[] = [], positions: [number, number][] = [];
+    chunk.forEach((id, i) => { if (id == null) return; vars[`i${i}`] = id; positions.push([i, start + i]); fields.push(`i${i}: Media(id: $i${i}, type: ANIME) { ${SYNC_FIELDS} relations { edges { relationType } nodes { ${SYNC_FIELDS} type } } }`); });
     if (!fields.length) continue;
     const defs = positions.map(([i]) => `$i${i}: Int`).join(", ");
     const data = await anilistFetch(`query (${defs}) { ${fields.join(" ")} }`, vars);
-    positions.forEach(([i, pos]) => {
-      out[pos] = data?.[`i${i}`] || null;
-    });
+    positions.forEach(([i, pos]) => { out[pos] = data?.[`i${i}`] || null; });
   }
   return out;
 }

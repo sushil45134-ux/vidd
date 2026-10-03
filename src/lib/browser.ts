@@ -37,10 +37,10 @@ export function isTvLayoutActive(): boolean {
  */
 export function isOldChromium(): boolean {
   if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  const match = ua.match(/Chrome\/(\d+)/);
+  var ua = navigator.userAgent;
+  var match = ua.match(/Chrome\/(\d+)/);
   if (!match) return false;
-  const version = parseInt(match[1], 10);
+  var version = parseInt(match[1], 10);
   return version > 0 && version < 80;
 }
 

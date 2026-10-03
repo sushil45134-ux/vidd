@@ -2,7 +2,7 @@ export async function optimizeImageFile(
   file: File,
   maxWidth: number,
   maxHeight: number,
-  quality = 0.78,
+  quality = 0.78
 ): Promise<string> {
   const source = await createImageBitmap(file);
   const scale = Math.min(1, maxWidth / source.width, maxHeight / source.height);

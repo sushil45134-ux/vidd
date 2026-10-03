@@ -45,14 +45,11 @@ function tvSafeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     } catch (e2) {
       // Last resort: minimal init
       try {
-        return window.fetch(
-          input as any,
-          {
-            method: safeInit.method || "GET",
-            headers: safeInit.headers as any,
-            body: safeInit.body as any,
-          } as any,
-        );
+        return window.fetch(input as any, {
+          method: safeInit.method || "GET",
+          headers: safeInit.headers as any,
+          body: safeInit.body as any,
+        } as any);
       } catch {
         throw e2;
       }

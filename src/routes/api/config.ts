@@ -20,10 +20,7 @@ export const Route = createFileRoute("/api/config")({
           });
           if (!res.ok) return Response.json({ data: null }, { status: 200 });
           const data = await res.json();
-          return Response.json(
-            { data: data?.[0] ?? null },
-            { headers: { "cache-control": "public, max-age=60" } },
-          );
+          return Response.json({ data: data?.[0] ?? null }, { headers: { "cache-control": "public, max-age=60" } });
         } catch {
           return Response.json({ data: null }, { status: 200 });
         }

@@ -50,11 +50,7 @@ interface UploadModalProps {
   onUpload: (movie: Movie | Movie[]) => void;
   /** Existing uploaded series (playlistId + title + season summary) the admin
    *  can add more episodes/seasons into instead of creating a new card. */
-  existingSeries?: {
-    playlistId: string;
-    title: string;
-    seasons: { season: number; count: number }[];
-  }[];
+  existingSeries?: { playlistId: string; title: string; seasons: { season: number; count: number }[] }[];
 }
 
 const GENRES = [
@@ -884,12 +880,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       const sTitle = seriesTitle.trim() || "My Series";
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
-      const cloudGenres =
-        selectedGenres.length > 0
-          ? selectedGenres.includes("Anime")
-            ? selectedGenres
-            : [...selectedGenres, "Anime"]
-          : ["Anime"];
+      const cloudGenres = selectedGenres.length > 0
+        ? (selectedGenres.includes("Anime") ? selectedGenres : [...selectedGenres, "Anime"])
+        : ["Anime"];
       const movies: Movie[] = episodes.map((ep, i) => ({
         id: Date.now() + i,
         title: `${sTitle} - ${ep.title}`,
@@ -923,23 +916,14 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         seriesMode === "existing" && existingPid
           ? existingPid
           : imdbInput.trim()
-            ? `imdb-${imdbInput.trim()}-${sTitle
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9-]/g, "")}`
-            : `user-series-${sTitle
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9-]/g, "")}-${Date.now()}`;
+            ? `imdb-${imdbInput.trim()}-${sTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}`
+            : `user-series-${sTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}-${Date.now()}`;
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
       const cover = thumbnailUrl || fallbackImg;
-      const finalGenres =
-        selectedGenres.length > 0
-          ? selectedGenres.includes("Anime")
-            ? selectedGenres
-            : [...selectedGenres, "Anime"]
-          : ["Anime"];
+      const finalGenres = selectedGenres.length > 0 
+        ? (selectedGenres.includes("Anime") ? selectedGenres : [...selectedGenres, "Anime"])
+        : ["Anime"];
       const movies: Movie[] = eps.map((ep, i) => {
         const yt = extractYouTubeId(ep.url);
         // YouTube embeds get their own real thumbnail; non-YouTube iframe
@@ -1363,7 +1347,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
               <div>
                 {/* Add to: new series OR existing series */}
                 <div className="mb-4">
-                  <label className="text-gray-300 text-sm font-medium mb-2 block">Add to</label>
+                  <label className="text-gray-300 text-sm font-medium mb-2 block">
+                    Add to
+                  </label>
                   <div className="flex gap-2 mb-3">
                     <button
                       type="button"
@@ -1410,8 +1396,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         </p>
                       )}
                       <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
-                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1 rakho,
-                        ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar judeinge.
+                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1
+                        rakho, ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar
+                        judeinge.
                       </p>
                     </>
                   )}
@@ -1518,8 +1505,8 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   )}
                   <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
                     💡 NHD (nhdapi.com) default player hai. Nxsha (nxsha.space / web.nxsha.app) —
-                    Hindi audio verified by user; popup ads blocked. IMDb ya numeric TMDB ID se har
-                    episode ka link khud banta hai. Test ID:{" "}
+                    Hindi audio verified by user; popup ads blocked. IMDb ya numeric TMDB ID se
+                    har episode ka link khud banta hai. Test ID:{" "}
                     <span className="font-mono">tt15765670</span> → NHD{" "}
                     <span className="font-mono">https://nhdapi.com/tv/tt15765670/1/1</span>, Nxsha{" "}
                     <span className="font-mono">
@@ -1823,42 +1810,42 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   Cancel
                 </button>
                 {cloudTab ? (
-                  <button
-                    onClick={() => setStep("details")}
-                    disabled={cloudEps.length === 0 || !seriesTitle.trim()}
-                    className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Next: Add Details ({cloudEps.length} episode{cloudEps.length !== 1 ? "s" : ""})
-                  </button>
-                ) : sourceTab === "series" ? (
-                  <button
-                    onClick={() => setStep("details")}
-                    disabled={
-                      embedEpisodes.length === 0 ||
-                      !seriesTitle.trim() ||
-                      (seriesMode === "existing" && !existingPid)
+                <button
+                  onClick={() => setStep("details")}
+                  disabled={cloudEps.length === 0 || !seriesTitle.trim()}
+                  className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next: Add Details ({cloudEps.length} episode{cloudEps.length !== 1 ? "s" : ""})
+                </button>
+              ) : sourceTab === "series" ? (
+                <button
+                  onClick={() => setStep("details")}
+                  disabled={
+                    embedEpisodes.length === 0 ||
+                    !seriesTitle.trim() ||
+                    (seriesMode === "existing" && !existingPid)
+                  }
+                  className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next: Add Details ({embedEpisodes.length} episode
+                  {embedEpisodes.length !== 1 ? "s" : ""})
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (sourceTab === "embed" && embedInput && !detected) {
+                      setEmbedError(
+                        "Could not detect a video. Try pasting a direct URL or embed code.",
+                      );
+                      return;
                     }
-                    className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Next: Add Details ({embedEpisodes.length} episode
-                    {embedEpisodes.length !== 1 ? "s" : ""})
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (sourceTab === "embed" && embedInput && !detected) {
-                        setEmbedError(
-                          "Could not detect a video. Try pasting a direct URL or embed code.",
-                        );
-                        return;
-                      }
-                      setStep("details");
-                    }}
-                    disabled={!hasSource}
-                    className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Next: Add Details
-                  </button>
+                    setStep("details");
+                  }}
+                  disabled={!hasSource}
+                  className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next: Add Details
+                </button>
                 )}
               </div>
             )}

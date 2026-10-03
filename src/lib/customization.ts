@@ -156,12 +156,8 @@ async function loadRemoteConfig(): Promise<SiteConfig | null> {
   // Try same-origin proxy first on TV / local dev to avoid CORS
   try {
     if (typeof window !== "undefined") {
-      const isTv =
-        /SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(
-          navigator.userAgent,
-        );
-      const isLocal =
-        window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+      const isTv = /SMART-TV|SMARTTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Viera|HbbTV|GoogleTV|Android TV|TV Safari/i.test(navigator.userAgent);
+      const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
       if (isTv || isLocal) {
         const res = await fetch("/api/supabase?table=site_config&select=*&id=eq.1");
         if (res.ok) {

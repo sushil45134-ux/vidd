@@ -2,12 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 /**
  * TV-safe movies API — server-side proxy to Supabase.
- *
+ * 
  * Why: Samsung Tizen 5.5 (Chromium 69) and local dev origins (127.0.0.1:4173)
  * are often blocked by Supabase CORS (No 'Access-Control-Allow-Origin').
  * By fetching server-side (Nitro) we bypass CORS entirely — the TV browser
  * only ever talks to same-origin /api/movies.
- *
+ * 
  * The client (moviesRepo) will try this endpoint first, falling back to
  * direct Supabase if the proxy is unavailable.
  */
@@ -29,10 +29,7 @@ export const Route = createFileRoute("/api/movies")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const from = Number(url.searchParams.get("from") ?? "0");
-        const limit = Math.min(
-          Number(url.searchParams.get("limit") ?? String(MOVIES_PAGE_SIZE)),
-          MOVIES_PAGE_SIZE,
-        );
+        const limit = Math.min(Number(url.searchParams.get("limit") ?? String(MOVIES_PAGE_SIZE)), MOVIES_PAGE_SIZE);
         const columns = url.searchParams.get("columns") || MOVIES_COLUMNS;
         const withCount = url.searchParams.get("count") === "1";
 
@@ -61,10 +58,7 @@ export const Route = createFileRoute("/api/movies")({
 
           if (!res.ok) {
             const text = await res.text().catch(() => "");
-            return Response.json(
-              { error: `Supabase error ${res.status}`, details: text.slice(0, 500) },
-              { status: res.status },
-            );
+            return Response.json({ error: `Supabase error ${res.status}`, details: text.slice(0, 500) }, { status: res.status });
           }
 
           const data = await res.json();
@@ -82,13 +76,10 @@ export const Route = createFileRoute("/api/movies")({
                 "cache-control": "public, max-age=30, s-maxage=60, stale-while-revalidate=120",
                 "access-control-allow-origin": "*",
               },
-            },
+            }
           );
         } catch (e) {
-          return Response.json(
-            { error: "Proxy fetch failed", details: String(e).slice(0, 500) },
-            { status: 500 },
-          );
+          return Response.json({ error: "Proxy fetch failed", details: String(e).slice(0, 500) }, { status: 500 });
         }
       },
     },
