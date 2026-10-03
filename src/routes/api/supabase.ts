@@ -18,7 +18,8 @@ export const Route = createFileRoute("/api/supabase")({
 
         // Whitelist allowed tables
         const allowed = new Set(["movies", "site_config", "hero_banners", "collection_covers"]);
-        if (!allowed.has(table)) return Response.json({ error: "Table not allowed" }, { status: 403 });
+        if (!allowed.has(table))
+          return Response.json({ error: "Table not allowed" }, { status: 403 });
 
         // Pass through select, order, limit, etc.
         const supaUrl = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
@@ -38,9 +39,16 @@ export const Route = createFileRoute("/api/supabase")({
           });
           const text = await res.text();
           let data: any;
-          try { data = JSON.parse(text); } catch { data = text; }
+          try {
+            data = JSON.parse(text);
+          } catch {
+            data = text;
+          }
           if (!res.ok) {
-            return Response.json({ error: `Supabase ${res.status}`, details: String(text).slice(0, 500) }, { status: res.status });
+            return Response.json(
+              { error: `Supabase ${res.status}`, details: String(text).slice(0, 500) },
+              { status: res.status },
+            );
           }
           const countHeader = res.headers.get("content-range");
           let count: number | null = null;
@@ -48,9 +56,15 @@ export const Route = createFileRoute("/api/supabase")({
             const parts = countHeader.split("/");
             if (parts[1]) count = Number(parts[1]);
           }
-          return Response.json({ data, count }, { headers: { "cache-control": "public, max-age=30" } });
+          return Response.json(
+            { data, count },
+            { headers: { "cache-control": "public, max-age=30" } },
+          );
         } catch (e) {
-          return Response.json({ error: "Proxy failed", details: String(e).slice(0, 500) }, { status: 500 });
+          return Response.json(
+            { error: "Proxy failed", details: String(e).slice(0, 500) },
+            { status: 500 },
+          );
         }
       },
     },

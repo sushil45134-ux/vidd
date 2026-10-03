@@ -16,9 +16,7 @@ async function html(url: string) {
 async function resolveTmdbId(query: string) {
   const direct = query.match(/(?:^|\/)(\d{1,10})(?:$|[/?-])/);
   if (direct) return direct[1];
-  const search = await html(
-    `${TMDB}/search/tv?query=${encodeURIComponent(query)}&language=en-US`,
-  );
+  const search = await html(`${TMDB}/search/tv?query=${encodeURIComponent(query)}&language=en-US`);
   return search.match(/\/tv\/(\d{1,10})(?:[-"?])/i)?.[1] || "";
 }
 
@@ -48,7 +46,9 @@ export const Route = createFileRoute("/api/anime-trailer")({
           const candidates = youtubeIds(videos);
           return Response.json(
             { youtubeId: candidates[0] || "", youtubeIds: candidates, tmdbId },
-            { headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" } },
+            {
+              headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" },
+            },
           );
         } catch {
           // Trailer is progressive enhancement: the modal always retains its

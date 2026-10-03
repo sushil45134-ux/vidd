@@ -37,7 +37,9 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
       if (!res.ok) throw new Error(data.error || "Fetch failed");
       setResult(data as AutoFetchResult);
       // Select all seasons by default
-      setSelectedSeasons(new Set((data as AutoFetchResult).seasons.map((s: any) => s.seasonNumber)));
+      setSelectedSeasons(
+        new Set((data as AutoFetchResult).seasons.map((s: any) => s.seasonNumber)),
+      );
     } catch (e: any) {
       setError(e.message || "Fetch failed");
     } finally {
@@ -58,7 +60,9 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
     if (!result) return;
     const cleanImdb = imdbId.trim();
     if (!cleanImdb) {
-      setError("IMDb ID dalo — jaise tt15765670 — taaki player link ban sake. Agar sirf metadata chahiye to bhi IMDb ID zaroori hai.");
+      setError(
+        "IMDb ID dalo — jaise tt15765670 — taaki player link ban sake. Agar sirf metadata chahiye to bhi IMDb ID zaroori hai.",
+      );
       return;
     }
     // Validate imdb format (tt + digits) or numeric tmdb id
@@ -80,7 +84,10 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
       seasons: result.seasons.filter((s) => selectedSeasons.has(s.seasonNumber)),
     };
     filteredResult.totalSeasons = filteredResult.seasons.length;
-    filteredResult.totalEpisodes = filteredResult.seasons.reduce((a, s) => a + s.episodes.length, 0);
+    filteredResult.totalEpisodes = filteredResult.seasons.reduce(
+      (a, s) => a + s.episodes.length,
+      0,
+    );
 
     if (filteredResult.seasons.length === 0) {
       setError("Kam se kam ek season select karo");
@@ -109,19 +116,27 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
           <div className="flex gap-2">
             <span className="text-pink-400 text-xs">💖</span>
             <div className="text-[11px] leading-relaxed">
-              <p className="font-bold text-white text-xs">My Dress-Up Darling Quick Add (No API, 1-Click)</p>
-              <p className="text-gray-400 text-[10px]">API fail ho raha hai to is button se direct S1+S2 (24 ep) add ho jayega — cover + details ke saath. Bas IMDb ID daal ke dabao.</p>
+              <p className="font-bold text-white text-xs">
+                My Dress-Up Darling Quick Add (No API, 1-Click)
+              </p>
+              <p className="text-gray-400 text-[10px]">
+                API fail ho raha hai to is button se direct S1+S2 (24 ep) add ho jayega — cover +
+                details ke saath. Bas IMDb ID daal ke dabao.
+              </p>
             </div>
           </div>
           <button
             onClick={() => {
               const cleanImdb = imdbId.trim() || "tt15765670";
               const provider = getProvider(providerId);
-              const template = provider ? provider.template : customTemplate.trim() || "https://nhdapi.com/tv/{id}/{s}/{e}";
+              const template = provider
+                ? provider.template
+                : customTemplate.trim() || "https://nhdapi.com/tv/{id}/{s}/{e}";
               const slug = "my-dress-up-darling";
               const playlistId = `anime-auto-${slug}-${cleanImdb}`;
               const s1Cover = "https://image.tmdb.org/t/p/w780/j5tZc3bbdxLQic4TmFATwSkTIPa.jpg";
-              const s2Cover = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
+              const s2Cover =
+                "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx180259-6pRw4O3l6q8z.jpg";
               const movies = [];
               let gid = Date.now();
               const s1Titles = [
@@ -136,14 +151,18 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
                 "A Lot Happened After I Saw That Photo",
                 "We've All Got Struggles",
                 "I Am Currently at a Love Hotel",
-                "My Dress-Up Darling"
+                "My Dress-Up Darling",
               ];
               for (let i = 1; i <= 12; i++) {
-                const url = template.replace(/\{id\}/g, encodeURIComponent(cleanImdb)).replace(/\{s\}/g, "1").replace(/\{e\}/g, String(i));
+                const url = template
+                  .replace(/\{id\}/g, encodeURIComponent(cleanImdb))
+                  .replace(/\{s\}/g, "1")
+                  .replace(/\{e\}/g, String(i));
                 movies.push({
                   id: gid++,
-                  title: `My Dress-Up Darling - ${s1Titles[i-1]}`,
-                  description: "Wakana Gojo and Marin Kitagawa's cosplay love story. S1 Episode " + i,
+                  title: `My Dress-Up Darling - ${s1Titles[i - 1]}`,
+                  description:
+                    "Wakana Gojo and Marin Kitagawa's cosplay love story. S1 Episode " + i,
                   image: s1Cover,
                   backdrop: s1Cover,
                   thumbnailUrl: s1Cover,
@@ -163,7 +182,10 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
                 });
               }
               for (let i = 1; i <= 12; i++) {
-                const url = template.replace(/\{id\}/g, encodeURIComponent(cleanImdb)).replace(/\{s\}/g, "2").replace(/\{e\}/g, String(i));
+                const url = template
+                  .replace(/\{id\}/g, encodeURIComponent(cleanImdb))
+                  .replace(/\{s\}/g, "2")
+                  .replace(/\{e\}/g, String(i));
                 movies.push({
                   id: gid++,
                   title: `My Dress-Up Darling Season 2 Episode ${i}`,
@@ -200,13 +222,20 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
         <div className="flex gap-2">
           <Wand2 size={16} className="text-[#ff6a00] mt-0.5 flex-shrink-0" />
           <div className="text-[11px] leading-relaxed text-gray-300">
-            <p className="font-bold text-white text-xs mb-1">Jikan + AniList Auto-Fetch — No API Key Needed ✅</p>
-            <p>
-              Bas <span className="text-white font-bold">Anime ka naam</span> aur <span className="text-white font-bold">IMDb ID</span> dalo. 
-              System AniList se poster, banner, description, genres fetch karega aur Jikan se har episode ka title, synopsis aur thumbnail lega. 
-              Fir NHD / Nxsha template se har episode ka player link auto ban jayega — manually kuch nahi karna!
+            <p className="font-bold text-white text-xs mb-1">
+              Jikan + AniList Auto-Fetch — No API Key Needed ✅
             </p>
-            <p className="mt-1 text-[#ff9a4d]">Example: Name = <span className="font-mono text-white">Naruto</span>, IMDb = <span className="font-mono text-white">tt15765670</span></p>
+            <p>
+              Bas <span className="text-white font-bold">Anime ka naam</span> aur{" "}
+              <span className="text-white font-bold">IMDb ID</span> dalo. System AniList se poster,
+              banner, description, genres fetch karega aur Jikan se har episode ka title, synopsis
+              aur thumbnail lega. Fir NHD / Nxsha template se har episode ka player link auto ban
+              jayega — manually kuch nahi karna!
+            </p>
+            <p className="mt-1 text-[#ff9a4d]">
+              Example: Name = <span className="font-mono text-white">Naruto</span>, IMDb ={" "}
+              <span className="font-mono text-white">tt15765670</span>
+            </p>
           </div>
         </div>
       </div>
@@ -231,7 +260,8 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
         </div>
         <div>
           <label className="text-gray-300 text-xs font-medium mb-1.5 block">
-            IMDb ID <span className="text-red-500">*</span> <span className="text-gray-500 text-[10px]">(tt... ya TMDB numeric)</span>
+            IMDb ID <span className="text-red-500">*</span>{" "}
+            <span className="text-gray-500 text-[10px]">(tt... ya TMDB numeric)</span>
           </label>
           <div className="relative">
             <Film size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -266,7 +296,9 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
         <div className="md:col-span-2">
           {providerId === "custom" ? (
             <div>
-              <label className="text-gray-500 text-[10px] mb-1 block">Custom Template (must have {"{id}"} {"{s}"} {"{e}"})</label>
+              <label className="text-gray-500 text-[10px] mb-1 block">
+                Custom Template (must have {"{id}"} {"{s}"} {"{e}"})
+              </label>
               <input
                 type="text"
                 value={customTemplate}
@@ -315,25 +347,41 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
           <div className="rounded-xl overflow-hidden border border-white/10 bg-[#111]">
             <div className="relative h-32 w-full overflow-hidden">
               {result.mainBanner ? (
-                <img src={result.mainBanner} alt={result.mainTitle} className="w-full h-full object-cover opacity-60" />
+                <img
+                  src={result.mainBanner}
+                  alt={result.mainTitle}
+                  className="w-full h-full object-cover opacity-60"
+                />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-[#ff6a00]/20 to-[#ee0979]/20" />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
               <div className="absolute bottom-0 left-0 p-3 flex gap-3 items-end w-full">
-                <img src={result.mainCover} alt={result.mainTitle} className="w-16 h-24 object-cover rounded-lg border border-white/10 shadow-xl flex-shrink-0" />
+                <img
+                  src={result.mainCover}
+                  alt={result.mainTitle}
+                  className="w-16 h-24 object-cover rounded-lg border border-white/10 shadow-xl flex-shrink-0"
+                />
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-white font-black text-sm leading-tight truncate">{result.mainTitle}</h3>
-                  <p className="text-gray-300 text-[11px] line-clamp-2 leading-relaxed mt-1">{result.description.slice(0, 180)}...</p>
+                  <h3 className="text-white font-black text-sm leading-tight truncate">
+                    {result.mainTitle}
+                  </h3>
+                  <p className="text-gray-300 text-[11px] line-clamp-2 leading-relaxed mt-1">
+                    {result.description.slice(0, 180)}...
+                  </p>
                   <div className="flex gap-1 mt-1.5 flex-wrap">
                     {result.genres.slice(0, 4).map((g) => (
-                      <span key={g} className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/70 border border-white/10">
+                      <span
+                        key={g}
+                        className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/70 border border-white/10"
+                      >
                         {g}
                       </span>
                     ))}
                   </div>
                   <p className="text-[10px] text-gray-500 mt-1">
-                    {result.totalSeasons} Season{result.totalSeasons !== 1 ? "s" : ""} • {result.totalEpisodes} Episodes • AniList + Jikan
+                    {result.totalSeasons} Season{result.totalSeasons !== 1 ? "s" : ""} •{" "}
+                    {result.totalEpisodes} Episodes • AniList + Jikan
                   </p>
                 </div>
               </div>
@@ -352,29 +400,45 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
                       onChange={() => toggleSeason(season.seasonNumber)}
                       className="mt-1 w-4 h-4 rounded accent-[#ff6a00] cursor-pointer"
                     />
-                    <img src={season.coverImage} alt={season.title} className="w-12 h-16 object-cover rounded-md border border-white/10 flex-shrink-0" />
+                    <img
+                      src={season.coverImage}
+                      alt={season.title}
+                      className="w-12 h-16 object-cover rounded-md border border-white/10 flex-shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-white text-xs font-bold truncate">S{season.seasonNumber}: {season.title}</h4>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-400">{season.year || "?"}</span>
+                        <h4 className="text-white text-xs font-bold truncate">
+                          S{season.seasonNumber}: {season.title}
+                        </h4>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-400">
+                          {season.year || "?"}
+                        </span>
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#ff6a00]/10 text-[#ff9a4d] border border-[#ff6a00]/20">
                           {season.episodes.length} ep
                         </span>
                       </div>
-                      <p className="text-gray-400 text-[10px] line-clamp-2 mt-1 leading-relaxed">{season.description?.slice(0, 120) || "No description"}</p>
+                      <p className="text-gray-400 text-[10px] line-clamp-2 mt-1 leading-relaxed">
+                        {season.description?.slice(0, 120) || "No description"}
+                      </p>
                       <div className="flex gap-1 mt-2 overflow-x-auto pb-1">
                         {season.episodes.slice(0, 8).map((ep) => (
                           <div key={ep.episodeNumber} className="flex-shrink-0 w-20">
                             <div className="relative w-20 h-12 rounded overflow-hidden bg-[#222] border border-white/5">
                               {ep.image ? (
-                                <img src={ep.image} alt={ep.title} className="w-full h-full object-cover" />
+                                <img
+                                  src={ep.image}
+                                  alt={ep.title}
+                                  className="w-full h-full object-cover"
+                                />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <ImageIcon size={12} className="text-gray-600" />
                                 </div>
                               )}
                               <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
-                                <p className="text-[8px] text-white font-bold">E{ep.episodeNumber}</p>
+                                <p className="text-[8px] text-white font-bold">
+                                  E{ep.episodeNumber}
+                                </p>
                               </div>
                             </div>
                             <p className="text-[9px] text-gray-400 truncate mt-1">{ep.title}</p>
@@ -382,7 +446,9 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
                         ))}
                         {season.episodes.length > 8 && (
                           <div className="flex-shrink-0 w-20 h-12 rounded bg-[#222] border border-white/5 flex items-center justify-center">
-                            <span className="text-[10px] text-gray-500">+{season.episodes.length - 8} more</span>
+                            <span className="text-[10px] text-gray-500">
+                              +{season.episodes.length - 8} more
+                            </span>
                           </div>
                         )}
                       </div>
@@ -395,11 +461,16 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
             <div className="p-3 border-t border-white/5 bg-black/20 flex items-center justify-between">
               <p className="text-[11px] text-gray-400">
                 Selected: {selectedSeasons.size} season{selectedSeasons.size !== 1 ? "s" : ""} •{" "}
-                {result.seasons.filter((s) => selectedSeasons.has(s.seasonNumber)).reduce((a, s) => a + s.episodes.length, 0)} episodes
+                {result.seasons
+                  .filter((s) => selectedSeasons.has(s.seasonNumber))
+                  .reduce((a, s) => a + s.episodes.length, 0)}{" "}
+                episodes
               </p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setSelectedSeasons(new Set(result.seasons.map((s) => s.seasonNumber)))}
+                  onClick={() =>
+                    setSelectedSeasons(new Set(result.seasons.map((s) => s.seasonNumber)))
+                  }
                   className="text-[11px] text-gray-400 hover:text-white px-2 py-1 rounded bg-white/5"
                 >
                   Select All
@@ -420,15 +491,27 @@ export default function AnimeAutoFetchPanel({ onAddMovies }: Props) {
             className="w-full h-11 rounded-xl bg-[#e50914] hover:bg-[#f6121d] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             <Check size={16} />
-            Add {result.seasons.filter((s) => selectedSeasons.has(s.seasonNumber)).reduce((a, s) => a + s.episodes.length, 0)} Episodes to Library — Auto Cover & Details
+            Add{" "}
+            {result.seasons
+              .filter((s) => selectedSeasons.has(s.seasonNumber))
+              .reduce((a, s) => a + s.episodes.length, 0)}{" "}
+            Episodes to Library — Auto Cover & Details
           </button>
 
           <div className="bg-[#111] rounded-lg p-2.5 border border-white/5">
             <p className="text-[10px] text-gray-500 leading-relaxed flex gap-1.5">
               <Play size={10} className="mt-0.5 flex-shrink-0 text-gray-400" />
               <span>
-                Har episode ka cover Jikan se ayega (agar available), warna AniList cover use hoga. Player link <span className="font-mono text-[#ff9a4d]">{getProvider(providerId)?.template.replace("{id}", imdbId || "tt...").slice(0, 60)}...</span> se banega. 
-                IMDb ID + Provider template se seasons auto-play honge — koi manual link paste nahi!
+                Har episode ka cover Jikan se ayega (agar available), warna AniList cover use hoga.
+                Player link{" "}
+                <span className="font-mono text-[#ff9a4d]">
+                  {getProvider(providerId)
+                    ?.template.replace("{id}", imdbId || "tt...")
+                    .slice(0, 60)}
+                  ...
+                </span>{" "}
+                se banega. IMDb ID + Provider template se seasons auto-play honge — koi manual link
+                paste nahi!
               </span>
             </p>
           </div>

@@ -7,9 +7,15 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "vid Admin" },
-      { name: "description", content: "Sign in to manage vid uploads, playlists, and streaming site settings." },
+      {
+        name: "description",
+        content: "Sign in to manage vid uploads, playlists, and streaming site settings.",
+      },
       { property: "og:title", content: "vid Admin" },
-      { property: "og:description", content: "Sign in to manage vid uploads, playlists, and streaming site settings." },
+      {
+        property: "og:description",
+        content: "Sign in to manage vid uploads, playlists, and streaming site settings.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -96,7 +102,9 @@ function AdminLoginPage() {
           <h2 className="text-base font-bold mb-5 text-center">Sign In</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-[11px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">Email</label>
+              <label className="text-[11px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">
+                Email
+              </label>
               <input
                 type="email"
                 value={email}
@@ -107,7 +115,9 @@ function AdminLoginPage() {
               />
             </div>
             <div>
-              <label className="text-[11px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">Password</label>
+              <label className="text-[11px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">
+                Password
+              </label>
               <input
                 type="password"
                 value={password}
@@ -149,7 +159,9 @@ function AdminDashboard() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-black">
-              <span className="bg-gradient-to-r from-[#ff6a00] to-[#ff8533] bg-clip-text text-transparent">Admin</span>
+              <span className="bg-gradient-to-r from-[#ff6a00] to-[#ff8533] bg-clip-text text-transparent">
+                Admin
+              </span>
               <span className="text-white"> Panel</span>
             </h1>
           </div>

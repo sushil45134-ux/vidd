@@ -29,10 +29,7 @@ export const Route = createFileRoute("/api/auth")({
             });
             return Response.json({ ok: true });
           }
-          return Response.json(
-            { error: "Invalid email or password" },
-            { status: 401 }
-          );
+          return Response.json({ error: "Invalid email or password" }, { status: 401 });
         } catch {
           return Response.json({ error: "Login failed" }, { status: 500 });
         }

@@ -148,9 +148,7 @@ export function parseAnimeTitle(title: string): {
 
   if (!seriesName) seriesName = t;
 
-  const cleanTitle = seriesName
-    ? `${seriesName}${episodeNumber ? ` — E${episodeNumber}` : ""}`
-    : t;
+  const cleanTitle = seriesName ? `${seriesName}${episodeNumber ? ` — E${episodeNumber}` : ""}` : t;
 
   return { seriesName, episodeNumber, seasonNumber, cleanTitle };
 }
@@ -331,9 +329,7 @@ export function episodesToMovies(episodes: AnimeEpisode[]): {
       .sort((a, b) => a[0] - b[0])
       .map(([seasonNumber, seasonEps]) => ({
         seasonNumber,
-        episodes: [...seasonEps].sort(
-          (a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0),
-        ),
+        episodes: [...seasonEps].sort((a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0)),
       }));
 
     const cover = sorted[sorted.length - 1].thumbnail;
@@ -377,18 +373,146 @@ export function episodesToMovies(episodes: AnimeEpisode[]): {
  * ──────────────────────────────────────────────────────────────── */
 
 export const ANIME_SEED: AnimeEpisode[] = [
-  { videoId: "HJDOkJiLThA", title: "[Hindi Dub] HUNTER×HUNTER - Episode 012 | Muse IN", seriesName: "HUNTER×HUNTER", episodeNumber: 12, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/HJDOkJiLThA/hqdefault.jpg", published: "2026-09-12T15:00:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "8pVm6IaSvAY", title: "[Hindi Dub] HUNTER×HUNTER - Episode 011 | Muse IN", seriesName: "HUNTER×HUNTER", episodeNumber: 11, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/8pVm6IaSvAY/hqdefault.jpg", published: "2026-09-11T15:00:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "FFGodKdK-dw", title: "[Hindi Dub] HUNTER×HUNTER - Episode 010 | Muse IN", seriesName: "HUNTER×HUNTER", episodeNumber: 10, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/FFGodKdK-dw/hqdefault.jpg", published: "2026-09-10T15:00:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "ZjBm6v6hoDg", title: "[Hindi Dub] HUNTER×HUNTER - Episode 009 | Muse IN", seriesName: "HUNTER×HUNTER", episodeNumber: 9, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/ZjBm6v6hoDg/hqdefault.jpg", published: "2026-09-09T15:00:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "0N2YEU2ArM4", title: "[Hindi Dub] HUNTER×HUNTER - Episode 008 | Muse IN", seriesName: "HUNTER×HUNTER", episodeNumber: 8, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/0N2YEU2ArM4/hqdefault.jpg", published: "2026-09-08T15:00:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "_5ZffywaGbg", title: "[Hindi Dub] Ragna Crimson - Episode 08", seriesName: "Ragna Crimson", episodeNumber: 8, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/_5ZffywaGbg/hqdefault.jpg", published: "2026-09-12T14:30:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "vVVqOmYk_gY", title: "[Hindi Dub] Ragna Crimson - Episode 07", seriesName: "Ragna Crimson", episodeNumber: 7, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/vVVqOmYk_gY/hqdefault.jpg", published: "2026-09-11T14:30:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "wAM9TgnUu24", title: "[Hindi Dub] Ragna Crimson - Episode 06", seriesName: "Ragna Crimson", episodeNumber: 6, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/wAM9TgnUu24/hqdefault.jpg", published: "2026-09-10T14:30:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "hvInrlDdZ9M", title: "[Hindi Dub] Ragna Crimson - Episode 05", seriesName: "Ragna Crimson", episodeNumber: 5, seasonNumber: 1, thumbnail: "https://i.ytimg.com/vi/hvInrlDdZ9M/hqdefault.jpg", published: "2026-09-09T14:30:06+00:00", channelName: "Muse Hindi Dub" },
-  { videoId: "vsjyfaY3C0o", title: "[Hindi Dub] That Time I Got Reincarnated as a Slime - Episode 75 (S4E03) | Muse IN", seriesName: "That Time I Got Reincarnated as a Slime", episodeNumber: 75, seasonNumber: 4, thumbnail: "https://i.ytimg.com/vi/vsjyfaY3C0o/hqdefault.jpg", published: "2026-09-12T16:30:06+00:00", channelName: "Muse India" },
-  { videoId: "thVv2kT9vUs", title: "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable - Episode 11 [Hindi Dub] | Muse IN", seriesName: "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable", episodeNumber: 11, seasonNumber: 3, thumbnail: "https://i.ytimg.com/vi/thVv2kT9vUs/hqdefault.jpg", published: "2026-09-12T15:30:06+00:00", channelName: "Muse India" },
-  { videoId: "qOI7d-vVJCo", title: "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable - Episode 10 [Hindi Dub] | Muse IN", seriesName: "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable", episodeNumber: 10, seasonNumber: 3, thumbnail: "https://i.ytimg.com/vi/qOI7d-vVJCo/hqdefault.jpg", published: "2026-09-11T15:30:06+00:00", channelName: "Muse India" },
-  { videoId: "rhRNMemVlxI", title: "[Hindi Dub] Welcome To Demon School! Iruma-kun Season 3 - Episode 14 | Muse IN", seriesName: "Welcome To Demon School! Iruma-kun", episodeNumber: 14, seasonNumber: 3, thumbnail: "https://i.ytimg.com/vi/rhRNMemVlxI/hqdefault.jpg", published: "2026-09-12T15:00:06+00:00", channelName: "Muse India" },
-  { videoId: "-oTJvROwsZY", title: "[Hindi Dub] Welcome To Demon School! Iruma-kun Season 3 - Episode 13 | Muse IN", seriesName: "Welcome To Demon School! Iruma-kun", episodeNumber: 13, seasonNumber: 3, thumbnail: "https://i.ytimg.com/vi/-oTJvROwsZY/hqdefault.jpg", published: "2026-09-11T15:00:06+00:00", channelName: "Muse India" },
+  {
+    videoId: "HJDOkJiLThA",
+    title: "[Hindi Dub] HUNTER×HUNTER - Episode 012 | Muse IN",
+    seriesName: "HUNTER×HUNTER",
+    episodeNumber: 12,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/HJDOkJiLThA/hqdefault.jpg",
+    published: "2026-09-12T15:00:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "8pVm6IaSvAY",
+    title: "[Hindi Dub] HUNTER×HUNTER - Episode 011 | Muse IN",
+    seriesName: "HUNTER×HUNTER",
+    episodeNumber: 11,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/8pVm6IaSvAY/hqdefault.jpg",
+    published: "2026-09-11T15:00:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "FFGodKdK-dw",
+    title: "[Hindi Dub] HUNTER×HUNTER - Episode 010 | Muse IN",
+    seriesName: "HUNTER×HUNTER",
+    episodeNumber: 10,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/FFGodKdK-dw/hqdefault.jpg",
+    published: "2026-09-10T15:00:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "ZjBm6v6hoDg",
+    title: "[Hindi Dub] HUNTER×HUNTER - Episode 009 | Muse IN",
+    seriesName: "HUNTER×HUNTER",
+    episodeNumber: 9,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/ZjBm6v6hoDg/hqdefault.jpg",
+    published: "2026-09-09T15:00:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "0N2YEU2ArM4",
+    title: "[Hindi Dub] HUNTER×HUNTER - Episode 008 | Muse IN",
+    seriesName: "HUNTER×HUNTER",
+    episodeNumber: 8,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/0N2YEU2ArM4/hqdefault.jpg",
+    published: "2026-09-08T15:00:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "_5ZffywaGbg",
+    title: "[Hindi Dub] Ragna Crimson - Episode 08",
+    seriesName: "Ragna Crimson",
+    episodeNumber: 8,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/_5ZffywaGbg/hqdefault.jpg",
+    published: "2026-09-12T14:30:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "vVVqOmYk_gY",
+    title: "[Hindi Dub] Ragna Crimson - Episode 07",
+    seriesName: "Ragna Crimson",
+    episodeNumber: 7,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/vVVqOmYk_gY/hqdefault.jpg",
+    published: "2026-09-11T14:30:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "wAM9TgnUu24",
+    title: "[Hindi Dub] Ragna Crimson - Episode 06",
+    seriesName: "Ragna Crimson",
+    episodeNumber: 6,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/wAM9TgnUu24/hqdefault.jpg",
+    published: "2026-09-10T14:30:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "hvInrlDdZ9M",
+    title: "[Hindi Dub] Ragna Crimson - Episode 05",
+    seriesName: "Ragna Crimson",
+    episodeNumber: 5,
+    seasonNumber: 1,
+    thumbnail: "https://i.ytimg.com/vi/hvInrlDdZ9M/hqdefault.jpg",
+    published: "2026-09-09T14:30:06+00:00",
+    channelName: "Muse Hindi Dub",
+  },
+  {
+    videoId: "vsjyfaY3C0o",
+    title: "[Hindi Dub] That Time I Got Reincarnated as a Slime - Episode 75 (S4E03) | Muse IN",
+    seriesName: "That Time I Got Reincarnated as a Slime",
+    episodeNumber: 75,
+    seasonNumber: 4,
+    thumbnail: "https://i.ytimg.com/vi/vsjyfaY3C0o/hqdefault.jpg",
+    published: "2026-09-12T16:30:06+00:00",
+    channelName: "Muse India",
+  },
+  {
+    videoId: "thVv2kT9vUs",
+    title:
+      "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable - Episode 11 [Hindi Dub] | Muse IN",
+    seriesName: "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable",
+    episodeNumber: 11,
+    seasonNumber: 3,
+    thumbnail: "https://i.ytimg.com/vi/thVv2kT9vUs/hqdefault.jpg",
+    published: "2026-09-12T15:30:06+00:00",
+    channelName: "Muse India",
+  },
+  {
+    videoId: "qOI7d-vVJCo",
+    title:
+      "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable - Episode 10 [Hindi Dub] | Muse IN",
+    seriesName: "JoJo's Bizarre Adventure (S3): Diamond is Unbreakable",
+    episodeNumber: 10,
+    seasonNumber: 3,
+    thumbnail: "https://i.ytimg.com/vi/qOI7d-vVJCo/hqdefault.jpg",
+    published: "2026-09-11T15:30:06+00:00",
+    channelName: "Muse India",
+  },
+  {
+    videoId: "rhRNMemVlxI",
+    title: "[Hindi Dub] Welcome To Demon School! Iruma-kun Season 3 - Episode 14 | Muse IN",
+    seriesName: "Welcome To Demon School! Iruma-kun",
+    episodeNumber: 14,
+    seasonNumber: 3,
+    thumbnail: "https://i.ytimg.com/vi/rhRNMemVlxI/hqdefault.jpg",
+    published: "2026-09-12T15:00:06+00:00",
+    channelName: "Muse India",
+  },
+  {
+    videoId: "-oTJvROwsZY",
+    title: "[Hindi Dub] Welcome To Demon School! Iruma-kun Season 3 - Episode 13 | Muse IN",
+    seriesName: "Welcome To Demon School! Iruma-kun",
+    episodeNumber: 13,
+    seasonNumber: 3,
+    thumbnail: "https://i.ytimg.com/vi/-oTJvROwsZY/hqdefault.jpg",
+    published: "2026-09-11T15:00:06+00:00",
+    channelName: "Muse India",
+  },
 ];

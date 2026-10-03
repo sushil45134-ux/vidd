@@ -306,6 +306,47 @@ export function EmbedPlayer({
   const dailymotionPlayerRef = useRef<any>(null);
   const dailymotionStoppedRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
+  const videoElRef = useRef<HTMLVideoElement>(null);
+  const needsResolve =
+    kind === "video" && (src.startsWith("/api/extract") || /\.m3u8(\?|$)/.test(src));
+  useEffect(() => {
+    if (!needsResolve) return;
+    let cancelled = false;
+    let hls: { destroy(): void } | null = null;
+    (async () => {
+      try {
+        let url = src;
+        if (src.startsWith("/api/extract")) {
+          const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json`);
+          const d = await r.json().catch(() => null);
+          if (!d?.ok || !d.streamUrl) throw Error(d?.error || `extract failed (HTTP ${r.status})`);
+          url = String(d.streamUrl);
+        }
+        if (cancelled || !videoElRef.current) return;
+        const v = videoElRef.current;
+        if (/\.m3u8(\?|$)/.test(url) && !v.canPlayType("application/vnd.apple.mpegurl")) {
+          const { default: Hls } = await import("hls.js");
+          if (cancelled) return;
+          if (!Hls.isSupported()) throw Error("This browser cannot play HLS streams");
+          const instance = new Hls();
+          hls = instance;
+          instance.loadSource(url);
+          instance.attachMedia(v);
+          instance.on(Hls.Events.ERROR, (_e, d) => {
+            if (d?.fatal) setVideoLoadError(`HLS error: ${d?.details || d?.type || "fatal"}`);
+          });
+        } else v.src = url;
+        v.play?.().catch(() => {});
+      } catch (e) {
+        if (!cancelled) setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+      hls?.destroy();
+    };
+  }, [needsResolve, src]);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
   const isAndroidPhone = useAndroidPhone();
@@ -675,8 +716,7 @@ export function EmbedPlayer({
 
   const toggleFullscreen = () => {
     const container = containerRef.current as
-      | (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void })
-      | null;
+      (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void }) | null;
     if (!container) return;
     const doc = document as Document & {
       webkitFullscreenElement?: Element;
@@ -734,7 +774,9 @@ export function EmbedPlayer({
           />
         ) : (
           <video
-            src={src}
+            ref={videoElRef}
+            referrerPolicy="no-referrer"
+            src={needsResolve ? undefined : src}
             controls
             autoPlay
             className="absolute inset-0 w-full h-full bg-black"
@@ -772,6 +814,18 @@ export function EmbedPlayer({
                 /* Progress listeners must never break playback. */
               }
             }}
+            onError={(e) => {
+              const code = e.currentTarget.error?.code;
+              const names: Record<number, string> = {
+                1: "ABORTED",
+                2: "NETWORK",
+                3: "DECODE",
+                4: "SRC_NOT_SUPPORTED",
+              };
+              setVideoLoadError(
+                `Video error ${code || "unknown"}: ${names[code || 0] || "playback failed"}`,
+              );
+            }}
             onEnded={() => {
               try {
                 onEndedRef.current?.();
@@ -780,6 +834,13 @@ export function EmbedPlayer({
               }
             }}
           />
+        )}
+        {kind === "video" && videoLoadError && (
+          <div className="absolute inset-x-0 top-16 z-30 flex justify-center px-4 pointer-events-none">
+            <div className="rounded-lg bg-red-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+              {videoLoadError}
+            </div>
+          </div>
         )}
 
         {isDailymotionStopped && <div className="absolute inset-0 z-20 bg-black" />}

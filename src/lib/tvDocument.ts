@@ -104,22 +104,15 @@ export function stripModernInlineScripts(html: string): string {
  * Chromium 49 TV a module whose first token was `export`.
  */
 export function stripModuleScripts(html: string): string {
-  return html
-    .replace(
-      /<link\b[^>]*\brel\s*=\s*["']modulepreload["'][^>]*\/?>(?:\s*)/gi,
-      "",
-    )
-    // Remove paired module scripts first, including inline module bodies.
-    .replace(
-      /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*>[\s\S]*?<\/script>\s*/gi,
-      "",
-    )
-    // Vite's dev client may omit the closing tag entirely. Do not leave the
-    // start tag behind: a legacy browser treats it as a classic script.
-    .replace(
-      /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*\/?>\s*/gi,
-      "",
-    );
+  return (
+    html
+      .replace(/<link\b[^>]*\brel\s*=\s*["']modulepreload["'][^>]*\/?>(?:\s*)/gi, "")
+      // Remove paired module scripts first, including inline module bodies.
+      .replace(/<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*>[\s\S]*?<\/script>\s*/gi, "")
+      // Vite's dev client may omit the closing tag entirely. Do not leave the
+      // start tag behind: a legacy browser treats it as a classic script.
+      .replace(/<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*\/?>\s*/gi, "")
+  );
 }
 
 /**

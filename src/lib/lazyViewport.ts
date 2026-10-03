@@ -48,8 +48,7 @@ type MinimalObserverConstructor = new (
 function nativeIntersectionObserver(): MinimalObserverConstructor | null {
   if (typeof window === "undefined") return null;
   const ctor = window.IntersectionObserver as
-    | (MinimalObserverConstructor & { __tvBootShim?: boolean })
-    | undefined;
+    (MinimalObserverConstructor & { __tvBootShim?: boolean }) | undefined;
   if (typeof ctor !== "function" || ctor.__tvBootShim === true) return null;
   return ctor;
 }
