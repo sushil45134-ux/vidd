@@ -66,7 +66,10 @@ export function movieToRow(m: Movie, sourceType: "uploaded" | "synced" | "demo")
 const MOVIES_PAGE_SIZE = 1000;
 const MOVIES_COLUMNS =
   "id,title,description,image,backdrop,thumbnail_url,year,rating,duration,genre,match_score,cast_members,creator,video_url,youtube_id,embed_url,embed_platform,playlist_id,playlist_title,episode_number,season_number,is_collection,source_type,created_at";
-const MOVIES_COLUMNS_LIGHT = MOVIES_COLUMNS.replace("description,", "").replace("cast_members,", "");
+const MOVIES_COLUMNS_LIGHT = MOVIES_COLUMNS.replace("description,", "").replace(
+  "cast_members,",
+  "",
+);
 
 interface MoviesPageResult {
   data: Array<Record<string, unknown>> | null;
@@ -119,6 +122,36 @@ async function fetchMoviesPageViaProxy(
   }
 }
 
+const NETMIRROR_DEMO = (import.meta as any).env?.VITE_NETMIRROR_DEMO === "1";
+const NETMIRROR_DEMO_MOVIES: Movie[] = [
+  {
+    id: 915085900,
+    title: "Chhota Bheem and the Curse of Damyaan",
+    description: "Test — direct MP4 via /api/stream",
+    image: "https://image.tmdb.org/t/p/w780/vt6ZkHyrrfLlTdiomnoGlNcgcHy.jpg",
+    backdrop: "https://image.tmdb.org/t/p/w1280/vt6ZkHyrrfLlTdiomnoGlNcgcHy.jpg",
+    year: 2012,
+    rating: "U",
+    duration: "1h 6m",
+    genre: ["Cartoon"],
+    match: 97,
+    videoUrl: "/api/stream?tmdb=150859",
+  },
+  {
+    id: 915085901,
+    title: "Doraemon the Movie: Nobita's Little Star Wars 2021",
+    description: "Test — ToonStream extract",
+    image: "https://image.tmdb.org/t/p/w780/u5sFU0Uw3qtFOeWNvnhLAt9JzbA.jpg",
+    backdrop: "https://image.tmdb.org/t/p/w1280/iflKt34Ck2JpY2PY9wW1zwdJgJi.jpg",
+    year: 2022,
+    rating: "U",
+    duration: "1h 49m",
+    genre: ["Cartoon"],
+    match: 96,
+    videoUrl: `/api/extract?url=${encodeURIComponent("https://vidmoly.me/embed-w2buir2swpkr.html")}`,
+  },
+];
+
 function splitRows(rows: Array<Record<string, unknown>>, failed = false) {
   const uploaded: Movie[] = [];
   const synced: Movie[] = [];
@@ -127,6 +160,10 @@ function splitRows(rows: Array<Record<string, unknown>>, failed = false) {
     if (r.source_type === "synced") synced.push(m);
     else uploaded.push(m);
   });
+  if (NETMIRROR_DEMO)
+    for (const demo of NETMIRROR_DEMO_MOVIES)
+      if (!synced.some((m) => m.id === demo.id) && !uploaded.some((m) => m.id === demo.id))
+        synced.push(demo);
   return { uploaded, synced, failed };
 }
 
@@ -137,7 +174,9 @@ export async function fetchAllMovies(
   const rows: Array<Record<string, unknown>> = [];
   const isBrowser = typeof window !== "undefined";
   const isTv = isBrowser && isTvBrowser();
-  const isLocalHost = isBrowser && (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
+  const isLocalHost =
+    isBrowser &&
+    (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
   const isHttp = isBrowser && window.location.protocol === "http:";
   const useProxyOnly = isTv || isLocalHost || isHttp;
 
@@ -171,7 +210,9 @@ export async function fetchAllMovies(
   }
   rows.push(...first.data);
   if (onFirstPage) {
-    try { onFirstPage(splitRows(rows)); } catch {}
+    try {
+      onFirstPage(splitRows(rows));
+    } catch {}
   }
   if (first.data.length < MOVIES_PAGE_SIZE) return splitRows(rows);
   const total = first.count;
@@ -191,7 +232,10 @@ export async function fetchAllMovies(
           page = await fetchMoviesPageViaProxy(from, false, MOVIES_COLUMNS_LIGHT);
         }
       }
-      if (page.error) { hadError = true; break; }
+      if (page.error) {
+        hadError = true;
+        break;
+      }
       if (!page.data || page.data.length === 0) break;
       rows.push(...page.data);
       if (page.data.length < MOVIES_PAGE_SIZE) break;
@@ -226,7 +270,9 @@ export async function fetchAllMovies(
 export async function fetchMovieImages(): Promise<Map<number, string>> {
   try {
     if (typeof window !== "undefined" && isTvBrowser()) {
-      const res = await fetch("/api/movies?from=0&limit=1000&columns=id,image,thumbnail_url,backdrop");
+      const res = await fetch(
+        "/api/movies?from=0&limit=1000&columns=id,image,thumbnail_url,backdrop",
+      );
       if (res.ok) {
         const json = (await res.json()) as { data?: any[] };
         if (json.data) {
@@ -249,45 +295,67 @@ export async function fetchMovieImages(): Promise<Map<number, string>> {
         row.thumbnail_url || row.image || row.backdrop || "",
       ]),
     );
-  } catch { return new Map(); }
+  } catch {
+    return new Map();
+  }
 }
 
 export async function fetchMovieById(id: number): Promise<Movie | null> {
   try {
-    const { data, error } = await supabase.from("movies").select(MOVIES_COLUMNS).eq("id", id).maybeSingle();
+    const { data, error } = await supabase
+      .from("movies")
+      .select(MOVIES_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
     if (error || !data) return null;
     return rowToMovie(data);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-export async function insertMovies(movies: Movie[], sourceType: "uploaded" | "synced"): Promise<Movie[]> {
+export async function insertMovies(
+  movies: Movie[],
+  sourceType: "uploaded" | "synced",
+): Promise<Movie[]> {
   if (movies.length === 0) return [];
   const rows = movies.map((m) => movieToRow(m, sourceType));
   try {
     const { data, error } = await supabase.from("movies").insert(rows).select("*");
     if (error) return [];
     return (data ?? []).map(rowToMovie);
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 export async function updateMovieThumbnail(id: number, imageUrl: string): Promise<boolean> {
   if (imageUrl.startsWith("blob:")) return true;
   try {
-    const { error } = await supabase.from("movies").update({ image: imageUrl, thumbnail_url: imageUrl, backdrop: imageUrl }).eq("id", id);
+    const { error } = await supabase
+      .from("movies")
+      .update({ image: imageUrl, thumbnail_url: imageUrl, backdrop: imageUrl })
+      .eq("id", id);
     return !error;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 export async function deleteMovieById(id: number): Promise<boolean> {
   try {
     const { error } = await supabase.from("movies").delete().eq("id", id);
     return !error;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 export async function deleteMoviesByPlaylist(playlistId: string): Promise<boolean> {
   try {
     const { error } = await supabase.from("movies").delete().eq("playlist_id", playlistId);
     return !error;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
