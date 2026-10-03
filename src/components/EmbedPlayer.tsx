@@ -775,7 +775,7 @@ export function EmbedPlayer({
         ) : (
           <video
             ref={videoElRef}
-            referrerPolicy="no-referrer"
+            {...({ referrerPolicy: "no-referrer" } as Record<string, string>)}
             src={needsResolve ? undefined : src}
             controls
             autoPlay
