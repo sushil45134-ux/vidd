@@ -325,7 +325,9 @@ export function EmbedPlayer({
         }
         if (cancelled || !videoElRef.current) return;
         const v = videoElRef.current;
-        if (/\.m3u8(\?|$)/.test(url) && !v.canPlayType("application/vnd.apple.mpegurl")) {
+        const isHls = /\.m3u8(\?|$)/.test(url);
+        const playbackUrl = isHls ? `/api/hlsproxy?u=${encodeURIComponent(url)}` : url;
+        if (isHls && !v.canPlayType("application/vnd.apple.mpegurl")) {
           const { default: Hls } = await import("hls.js");
           if (cancelled) return;
           if (!Hls.isSupported()) throw Error("This browser cannot play HLS streams");
@@ -352,12 +354,12 @@ export function EmbedPlayer({
           instance.on(Hls.Events.MANIFEST_PARSED, () => {
             chooseHindiAudio(instance.audioTracks || []);
           });
-          instance.loadSource(url);
+          instance.loadSource(playbackUrl);
           instance.attachMedia(v);
           instance.on(Hls.Events.ERROR, (_e, d) => {
             if (d?.fatal) setVideoLoadError(`HLS error: ${d?.details || d?.type || "fatal"}`);
           });
-        } else v.src = url;
+        } else v.src = playbackUrl;
         v.play?.().catch(() => {});
       } catch (e) {
         if (!cancelled) setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
