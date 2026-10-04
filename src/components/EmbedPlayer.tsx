@@ -309,9 +309,15 @@ export function EmbedPlayer({
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
   const [audioTracks, setAudioTracks] = useState<Array<{ lang?: string; name?: string }>>([]);
   const [audioTrackIndex, setAudioTrackIndex] = useState(-1);
+  const [qualityLevels, setQualityLevels] = useState<Array<{ height?: number; width?: number }>>(
+    [],
+  );
+  const [qualityIndex, setQualityIndex] = useState(-1);
   const videoElRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<{
     audioTrack: number;
+    currentLevel: number;
+    levels: Array<{ height?: number; width?: number }>;
     loadSource: (source: string) => void;
   } | null>(null);
   const hlsSourceRef = useRef<string | null>(null);
@@ -321,6 +327,8 @@ export function EmbedPlayer({
     if (!needsResolve) {
       setAudioTracks([]);
       setAudioTrackIndex(-1);
+      setQualityLevels([]);
+      setQualityIndex(-1);
       hlsRef.current = null;
       hlsSourceRef.current = null;
       return;
@@ -329,6 +337,8 @@ export function EmbedPlayer({
     let hls: { destroy(): void } | null = null;
     setAudioTracks([]);
     setAudioTrackIndex(-1);
+    setQualityLevels([]);
+    setQualityIndex(-1);
     hlsRef.current = null;
     hlsSourceRef.current = null;
     (async () => {
@@ -374,8 +384,10 @@ export function EmbedPlayer({
           instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, d) => {
             chooseHindiAudio(d.audioTracks || []);
           });
-          instance.on(Hls.Events.MANIFEST_PARSED, () => {
+          instance.on(Hls.Events.MANIFEST_PARSED, (_e, d) => {
             chooseHindiAudio(instance.audioTracks || []);
+            setQualityLevels(d.levels || instance.levels || []);
+            setQualityIndex(-1);
             window.setTimeout(() => chooseHindiAudio(instance.audioTracks || []), 500);
           });
           instance.loadSource(playbackUrl);
@@ -817,6 +829,12 @@ export function EmbedPlayer({
     setAudioTrackIndex(index);
   };
 
+  const selectQuality = (index: number) => {
+    if (!hlsRef.current || !Number.isInteger(index)) return;
+    hlsRef.current.currentLevel = index;
+    setQualityIndex(index);
+  };
+
   const audioOptions =
     audioTracks.length > 1
       ? audioTracks
@@ -960,6 +978,30 @@ export function EmbedPlayer({
             Keep this control available for iframe providers too; their own
             controls cannot fullscreen Vidd's cross-origin parent reliably. */}
         <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          {kind === "video" && qualityLevels.length > 1 && (
+            <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+              <span>Quality</span>
+              <select
+                value={qualityIndex}
+                onChange={(e) => selectQuality(Number(e.currentTarget.value))}
+                className="max-w-24 bg-transparent text-white outline-none"
+                aria-label="Video quality"
+              >
+                <option value={-1} className="bg-black">
+                  Auto
+                </option>
+                {qualityLevels.map((level, index) => (
+                  <option
+                    key={`${level.height || "level"}-${index}`}
+                    value={index}
+                    className="bg-black"
+                  >
+                    {level.height ? `${level.height}p` : `Level ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {kind === "video" && needsResolve && (
             <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
               <span>Audio</span>
