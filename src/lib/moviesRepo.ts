@@ -122,7 +122,11 @@ async function fetchMoviesPageViaProxy(
   }
 }
 
-const NETMIRROR_DEMO = (import.meta as any).env?.VITE_NETMIRROR_DEMO === "1";
+// Keep the test row opt-in in production, but make branch Previews usable even
+// when the Vercel Preview environment variable cannot be configured.
+const IS_VERCEL_PREVIEW =
+  typeof window !== "undefined" && /-git-[^.]+-/i.test(window.location.hostname);
+const NETMIRROR_DEMO = (import.meta as any).env?.VITE_NETMIRROR_DEMO === "1" || IS_VERCEL_PREVIEW;
 const NETMIRROR_DEMO_MOVIES: Movie[] = [
   {
     id: 915085900,
