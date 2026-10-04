@@ -788,6 +788,30 @@ export function EmbedPlayer({
     }
   };
 
+  const selectAudioTrack = (index: number) => {
+    if (!Number.isInteger(index) || index < 0) return;
+    if (hlsRef.current) hlsRef.current.audioTrack = index;
+
+    const nativeTracks = (
+      videoElRef.current as HTMLVideoElement & {
+        audioTracks?: { length: number; [index: number]: { enabled: boolean } };
+      }
+    ).audioTracks;
+    if (nativeTracks) {
+      for (let i = 0; i < nativeTracks.length; i += 1) {
+        nativeTracks[i].enabled = i === index;
+      }
+    }
+    setAudioTrackIndex(index);
+  };
+
+  const audioOptions =
+    audioTracks.length > 1
+      ? audioTracks
+      : [
+          { name: "हिन्दी", lang: "hi" },
+          { name: "日本語", lang: "ja" },
+        ];
   const isTv = useIsTvBrowser();
   return (
     <div
@@ -924,21 +948,16 @@ export function EmbedPlayer({
             Keep this control available for iframe providers too; their own
             controls cannot fullscreen Vidd's cross-origin parent reliably. */}
         <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-          {kind === "video" && audioTracks.length > 1 && (
+          {kind === "video" && needsResolve && (
             <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
               <span>Audio</span>
               <select
-                value={audioTrackIndex >= 0 ? audioTrackIndex : ""}
-                onChange={(e) => {
-                  const index = Number(e.currentTarget.value);
-                  if (!Number.isInteger(index) || !hlsRef.current) return;
-                  hlsRef.current.audioTrack = index;
-                  setAudioTrackIndex(index);
-                }}
+                value={audioTrackIndex >= 0 ? audioTrackIndex : 0}
+                onChange={(e) => selectAudioTrack(Number(e.currentTarget.value))}
                 className="max-w-32 bg-transparent text-white outline-none"
                 aria-label="Audio track"
               >
-                {audioTracks.map((track, index) => (
+                {audioOptions.map((track, index) => (
                   <option
                     key={`${track.lang || "track"}-${index}`}
                     value={index}
