@@ -307,13 +307,24 @@ export function EmbedPlayer({
   const dailymotionStoppedRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
+  const [audioTracks, setAudioTracks] = useState<Array<{ lang?: string; name?: string }>>([]);
+  const [audioTrackIndex, setAudioTrackIndex] = useState(-1);
   const videoElRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<{ audioTrack: number } | null>(null);
   const needsResolve =
     kind === "video" && (src.startsWith("/api/extract") || /\.m3u8(\?|$)/.test(src));
   useEffect(() => {
-    if (!needsResolve) return;
+    if (!needsResolve) {
+      setAudioTracks([]);
+      setAudioTrackIndex(-1);
+      hlsRef.current = null;
+      return;
+    }
     let cancelled = false;
     let hls: { destroy(): void } | null = null;
+    setAudioTracks([]);
+    setAudioTrackIndex(-1);
+    hlsRef.current = null;
     (async () => {
       try {
         let url = src;
@@ -333,7 +344,10 @@ export function EmbedPlayer({
           if (!Hls.isSupported()) throw Error("This browser cannot play HLS streams");
           const instance = new Hls();
           hls = instance;
+          hlsRef.current = instance;
           const chooseHindiAudio = (tracks: Array<{ lang?: string; name?: string }>) => {
+            if (cancelled) return;
+            setAudioTracks(tracks);
             const hindiIndex = tracks.findIndex((track) => {
               const lang = String(track.lang || "").toLowerCase();
               const label = `${lang} ${String(track.name || "")}`;
@@ -344,15 +358,18 @@ export function EmbedPlayer({
                 lang.startsWith("hi-")
               );
             });
-            if (hindiIndex >= 0 && instance.audioTrack !== hindiIndex) {
-              instance.audioTrack = hindiIndex;
+            const targetIndex = hindiIndex >= 0 ? hindiIndex : instance.audioTrack;
+            if (targetIndex >= 0 && instance.audioTrack !== targetIndex) {
+              instance.audioTrack = targetIndex;
             }
+            setAudioTrackIndex(targetIndex);
           };
           instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, d) => {
             chooseHindiAudio(d.audioTracks || []);
           });
           instance.on(Hls.Events.MANIFEST_PARSED, () => {
             chooseHindiAudio(instance.audioTracks || []);
+            window.setTimeout(() => chooseHindiAudio(instance.audioTracks || []), 500);
           });
           instance.loadSource(playbackUrl);
           instance.attachMedia(v);
@@ -368,6 +385,7 @@ export function EmbedPlayer({
     return () => {
       cancelled = true;
       hls?.destroy();
+      hlsRef.current = null;
     };
   }, [needsResolve, src]);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
@@ -906,6 +924,32 @@ export function EmbedPlayer({
             Keep this control available for iframe providers too; their own
             controls cannot fullscreen Vidd's cross-origin parent reliably. */}
         <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          {kind === "video" && audioTracks.length > 1 && (
+            <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+              <span>Audio</span>
+              <select
+                value={audioTrackIndex >= 0 ? audioTrackIndex : ""}
+                onChange={(e) => {
+                  const index = Number(e.currentTarget.value);
+                  if (!Number.isInteger(index) || !hlsRef.current) return;
+                  hlsRef.current.audioTrack = index;
+                  setAudioTrackIndex(index);
+                }}
+                className="max-w-32 bg-transparent text-white outline-none"
+                aria-label="Audio track"
+              >
+                {audioTracks.map((track, index) => (
+                  <option
+                    key={`${track.lang || "track"}-${index}`}
+                    value={index}
+                    className="bg-black"
+                  >
+                    {track.name || track.lang || `Track ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             onClick={toggleFullscreen}
             className="w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
