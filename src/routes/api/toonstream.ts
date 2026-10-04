@@ -124,6 +124,25 @@ async function discoverMovieSlugs(title: string): Promise<string[]> {
   return slugs;
 }
 
+async function probeProvider(requestUrl: URL, providerUrl: string): Promise<boolean> {
+  const extractUrl = new URL("/api/extract", requestUrl);
+  extractUrl.searchParams.set("url", providerUrl);
+  extractUrl.searchParams.set("format", "json");
+  try {
+    const response = await fetch(extractUrl.href, {
+      headers: { Accept: "application/json", "X-Vidd-Internal": "1" },
+      signal: AbortSignal.timeout(16000),
+    });
+    const data = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      streamUrl?: string;
+    } | null;
+    return response.ok && data?.ok === true && typeof data.streamUrl === "string";
+  } catch {
+    return false;
+  }
+}
+
 function cleanUrl(raw: string): string | null {
   const decoded = raw
     .replace(/&amp;/gi, "&")
@@ -230,6 +249,32 @@ export const Route = createFileRoute("/api/toonstream")({
             return Response.json(
               { ok: false, error: "ToonStream source not found for this title" },
               { status: 404, headers: { "Cache-Control": "no-store" } },
+            );
+          }
+
+          // The catalogue preflight uses the same extraction pipeline as the
+          // player. This prevents cards with only dead Rubystm/Cloudy mirrors
+          // from being shown as playable.
+          if (requestUrl.searchParams.get("probe") === "1") {
+            const workingProviders: string[] = [];
+            const probes = await Promise.all(
+              providerUrls.map(async (providerUrl) => ({
+                providerUrl,
+                working: await probeProvider(requestUrl, providerUrl),
+              })),
+            );
+            for (const probe of probes) {
+              if (probe.working) workingProviders.push(probe.providerUrl);
+            }
+            if (workingProviders.length === 0) {
+              return Response.json(
+                { ok: false, error: "ToonStream providers are not playable" },
+                { status: 404, headers: { "Cache-Control": "no-store" } },
+              );
+            }
+            return Response.json(
+              { ok: true, sources: workingProviders },
+              { headers: { "Cache-Control": "no-store" } },
             );
           }
 
