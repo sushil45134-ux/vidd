@@ -10,6 +10,7 @@ export default function PlayerOverlay({
   startAt = 0,
   onProgress,
   onEnded,
+  onUnavailable,
 }: {
   movie: Movie;
   onClose(): void;
@@ -20,6 +21,7 @@ export default function PlayerOverlay({
   onProgress?: (movie: Movie, currentSec: number, durationSec: number) => void;
   /** The episode on screen ended. */
   onEnded?: (movie: Movie) => void;
+  onUnavailable?: (movie: Movie) => void;
 }) {
   const queue = useMemo(() => {
     if (!episodes || episodes.length < 2) return [];
@@ -83,6 +85,7 @@ export default function PlayerOverlay({
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
         startAt={effectiveStartAt}
         onProgress={handleProgress}
+        onUnavailable={() => onUnavailable?.(current)}
         onEnded={handleEnded}
       />
     );
@@ -102,6 +105,7 @@ export default function PlayerOverlay({
         onNext={hasNext ? () => setIdx(idx + 1) : undefined}
         startAt={effectiveStartAt}
         onProgress={handleProgress}
+        onUnavailable={() => onUnavailable?.(current)}
         onEnded={handleEnded}
       />
     );

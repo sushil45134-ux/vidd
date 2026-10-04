@@ -372,6 +372,8 @@ function App() {
   }, []);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
+  const [unavailableMovieIds, setUnavailableMovieIds] = useState<Set<number>>(new Set());
+  const [validatedToonstreamIds, setValidatedToonstreamIds] = useState<Set<number> | null>(null);
   const [resumeAt, setResumeAt] = useState(0);
   const [myList, setMyList] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Set<number>>(new Set());
@@ -528,15 +530,88 @@ function App() {
     [uploadedMovies, syncedMovies],
   );
 
+  // Preflight every ToonStream-backed movie through the same extractor the
+  // player uses. Cards stay hidden until this scan completes, so dead mirrors
+  // never appear as playable tiles. Database rows remain untouched.
+  useEffect(() => {
+    const targets = allMovies.filter((movie) => movie.videoUrl?.startsWith("/api/toonstream"));
+    if (targets.length === 0) {
+      setValidatedToonstreamIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    setValidatedToonstreamIds(null);
+    const working = new Set<number>();
+    let cursor = 0;
+    const checkOne = async (movie: Movie) => {
+      try {
+        const resolverUrl = `${movie.videoUrl}${movie.videoUrl?.includes("?") ? "&" : "?"}format=json&sources=1`;
+        const resolverResponse = await fetch(resolverUrl);
+        const resolver = (await resolverResponse.json().catch(() => null)) as {
+          ok?: boolean;
+          sources?: unknown[];
+        } | null;
+        if (!resolver?.ok || !Array.isArray(resolver.sources)) return;
+        for (const provider of resolver.sources) {
+          if (typeof provider !== "string") continue;
+          const extractionResponse = await fetch(
+            `/api/extract?url=${encodeURIComponent(provider)}&format=json`,
+          );
+          const extraction = (await extractionResponse.json().catch(() => null)) as {
+            ok?: boolean;
+            streamUrl?: string;
+          } | null;
+          if (extraction?.ok && extraction.streamUrl) {
+            working.add(movie.id);
+            return;
+          }
+        }
+      } catch {
+        // Keep this title out of the visible catalogue when its resolver fails.
+      }
+    };
+    const worker = async () => {
+      while (!cancelled) {
+        const index = cursor++;
+        if (index >= targets.length) return;
+        await checkOne(targets[index]);
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(8, targets.length) }, () => worker())).then(() => {
+      if (!cancelled) setValidatedToonstreamIds(new Set(working));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [allMovies]);
+
+  const isVisibleMovie = useCallback(
+    (movie: Movie) => {
+      if (unavailableMovieIds.has(movie.id)) return false;
+      if (!movie.videoUrl?.startsWith("/api/toonstream")) return true;
+      return validatedToonstreamIds?.has(movie.id) === true;
+    },
+    [unavailableMovieIds, validatedToonstreamIds],
+  );
+  const visibleUploadedMovies = useMemo(
+    () => uploadedMovies.filter(isVisibleMovie),
+    [uploadedMovies, isVisibleMovie],
+  );
+  const visibleSyncedMovies = useMemo(
+    () => syncedMovies.filter(isVisibleMovie),
+    [syncedMovies, isVisibleMovie],
+  );
+
   // Group episodes (synced playlists AND user-uploaded series) into
   // playlist collections (Crunchyroll-style)
   const syncedCollections = useMemo(
-    () => buildCollections(syncedMovies, collectionCovers),
-    [syncedMovies, collectionCovers],
+    () => buildCollections(visibleSyncedMovies, collectionCovers),
+    [visibleSyncedMovies, collectionCovers],
   );
   const uploadedCollections = useMemo(
-    () => buildCollections(uploadedMovies, collectionCovers),
-    [uploadedMovies, collectionCovers],
+    () => buildCollections(visibleUploadedMovies, collectionCovers),
+    [visibleUploadedMovies, collectionCovers],
   );
 
   // What we show in rows / categories (collections instead of individual episodes)
@@ -544,6 +619,17 @@ function App() {
     () => [...uploadedCollections, ...syncedCollections],
     [uploadedCollections, syncedCollections],
   );
+
+  // Keep the Preview-only Doraemon test easy to reach from My List. This is
+  // deliberately hostname-gated so production never gets demo content.
+  useEffect(() => {
+    if (typeof window === "undefined" || !/-git-[^.]+-/i.test(window.location.hostname)) return;
+    const doraemon = displayItems.find((movie) => movie.id === 915085901);
+    if (!doraemon) return;
+    setMyList((prev) =>
+      prev.some((movie) => movie.id === doraemon.id) ? prev : [doraemon, ...prev],
+    );
+  }, [displayItems]);
 
   // Automatic home shelf: every anime series that received a DB entry in the
   // last 24 hours appears here, newest drop first. The rolling window avoids
@@ -781,13 +867,13 @@ function App() {
   }, [cfg.customRows, rowSlotsById]);
 
   const getCategoryMovies = useCallback(() => {
-    if (activeCategory === "mylist") return myList;
+    if (activeCategory === "mylist") return myList.filter(isVisibleMovie);
     const matcher = CATEGORY_MATCH[activeCategory];
     if (!matcher) return [];
     // A title placed in ANY visible custom row (any section, manual or
     // planned) shows only in its row — never again in the auto grid below.
     return displayItems.filter((m) => matcher(m) && !placedIds.has(m.id));
-  }, [activeCategory, myList, displayItems, placedIds]);
+  }, [activeCategory, myList, displayItems, placedIds, isVisibleMovie]);
 
   // Computed once per data change instead of on every render pass.
   const categoryMovies = useMemo(() => getCategoryMovies(), [getCategoryMovies]);
@@ -828,6 +914,18 @@ function App() {
   // Stable identity (the TV back-stack relies on mount-time registration).
   const closeModal = useCallback(() => setSelectedMovie(null), []);
   const closePlayer = useCallback(() => setPlayingMovie(null), []);
+  const handleUnavailable = useCallback((movie: Movie) => {
+    // Resolver-backed entries that have no working ToonStream mirror are
+    // removed from this session's rows; database data remains untouched.
+    setUnavailableMovieIds((previous) => {
+      if (previous.has(movie.id)) return previous;
+      const next = new Set(previous);
+      next.add(movie.id);
+      return next;
+    });
+    setPlayingMovie((current) => (current?.id === movie.id ? null : current));
+    setSelectedMovie((current) => (current?.id === movie.id ? null : current));
+  }, []);
   const closeNotifications = useCallback(() => {
     setShowNotifications(false);
     // Panel band karte hi sab read — badge reset.
@@ -1609,6 +1707,7 @@ function App() {
             startAt={resumeAt}
             onProgress={handleWatchProgress}
             onEnded={handleWatchEnded}
+            onUnavailable={handleUnavailable}
             episodes={playerEpisodes}
           />
         )}

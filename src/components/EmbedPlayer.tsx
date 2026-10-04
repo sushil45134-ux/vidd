@@ -19,6 +19,8 @@ interface EmbedPlayerProps {
   startAt?: number;
   /** Playback clock for Continue Watching (0,0) = started, clock unknown. */
   onProgress?: (currentSec: number, durationSec: number) => void;
+  /** Fired when a resolver-backed video has no working source. */
+  onUnavailable?: () => void;
   /** Fired when a direct video file ends (Continue Watching cleanup). */
   onEnded?: () => void;
 }
@@ -264,6 +266,32 @@ function isDailymotionLastFiveSeconds(data: unknown): boolean {
   return duration > 5 && currentTime >= 0 && duration - currentTime <= 5;
 }
 
+type HlsQualityLevel = {
+  height?: number;
+  width?: number;
+};
+
+function normalizeHlsQualityLevels(levels: HlsQualityLevel[]): HlsQualityLevel[] {
+  const byHeight = new Map<number, HlsQualityLevel>();
+  for (const level of levels) {
+    const height = Number(level.height);
+    if (!Number.isFinite(height) || height <= 0) continue;
+    if (!byHeight.has(height)) byHeight.set(height, { height, width: level.width });
+  }
+  return [...byHeight.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
+}
+
+function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
+  const levels: HlsQualityLevel[] = [];
+  for (const line of manifest.split(/\r?\n/)) {
+    if (!line.startsWith("#EXT-X-STREAM-INF")) continue;
+    const resolution = line.match(/RESOLUTION=(\d+)x(\d+)/i);
+    if (!resolution) continue;
+    levels.push({ width: Number(resolution[1]), height: Number(resolution[2]) });
+  }
+  return normalizeHlsQualityLevels(levels);
+}
+
 /**
  * Generic player for non-YouTube sources (Vimeo, Dailymotion, Odysee,
  * BitChute, Rumble, Bilibili, Twitch, Streamable, Facebook, Google Drive,
@@ -285,6 +313,7 @@ export function EmbedPlayer({
   hasNext,
   startAt = 0,
   onProgress,
+  onUnavailable,
   onEnded,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
@@ -300,6 +329,8 @@ export function EmbedPlayer({
   onProgressRef.current = onProgress;
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
+  const onUnavailableRef = useRef(onUnavailable);
+  onUnavailableRef.current = onUnavailable;
   const latestClockRef = useRef<{ current: number; total: number } | null>(null);
   const lastReportAtRef = useRef(0);
   const dailymotionRootRef = useRef<HTMLDivElement>(null);
@@ -307,17 +338,84 @@ export function EmbedPlayer({
   const dailymotionStoppedRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
+  const [audioTracks, setAudioTracks] = useState<Array<{ lang?: string; name?: string }>>([]);
+  const [audioTrackIndex, setAudioTrackIndex] = useState(-1);
+  const [qualityLevels, setQualityLevels] = useState<HlsQualityLevel[]>([]);
+  const [qualityHeight, setQualityHeight] = useState<number | null>(null);
   const videoElRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<{
+    audioTrack: number;
+    currentLevel: number;
+    levels: HlsQualityLevel[];
+    loadSource: (source: string) => void;
+  } | null>(null);
+  const hlsSourceRef = useRef<string | null>(null);
+  const pendingPlaybackRef = useRef<{ time: number; shouldPlay: boolean } | null>(null);
+  const startAppliedRef = useRef(false);
   const needsResolve =
-    kind === "video" && (src.startsWith("/api/extract") || /\.m3u8(\?|$)/.test(src));
+    kind === "video" &&
+    (src.startsWith("/api/extract") ||
+      src.startsWith("/api/toonstream") ||
+      /\.m3u8(\?|$)/.test(src));
+
+  const restorePendingPlayback = () => {
+    const video = videoElRef.current;
+    const pending = pendingPlaybackRef.current;
+    if (!video || !pending || video.readyState < 1) return;
+
+    try {
+      if (pending.time > 0) video.currentTime = pending.time;
+    } catch {
+      // Some native HLS implementations expose duration only after playback starts.
+    }
+    pendingPlaybackRef.current = null;
+    if (pending.shouldPlay) video.play?.().catch(() => {});
+  };
+
   useEffect(() => {
-    if (!needsResolve) return;
+    startAppliedRef.current = false;
+    pendingPlaybackRef.current = null;
+    setVideoLoadError(null);
+    if (!needsResolve) {
+      setAudioTracks([]);
+      setAudioTrackIndex(-1);
+      setQualityLevels([]);
+      setQualityHeight(null);
+      hlsRef.current = null;
+      hlsSourceRef.current = null;
+      return;
+    }
     let cancelled = false;
     let hls: { destroy(): void } | null = null;
+    setAudioTracks([]);
+    setAudioTrackIndex(-1);
+    setQualityLevels([]);
+    setQualityHeight(null);
+    hlsRef.current = null;
+    hlsSourceRef.current = null;
     (async () => {
       try {
         let url = src;
-        if (src.startsWith("/api/extract")) {
+        if (src.startsWith("/api/toonstream")) {
+          const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json&sources=1`);
+          const d = await r.json().catch(() => null);
+          if (!d?.ok || !Array.isArray(d.sources) || d.sources.length === 0) {
+            throw Error(d?.error || `ToonStream resolve failed (HTTP ${r.status})`);
+          }
+          let lastError = "no provider stream found";
+          for (const provider of d.sources) {
+            if (typeof provider !== "string") continue;
+            const extractUrl = `/api/extract?url=${encodeURIComponent(provider)}&format=json`;
+            const extracted = await fetch(extractUrl);
+            const extractedData = await extracted.json().catch(() => null);
+            if (extractedData?.ok && extractedData.streamUrl) {
+              url = String(extractedData.streamUrl);
+              break;
+            }
+            lastError = extractedData?.error || `provider failed (HTTP ${extracted.status})`;
+          }
+          if (url === src) throw Error(lastError);
+        } else if (src.startsWith("/api/extract")) {
           const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json`);
           const d = await r.json().catch(() => null);
           if (!d?.ok || !d.streamUrl) throw Error(d?.error || `extract failed (HTTP ${r.status})`);
@@ -325,26 +423,113 @@ export function EmbedPlayer({
         }
         if (cancelled || !videoElRef.current) return;
         const v = videoElRef.current;
-        if (/\.m3u8(\?|$)/.test(url) && !v.canPlayType("application/vnd.apple.mpegurl")) {
+        const isHls = /\.m3u8(\?|$)/.test(url);
+        const nativeHls = isHls && Boolean(v.canPlayType("application/vnd.apple.mpegurl"));
+        const playbackUrl = isHls ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}` : url;
+        hlsSourceRef.current = isHls ? playbackUrl : null;
+
+        if (nativeHls) {
+          // Native HLS does not expose master levels, so inspect our same-origin
+          // proxy once. The selector is rendered only from real RESOLUTION tags.
+          void fetch(playbackUrl, { cache: "no-store" })
+            .then((response) => (response.ok ? response.text() : ""))
+            .then((manifest) => {
+              if (!cancelled && manifest) setQualityLevels(parseHlsQualityLevels(manifest));
+            })
+            .catch(() => {});
+          v.src = playbackUrl;
+          v.load();
+        } else if (isHls) {
           const { default: Hls } = await import("hls.js");
           if (cancelled) return;
           if (!Hls.isSupported()) throw Error("This browser cannot play HLS streams");
-          const instance = new Hls();
-          hls = instance;
-          instance.loadSource(url);
-          instance.attachMedia(v);
-          instance.on(Hls.Events.ERROR, (_e, d) => {
-            if (d?.fatal) setVideoLoadError(`HLS error: ${d?.details || d?.type || "fatal"}`);
+          const instance = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            startFragPrefetch: true,
+            maxBufferLength: 90,
+            maxMaxBufferLength: 300,
+            maxBufferSize: 120 * 1024 * 1024,
+            maxBufferHole: 0.5,
+            backBufferLength: 30,
+            capLevelToPlayerSize: false,
+            fragLoadingMaxRetry: 6,
+            fragLoadingRetryDelay: 1000,
+            fragLoadingMaxRetryTimeout: 10000,
+            manifestLoadingMaxRetry: 4,
+            manifestLoadingRetryDelay: 1000,
+            manifestLoadingMaxRetryTimeout: 10000,
+            levelLoadingMaxRetry: 4,
+            levelLoadingRetryDelay: 1000,
+            levelLoadingMaxRetryTimeout: 10000,
+            nudgeOffset: 0.1,
+            nudgeMaxRetry: 5,
           });
-        } else v.src = url;
+          hls = instance;
+          hlsRef.current = instance;
+          let fatalRecoveryAttempts = 0;
+          const chooseHindiAudio = (tracks: Array<{ lang?: string; name?: string }>) => {
+            if (cancelled) return;
+            setAudioTracks(tracks);
+            const hindiIndex = tracks.findIndex((track) => {
+              const lang = String(track.lang || "").toLowerCase();
+              const label = `${lang} ${String(track.name || "")}`;
+              return (
+                /hindi|हिंदी|हिन्दी/i.test(label) ||
+                lang === "hi" ||
+                lang === "hin" ||
+                lang.startsWith("hi-")
+              );
+            });
+            const targetIndex = hindiIndex >= 0 ? hindiIndex : instance.audioTrack;
+            if (targetIndex >= 0 && instance.audioTrack !== targetIndex) {
+              instance.audioTrack = targetIndex;
+            }
+            setAudioTrackIndex(targetIndex);
+          };
+          instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, d) => {
+            chooseHindiAudio(d.audioTracks || []);
+          });
+          instance.on(Hls.Events.MANIFEST_PARSED, (_e, d) => {
+            fatalRecoveryAttempts = 0;
+            setVideoLoadError(null);
+            chooseHindiAudio(instance.audioTracks || []);
+            setQualityLevels(normalizeHlsQualityLevels(d.levels || instance.levels || []));
+            window.setTimeout(() => chooseHindiAudio(instance.audioTracks || []), 500);
+          });
+          instance.on(Hls.Events.ERROR, (_e, d) => {
+            if (cancelled || !d?.fatal) return;
+            if (d.type === Hls.ErrorTypes.NETWORK_ERROR && fatalRecoveryAttempts < 3) {
+              fatalRecoveryAttempts += 1;
+              instance.startLoad();
+              return;
+            }
+            if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fatalRecoveryAttempts < 3) {
+              fatalRecoveryAttempts += 1;
+              instance.recoverMediaError();
+              return;
+            }
+            setVideoLoadError(`HLS error: ${d.details || d.type || "fatal"}`);
+          });
+          instance.loadSource(playbackUrl);
+          instance.attachMedia(v);
+        } else {
+          v.src = playbackUrl;
+          v.load();
+        }
         v.play?.().catch(() => {});
       } catch (e) {
-        if (!cancelled) setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
+        if (!cancelled) {
+          setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
+          if (src.startsWith("/api/toonstream")) onUnavailableRef.current?.();
+        }
       }
     })();
     return () => {
       cancelled = true;
       hls?.destroy();
+      hlsRef.current = null;
+      hlsSourceRef.current = null;
     };
   }, [needsResolve, src]);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
@@ -747,6 +932,58 @@ export function EmbedPlayer({
     }
   };
 
+  const audioOptions =
+    audioTracks.length > 1
+      ? audioTracks
+      : [
+          { name: "हिन्दी", lang: "hi" },
+          { name: "日本語", lang: "ja" },
+        ];
+  const qualityOptions = qualityLevels.map((level) => ({
+    value: level.height || 0,
+    label: level.height ? `${level.height}p` : "",
+  }));
+
+  const reloadPlaybackSource = (nextSource: string) => {
+    const video = videoElRef.current;
+    if (!video) return;
+    const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    pendingPlaybackRef.current = {
+      time: Math.max(0, currentTime),
+      shouldPlay: !video.paused && !video.ended,
+    };
+    hlsSourceRef.current = nextSource;
+    if (hlsRef.current) {
+      hlsRef.current.loadSource(nextSource);
+    } else {
+      video.src = nextSource;
+      video.load();
+    }
+  };
+
+  const selectAudioTrack = (index: number) => {
+    if (!Number.isInteger(index) || index < 0) return;
+    const code = audioOptions[index]?.lang || "hi";
+    const source = hlsSourceRef.current;
+    if (!source) return;
+
+    const next = new URL(source, window.location.origin);
+    next.searchParams.set("audio", code);
+    reloadPlaybackSource(`${next.pathname}${next.search}`);
+    setAudioTrackIndex(index);
+  };
+
+  const selectQuality = (height: number | null) => {
+    if (height !== null && !qualityOptions.some((option) => option.value === height)) return;
+    const source = hlsSourceRef.current;
+    if (!source) return;
+
+    const next = new URL(source, window.location.origin);
+    if (height === null) next.searchParams.delete("quality");
+    else next.searchParams.set("quality", String(height));
+    reloadPlaybackSource(`${next.pathname}${next.search}`);
+    setQualityHeight(height);
+  };
   const isTv = useIsTvBrowser();
   return (
     <div
@@ -775,20 +1012,26 @@ export function EmbedPlayer({
         ) : (
           <video
             ref={videoElRef}
-            referrerPolicy="no-referrer"
+            {...({ referrerPolicy: "no-referrer" } as Record<string, string>)}
             src={needsResolve ? undefined : src}
             controls
             autoPlay
+            preload="auto"
+            playsInline
             className="absolute inset-0 w-full h-full bg-black"
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
-              if ((startAt ?? 0) > 0 && v.duration > 0) {
-                try {
-                  v.currentTime = Math.min(startAt, Math.max(0, v.duration - 5));
-                } catch {
-                  /* Seeking before metadata is ready is harmless. */
+              if (!startAppliedRef.current) {
+                if ((startAt ?? 0) > 0 && v.duration > 0) {
+                  try {
+                    v.currentTime = Math.min(startAt, Math.max(0, v.duration - 5));
+                  } catch {
+                    /* Seeking before metadata is ready is harmless. */
+                  }
                 }
+                startAppliedRef.current = true;
               }
+              restorePendingPlayback();
             }}
             onTimeUpdate={(e) => {
               const v = e.currentTarget;
@@ -814,6 +1057,15 @@ export function EmbedPlayer({
                 /* Progress listeners must never break playback. */
               }
             }}
+            onWaiting={(e) => {
+              const v = e.currentTarget;
+              if (!v.paused) v.play?.().catch(() => {});
+            }}
+            onStalled={(e) => {
+              const v = e.currentTarget;
+              if (!v.paused) v.play?.().catch(() => {});
+            }}
+            onPlaying={() => setVideoLoadError(null)}
             onError={(e) => {
               const code = e.currentTarget.error?.code;
               const names: Record<number, string> = {
@@ -883,6 +1135,50 @@ export function EmbedPlayer({
             Keep this control available for iframe providers too; their own
             controls cannot fullscreen Vidd's cross-origin parent reliably. */}
         <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          {kind === "video" && needsResolve && qualityOptions.length > 0 && (
+            <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+              <span>Quality</span>
+              <select
+                value={qualityHeight ?? -1}
+                onChange={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  selectQuality(value < 0 ? null : value);
+                }}
+                className="max-w-24 bg-transparent text-white outline-none"
+                aria-label="Video quality"
+              >
+                <option value={-1} className="bg-black">
+                  Auto
+                </option>
+                {qualityOptions.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-black">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {kind === "video" && needsResolve && (
+            <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+              <span>Audio</span>
+              <select
+                value={audioTrackIndex >= 0 ? audioTrackIndex : 0}
+                onChange={(e) => selectAudioTrack(Number(e.currentTarget.value))}
+                className="max-w-32 bg-transparent text-white outline-none"
+                aria-label="Audio track"
+              >
+                {audioOptions.map((track, index) => (
+                  <option
+                    key={`${track.lang || "track"}-${index}`}
+                    value={index}
+                    className="bg-black"
+                  >
+                    {track.name || track.lang || `Track ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             onClick={toggleFullscreen}
             className="w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
