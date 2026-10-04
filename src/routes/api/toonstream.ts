@@ -27,7 +27,18 @@ function slugify(value: string): string {
 }
 
 function candidateSlugs(title: string, year: string): string[] {
-  const values = [title, title.replace(/\s+the\s+movie\s*:/i, ":")];
+  const values = [
+    title,
+    title.replace(/\s+the\s+movie\s*:/i, ":"),
+    title.replace(/\s+the\s+movie\s*/i, " "),
+  ];
+  if (/crayon\s+shin-?chan/i.test(title)) {
+    values.push(
+      title.replace(/crayon\s+shin-?chan/i, "Crayon Shinchan"),
+      title.replace(/crayon\s+shin-?chan/i, "Shin-chan"),
+      title.replace(/crayon\s+shin-?chan/i, "Shinchan"),
+    );
+  }
   if (year) values.push(title.replace(new RegExp(`\\s*${year}\\s*$`), ""));
   return [...new Set(values.map(slugify).filter(Boolean))];
 }
