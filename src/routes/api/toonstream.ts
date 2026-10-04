@@ -107,8 +107,8 @@ async function discoverMovieSlugs(title: string): Promise<string[]> {
   if (cached && cached.expiresAt > Date.now()) return cached.slugs;
 
   const candidates = new Set<string>();
-  for (const source of tagSourcesFor(title)) {
-    const html = await fetchTagPage(source);
+  const tagPages = await Promise.all(tagSourcesFor(title).map((source) => fetchTagPage(source)));
+  for (const html of tagPages) {
     if (!html) continue;
     const pattern = /(?:https?:\/\/toonstream\.us)?\/movies\/([a-z0-9][a-z0-9-]*)/gi;
     for (const match of html.matchAll(pattern)) candidates.add(match[1]);
@@ -166,38 +166,49 @@ function extractProviderLinks(html: string): string[] {
   return [...links].sort((a, b) => providerRank(a) - providerRank(b));
 }
 
+async function providerLinksForSlug(slug: string): Promise<string[]> {
+  try {
+    const response = await fetch(`${TOONSTREAM_ORIGIN}/movies/${slug}/`, {
+      headers: {
+        "User-Agent": UA,
+        Referer: `${TOONSTREAM_ORIGIN}/`,
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return [];
+    const html = await response.text();
+    if (/404 Not Found|Oops!/i.test(html.slice(0, 2000))) return [];
+    return extractProviderLinks(html);
+  } catch {
+    return [];
+  }
+}
+
 async function resolveProviders(title: string, year: string): Promise<string[]> {
   const key = `${title.toLowerCase()}|${year}`;
   const cached = resolveCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.urls;
 
   const directSlugs = candidateSlugs(title, year);
+  const directResults = await Promise.all(directSlugs.map((slug) => providerLinksForSlug(slug)));
+  const directLinks = directResults.find((links) => links.length > 0);
+  if (directLinks) {
+    resolveCache.set(key, { urls: directLinks, expiresAt: Date.now() + CACHE_TTL_MS });
+    return directLinks;
+  }
+
   const discoveredSlugs = await discoverMovieSlugs(title);
-  for (const slug of [
-    ...directSlugs,
-    ...discoveredSlugs.filter((item) => !directSlugs.includes(item)),
-  ]) {
-    try {
-      const response = await fetch(`${TOONSTREAM_ORIGIN}/movies/${slug}/`, {
-        headers: {
-          "User-Agent": UA,
-          Referer: `${TOONSTREAM_ORIGIN}/`,
-          Accept: "text/html,application/xhtml+xml",
-        },
-        redirect: "follow",
-        signal: AbortSignal.timeout(12000),
-      });
-      if (!response.ok) continue;
-      const html = await response.text();
-      if (/404 Not Found|Oops!/i.test(html.slice(0, 2000))) continue;
-      const links = extractProviderLinks(html);
-      if (links.length > 0) {
-        resolveCache.set(key, { urls: links, expiresAt: Date.now() + CACHE_TTL_MS });
-        return links;
-      }
-    } catch {
-      // Try the next harmless slug candidate.
-    }
+  const discoveredResults = await Promise.all(
+    discoveredSlugs
+      .filter((slug) => !directSlugs.includes(slug))
+      .map((slug) => providerLinksForSlug(slug)),
+  );
+  const discoveredLinks = discoveredResults.find((links) => links.length > 0);
+  if (discoveredLinks) {
+    resolveCache.set(key, { urls: discoveredLinks, expiresAt: Date.now() + CACHE_TTL_MS });
+    return discoveredLinks;
   }
 
   resolveCache.set(key, { urls: [], expiresAt: Date.now() + 5 * 60 * 1000 });
