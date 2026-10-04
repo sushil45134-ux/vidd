@@ -373,6 +373,7 @@ function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
   const [unavailableMovieIds, setUnavailableMovieIds] = useState<Set<number>>(new Set());
+  const [validatedToonstreamIds, setValidatedToonstreamIds] = useState<Set<number> | null>(null);
   const [resumeAt, setResumeAt] = useState(0);
   const [myList, setMyList] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Set<number>>(new Set());
@@ -529,13 +530,77 @@ function App() {
     [uploadedMovies, syncedMovies],
   );
 
+  // Preflight every ToonStream-backed movie through the same extractor the
+  // player uses. Cards stay hidden until this scan completes, so dead mirrors
+  // never appear as playable tiles. Database rows remain untouched.
+  useEffect(() => {
+    const targets = allMovies.filter((movie) => movie.videoUrl?.startsWith("/api/toonstream"));
+    if (targets.length === 0) {
+      setValidatedToonstreamIds(new Set());
+      return;
+    }
+
+    let cancelled = false;
+    setValidatedToonstreamIds(null);
+    const working = new Set<number>();
+    let cursor = 0;
+    const checkOne = async (movie: Movie) => {
+      try {
+        const resolverUrl = `${movie.videoUrl}${movie.videoUrl?.includes("?") ? "&" : "?"}format=json&sources=1`;
+        const resolverResponse = await fetch(resolverUrl);
+        const resolver = (await resolverResponse.json().catch(() => null)) as {
+          ok?: boolean;
+          sources?: unknown[];
+        } | null;
+        if (!resolver?.ok || !Array.isArray(resolver.sources)) return;
+        for (const provider of resolver.sources) {
+          if (typeof provider !== "string") continue;
+          const extractionResponse = await fetch(
+            `/api/extract?url=${encodeURIComponent(provider)}&format=json`,
+          );
+          const extraction = (await extractionResponse.json().catch(() => null)) as {
+            ok?: boolean;
+            streamUrl?: string;
+          } | null;
+          if (extraction?.ok && extraction.streamUrl) {
+            working.add(movie.id);
+            return;
+          }
+        }
+      } catch {
+        // Keep this title out of the visible catalogue when its resolver fails.
+      }
+    };
+    const worker = async () => {
+      while (!cancelled) {
+        const index = cursor++;
+        if (index >= targets.length) return;
+        await checkOne(targets[index]);
+      }
+    };
+    void Promise.all(Array.from({ length: Math.min(8, targets.length) }, () => worker())).then(() => {
+      if (!cancelled) setValidatedToonstreamIds(new Set(working));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [allMovies]);
+
+  const isVisibleMovie = useCallback(
+    (movie: Movie) => {
+      if (unavailableMovieIds.has(movie.id)) return false;
+      if (!movie.videoUrl?.startsWith("/api/toonstream")) return true;
+      return validatedToonstreamIds?.has(movie.id) === true;
+    },
+    [unavailableMovieIds, validatedToonstreamIds],
+  );
   const visibleUploadedMovies = useMemo(
-    () => uploadedMovies.filter((movie) => !unavailableMovieIds.has(movie.id)),
-    [uploadedMovies, unavailableMovieIds],
+    () => uploadedMovies.filter(isVisibleMovie),
+    [uploadedMovies, isVisibleMovie],
   );
   const visibleSyncedMovies = useMemo(
-    () => syncedMovies.filter((movie) => !unavailableMovieIds.has(movie.id)),
-    [syncedMovies, unavailableMovieIds],
+    () => syncedMovies.filter(isVisibleMovie),
+    [syncedMovies, isVisibleMovie],
   );
 
   // Group episodes (synced playlists AND user-uploaded series) into
