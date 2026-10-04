@@ -867,13 +867,13 @@ function App() {
   }, [cfg.customRows, rowSlotsById]);
 
   const getCategoryMovies = useCallback(() => {
-    if (activeCategory === "mylist") return myList;
+    if (activeCategory === "mylist") return myList.filter(isVisibleMovie);
     const matcher = CATEGORY_MATCH[activeCategory];
     if (!matcher) return [];
     // A title placed in ANY visible custom row (any section, manual or
     // planned) shows only in its row — never again in the auto grid below.
     return displayItems.filter((m) => matcher(m) && !placedIds.has(m.id));
-  }, [activeCategory, myList, displayItems, placedIds]);
+  }, [activeCategory, myList, displayItems, placedIds, isVisibleMovie]);
 
   // Computed once per data change instead of on every render pass.
   const categoryMovies = useMemo(() => getCategoryMovies(), [getCategoryMovies]);
