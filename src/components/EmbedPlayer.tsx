@@ -391,11 +391,29 @@ export function EmbedPlayer({
     (async () => {
       try {
         let url = src;
-        if (src.startsWith("/api/toonstream") || src.startsWith("/api/extract")) {
+        if (src.startsWith("/api/toonstream")) {
+          const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json&sources=1`);
+          const d = await r.json().catch(() => null);
+          if (!d?.ok || !Array.isArray(d.sources) || d.sources.length === 0) {
+            throw Error(d?.error || `ToonStream resolve failed (HTTP ${r.status})`);
+          }
+          let lastError = "no provider stream found";
+          for (const provider of d.sources) {
+            if (typeof provider !== "string") continue;
+            const extractUrl = `/api/extract?url=${encodeURIComponent(provider)}&format=json`;
+            const extracted = await fetch(extractUrl);
+            const extractedData = await extracted.json().catch(() => null);
+            if (extractedData?.ok && extractedData.streamUrl) {
+              url = String(extractedData.streamUrl);
+              break;
+            }
+            lastError = extractedData?.error || `provider failed (HTTP ${extracted.status})`;
+          }
+          if (url === src) throw Error(lastError);
+        } else if (src.startsWith("/api/extract")) {
           const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json`);
           const d = await r.json().catch(() => null);
-          if (!d?.ok || !d.streamUrl)
-            throw Error(d?.error || `stream resolve failed (HTTP ${r.status})`);
+          if (!d?.ok || !d.streamUrl) throw Error(d?.error || `extract failed (HTTP ${r.status})`);
           url = String(d.streamUrl);
         }
         if (cancelled || !videoElRef.current) return;

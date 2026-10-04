@@ -12,7 +12,7 @@ const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const TOONSTREAM_ORIGIN = "https://toonstream.us";
 const PROVIDER_ORDER = ["vidmoly", "rubystm", "upns.one", "upnshare"];
-const resolveCache = new Map<string, { url: string | null; expiresAt: number }>();
+const resolveCache = new Map<string, { urls: string[]; expiresAt: number }>();
 const CACHE_TTL_MS = 30 * 60 * 1000;
 
 function slugify(value: string): string {
@@ -70,10 +70,10 @@ function extractProviderLinks(html: string): string[] {
   return [...links].sort((a, b) => providerRank(a) - providerRank(b));
 }
 
-async function resolveProvider(title: string, year: string): Promise<string | null> {
+async function resolveProviders(title: string, year: string): Promise<string[]> {
   const key = `${title.toLowerCase()}|${year}`;
   const cached = resolveCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.url;
+  if (cached && cached.expiresAt > Date.now()) return cached.urls;
 
   for (const slug of candidateSlugs(title, year)) {
     try {
@@ -91,16 +91,16 @@ async function resolveProvider(title: string, year: string): Promise<string | nu
       if (/404 Not Found|Oops!/i.test(html.slice(0, 2000))) continue;
       const links = extractProviderLinks(html);
       if (links.length > 0) {
-        resolveCache.set(key, { url: links[0], expiresAt: Date.now() + CACHE_TTL_MS });
-        return links[0];
+        resolveCache.set(key, { urls: links, expiresAt: Date.now() + CACHE_TTL_MS });
+        return links;
       }
     } catch {
       // Try the next harmless slug candidate.
     }
   }
 
-  resolveCache.set(key, { url: null, expiresAt: Date.now() + 5 * 60 * 1000 });
-  return null;
+  resolveCache.set(key, { urls: [], expiresAt: Date.now() + 5 * 60 * 1000 });
+  return [];
 }
 
 export const Route = createFileRoute("/api/toonstream")({
@@ -113,19 +113,26 @@ export const Route = createFileRoute("/api/toonstream")({
         if (!title) return Response.json({ ok: false, error: "title required" }, { status: 400 });
 
         try {
-          const providerUrl = await resolveProvider(title, year);
-          if (!providerUrl) {
+          const providerUrls = await resolveProviders(title, year);
+          if (providerUrls.length === 0) {
             return Response.json(
               { ok: false, error: "ToonStream source not found for this title" },
               { status: 404, headers: { "Cache-Control": "no-store" } },
             );
           }
 
-          // Let the already-tested extractor turn the selected mirror into the
-          // signed HLS/MP4 URL. fetch() follows this redirect and receives its
-          // JSON response when EmbedPlayer asks for format=json.
+          // The player asks for all ranked mirrors so it can keep trying the
+          // next real provider if a host such as Rubystm is temporarily behind
+          // a challenge. Direct callers retain the original first-provider
+          // redirect behaviour.
+          if (requestUrl.searchParams.get("sources") === "1") {
+            return Response.json(
+              { ok: true, sources: providerUrls },
+              { headers: { "Cache-Control": "no-store" } },
+            );
+          }
           const extractUrl = new URL("/api/extract", requestUrl);
-          extractUrl.searchParams.set("url", providerUrl);
+          extractUrl.searchParams.set("url", providerUrls[0]);
           extractUrl.searchParams.set("format", "json");
           return Response.redirect(extractUrl.href, 302);
         } catch (error) {
