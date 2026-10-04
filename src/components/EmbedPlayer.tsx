@@ -331,6 +331,27 @@ export function EmbedPlayer({
           if (!Hls.isSupported()) throw Error("This browser cannot play HLS streams");
           const instance = new Hls();
           hls = instance;
+          const chooseHindiAudio = (tracks: Array<{ lang?: string; name?: string }>) => {
+            const hindiIndex = tracks.findIndex((track) => {
+              const lang = String(track.lang || "").toLowerCase();
+              const label = `${lang} ${String(track.name || "")}`;
+              return (
+                /hindi|हिंदी|हिन्दी/i.test(label) ||
+                lang === "hi" ||
+                lang === "hin" ||
+                lang.startsWith("hi-")
+              );
+            });
+            if (hindiIndex >= 0 && instance.audioTrack !== hindiIndex) {
+              instance.audioTrack = hindiIndex;
+            }
+          };
+          instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, d) => {
+            chooseHindiAudio(d.audioTracks || []);
+          });
+          instance.on(Hls.Events.MANIFEST_PARSED, () => {
+            chooseHindiAudio(instance.audioTracks || []);
+          });
           instance.loadSource(url);
           instance.attachMedia(v);
           instance.on(Hls.Events.ERROR, (_e, d) => {
