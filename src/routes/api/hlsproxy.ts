@@ -88,10 +88,20 @@ function rewriteManifest(
         return abs ? proxyUrl(selectMuxedVariant(abs, suffix), requestUrl, audio, quality) : line;
       }
 
+      if (isMaster && line.startsWith("#EXT-X-I-FRAME-STREAM-INF")) {
+        const height = Number(line.match(/RESOLUTION=\d+x(\d+)/i)?.[1] || 0);
+        if (quality !== "auto" && height && String(height) !== quality) return "";
+      }
+
       if (line.startsWith("#")) {
         return line.replace(/URI="([^"]+)"/g, (full, raw: string) => {
           const abs = absoluteUrl(raw, manifestUrl);
-          return abs ? `URI="${proxyUrl(abs, requestUrl, audio, quality)}"` : full;
+          if (!abs) return full;
+          const selected =
+            isMaster && line.startsWith("#EXT-X-I-FRAME-STREAM-INF")
+              ? selectMuxedVariant(abs, suffix)
+              : abs;
+          return `URI="${proxyUrl(selected, requestUrl, audio, quality)}"`;
         });
       }
 
