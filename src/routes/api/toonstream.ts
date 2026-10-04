@@ -13,7 +13,9 @@ const UA =
 const TOONSTREAM_ORIGIN = "https://toonstream.us";
 const PROVIDER_ORDER = ["vidmoly", "rubystm", "upns.one", "upnshare"];
 const resolveCache = new Map<string, { urls: string[]; expiresAt: number }>();
+const discoveryCache = new Map<string, { slugs: string[]; expiresAt: number }>();
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const DISCOVERY_TTL_MS = 30 * 60 * 1000;
 
 function slugify(value: string): string {
   return value
@@ -41,6 +43,75 @@ function candidateSlugs(title: string, year: string): string[] {
   }
   if (year) values.push(title.replace(new RegExp(`\\s*${year}\\s*$`), ""));
   return [...new Set(values.map(slugify).filter(Boolean))];
+}
+
+function tagSourcesFor(title: string): string[] {
+  const lower = title.toLowerCase();
+  const tags = lower.includes("doraemon")
+    ? ["doraemon"]
+    : lower.includes("shin")
+      ? ["shinchan"]
+      : /pokemon|pokémon/i.test(title)
+        ? ["pokémon", "pokemon"]
+        : [];
+  return tags.flatMap((tag) =>
+    [1, 2].map(
+      (page) => `${TOONSTREAM_ORIGIN}/tag/${encodeURIComponent(tag)}?type=movies&page=${page}`,
+    ),
+  );
+}
+
+function titleTokens(value: string): string[] {
+  return slugify(value)
+    .split("-")
+    .filter((token) => !["the", "movie", "a", "and", "of", "in", "vs"].includes(token));
+}
+
+function discoveryScore(title: string, slug: string): number {
+  const wanted = new Set(titleTokens(title));
+  const found = new Set(titleTokens(slug));
+  if (wanted.has("doraemon") && !found.has("doraemon")) return 0;
+  if (wanted.has("shin") && !found.has("shin")) return 0;
+  if (wanted.has("pokemon") && !found.has("pokemon")) return 0;
+  const overlap = [...wanted].filter((token) => found.has(token)).length;
+  if (overlap < 2) return 0;
+  return overlap / Math.max(1, wanted.size);
+}
+
+async function discoverMovieSlugs(title: string): Promise<string[]> {
+  const key = slugify(title);
+  const cached = discoveryCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.slugs;
+
+  const candidates = new Set<string>();
+  for (const source of tagSourcesFor(title)) {
+    try {
+      const response = await fetch(source, {
+        headers: {
+          "User-Agent": UA,
+          Referer: `${TOONSTREAM_ORIGIN}/`,
+          Accept: "text/html,application/xhtml+xml",
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) continue;
+      const html = await response.text();
+      const pattern = /(?:https?:\/\/toonstream\.us)?\/movies\/([a-z0-9][a-z0-9-]*)/gi;
+      for (const match of html.matchAll(pattern)) candidates.add(match[1]);
+    } catch {
+      // Direct title candidates remain the primary path if tag discovery fails.
+    }
+  }
+
+  const slugs = [...candidates]
+    .map((slug) => ({ slug, score: discoveryScore(title, slug) }))
+    .filter((item) => item.score >= 0.45)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map((item) => item.slug);
+  discoveryCache.set(key, { slugs, expiresAt: Date.now() + DISCOVERY_TTL_MS });
+  return slugs;
 }
 
 function cleanUrl(raw: string): string | null {
@@ -86,7 +157,12 @@ async function resolveProviders(title: string, year: string): Promise<string[]> 
   const cached = resolveCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.urls;
 
-  for (const slug of candidateSlugs(title, year)) {
+  const directSlugs = candidateSlugs(title, year);
+  const discoveredSlugs = await discoverMovieSlugs(title);
+  for (const slug of [
+    ...directSlugs,
+    ...discoveredSlugs.filter((item) => !directSlugs.includes(item)),
+  ]) {
     try {
       const response = await fetch(`${TOONSTREAM_ORIGIN}/movies/${slug}/`, {
         headers: {
