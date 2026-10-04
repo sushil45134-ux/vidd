@@ -126,6 +126,8 @@ async function discoverMovieSlugs(title: string): Promise<string[]> {
 
 async function probeProvider(requestUrl: URL, providerUrl: string): Promise<boolean> {
   const extractUrl = new URL("/api/extract", requestUrl);
+  const shareToken = requestUrl.searchParams.get("_vercel_share");
+  if (shareToken) extractUrl.searchParams.set("_vercel_share", shareToken);
   extractUrl.searchParams.set("url", providerUrl);
   extractUrl.searchParams.set("format", "json");
   try {
