@@ -3,18 +3,31 @@ import { createFileRoute } from "@tanstack/react-router";
 /**
  * Same-origin HLS proxy for signed embed-host playlists.
  *
- * Vidmoly's CDN expects a Vidmoly referer and does not reliably expose the
- * playlist to a browser directly. The proxy adds that referer, rewrites every
- * playlist URI through itself, and keeps playback inside our own player.
+ * Vidmoly publishes each dubbed audio as a separate muxed playlist suffix
+ * (a1=Hindi, a2=Tamil, a3=Telugu, a4=Japanese). The original master points
+ * at a4 even though its audio rendition says Hindi is default. We therefore
+ * select the requested muxed playlist explicitly instead of relying on a
+ * browser's alternate-audio implementation.
  */
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const UPSTREAM_REFERER = "https://vidmoly.biz/";
 const MEDIA_HOST_WHITELIST = [/(^|\.)vmpx\.online$/i, /(^|\.)vidmoly\.(me|to|biz|net)$/i];
+const AUDIO_SUFFIX: Record<string, string> = {
+  hi: "a1",
+  ta: "a2",
+  te: "a3",
+  ja: "a4",
+};
 
 function hostAllowed(hostname: string): boolean {
   return MEDIA_HOST_WHITELIST.some((re) => re.test(hostname));
+}
+
+function audioCode(raw: string | null): string {
+  const code = (raw || "hi").toLowerCase();
+  return AUDIO_SUFFIX[code] ? code : "hi";
 }
 
 function absoluteUrl(raw: string, base: string): string | null {
@@ -26,26 +39,58 @@ function absoluteUrl(raw: string, base: string): string | null {
   }
 }
 
-function proxyUrl(raw: string, requestUrl: string): string {
-  return `${new URL("/api/hlsproxy", requestUrl).href}?u=${encodeURIComponent(raw)}`;
+function proxyUrl(raw: string, requestUrl: string, audio: string): string {
+  const url = new URL("/api/hlsproxy", requestUrl);
+  url.searchParams.set("audio", audio);
+  url.searchParams.set("u", raw);
+  return url.href;
 }
 
-function rewriteManifest(manifest: string, manifestUrl: string, requestUrl: string): string {
+function selectMuxedVariant(raw: string, suffix: string): string {
+  // Vidmoly's video and I-frame playlists use ...-v1-aN.m3u8 / ...-v1-aN.ts.
+  return raw.replace(/(-v1-)a[1-4](?=\.m3u8(?:$|[?#]))/i, `$1${suffix}`);
+}
+
+function rewriteManifest(
+  manifest: string,
+  manifestUrl: string,
+  requestUrl: string,
+  audio: string,
+): string {
+  const suffix = AUDIO_SUFFIX[audio];
+  const isMaster = manifest.includes("#EXT-X-STREAM-INF");
+  let nextVariant = false;
+
   return manifest
     .split(/\r?\n/)
     .map((line) => {
       if (!line.trim()) return line;
 
-      // Covers audio renditions, video variants, encryption keys, and maps.
+      // The selected muxed video playlist already contains the requested
+      // language. Removing the alternate AUDIO group prevents Hls.js from
+      // silently attaching the Japanese rendition over it.
+      if (isMaster && line.startsWith("#EXT-X-MEDIA:TYPE=AUDIO")) return "";
+
+      if (isMaster && line.startsWith("#EXT-X-STREAM-INF")) {
+        nextVariant = true;
+        return line.replace(/,AUDIO="[^"]*"/i, "");
+      }
+
+      if (isMaster && nextVariant && !line.startsWith("#")) {
+        nextVariant = false;
+        const abs = absoluteUrl(line.trim(), manifestUrl);
+        return abs ? proxyUrl(selectMuxedVariant(abs, suffix), requestUrl, audio) : line;
+      }
+
       if (line.startsWith("#")) {
         return line.replace(/URI="([^"]+)"/g, (full, raw: string) => {
           const abs = absoluteUrl(raw, manifestUrl);
-          return abs ? `URI="${proxyUrl(abs, requestUrl)}"` : full;
+          return abs ? `URI="${proxyUrl(abs, requestUrl, audio)}"` : full;
         });
       }
 
       const abs = absoluteUrl(line.trim(), manifestUrl);
-      return abs ? proxyUrl(abs, requestUrl) : line;
+      return abs ? proxyUrl(abs, requestUrl, audio) : line;
     })
     .join("\n");
 }
@@ -56,6 +101,7 @@ export const Route = createFileRoute("/api/hlsproxy")({
       GET: async ({ request }) => {
         const reqUrl = new URL(request.url);
         const raw = (reqUrl.searchParams.get("u") || "").trim();
+        const audio = audioCode(reqUrl.searchParams.get("audio"));
         let target: URL;
         try {
           target = new URL(raw);
@@ -93,7 +139,7 @@ export const Route = createFileRoute("/api/hlsproxy")({
 
           if (isManifest) {
             const text = await upstream.text();
-            const body = rewriteManifest(text, finalUrl, reqUrl.href);
+            const body = rewriteManifest(text, finalUrl, reqUrl.href, audio);
             return new Response(body, {
               headers: {
                 "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",

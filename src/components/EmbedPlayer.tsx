@@ -310,7 +310,11 @@ export function EmbedPlayer({
   const [audioTracks, setAudioTracks] = useState<Array<{ lang?: string; name?: string }>>([]);
   const [audioTrackIndex, setAudioTrackIndex] = useState(-1);
   const videoElRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<{ audioTrack: number } | null>(null);
+  const hlsRef = useRef<{
+    audioTrack: number;
+    loadSource: (source: string) => void;
+  } | null>(null);
+  const hlsSourceRef = useRef<string | null>(null);
   const needsResolve =
     kind === "video" && (src.startsWith("/api/extract") || /\.m3u8(\?|$)/.test(src));
   useEffect(() => {
@@ -318,6 +322,7 @@ export function EmbedPlayer({
       setAudioTracks([]);
       setAudioTrackIndex(-1);
       hlsRef.current = null;
+      hlsSourceRef.current = null;
       return;
     }
     let cancelled = false;
@@ -325,6 +330,7 @@ export function EmbedPlayer({
     setAudioTracks([]);
     setAudioTrackIndex(-1);
     hlsRef.current = null;
+    hlsSourceRef.current = null;
     (async () => {
       try {
         let url = src;
@@ -337,7 +343,8 @@ export function EmbedPlayer({
         if (cancelled || !videoElRef.current) return;
         const v = videoElRef.current;
         const isHls = /\.m3u8(\?|$)/.test(url);
-        const playbackUrl = isHls ? `/api/hlsproxy?u=${encodeURIComponent(url)}` : url;
+        const playbackUrl = isHls ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}` : url;
+        hlsSourceRef.current = isHls ? playbackUrl : null;
         if (isHls && !v.canPlayType("application/vnd.apple.mpegurl")) {
           const { default: Hls } = await import("hls.js");
           if (cancelled) return;
@@ -386,6 +393,7 @@ export function EmbedPlayer({
       cancelled = true;
       hls?.destroy();
       hlsRef.current = null;
+      hlsSourceRef.current = null;
     };
   }, [needsResolve, src]);
   const [playerSrc, setPlayerSrc] = useState(iframeSrc);
@@ -790,17 +798,21 @@ export function EmbedPlayer({
 
   const selectAudioTrack = (index: number) => {
     if (!Number.isInteger(index) || index < 0) return;
-    if (hlsRef.current) hlsRef.current.audioTrack = index;
+    const code = audioOptions[index]?.lang || "hi";
+    const source = hlsSourceRef.current;
+    if (!source) return;
 
-    const nativeTracks = (
-      videoElRef.current as HTMLVideoElement & {
-        audioTracks?: { length: number; [index: number]: { enabled: boolean } };
-      }
-    ).audioTracks;
-    if (nativeTracks) {
-      for (let i = 0; i < nativeTracks.length; i += 1) {
-        nativeTracks[i].enabled = i === index;
-      }
+    const next = new URL(source, window.location.origin);
+    next.searchParams.set("audio", code);
+    const nextSource = `${next.pathname}${next.search}`;
+    hlsSourceRef.current = nextSource;
+    if (hlsRef.current) {
+      // Reload the explicitly muxed a1/a2/a3/a4 playlist. This avoids the
+      // browser/Hls.js alternate-audio preference bug on this CDN.
+      hlsRef.current.loadSource(nextSource);
+    } else if (videoElRef.current) {
+      videoElRef.current.src = nextSource;
+      videoElRef.current.play?.().catch(() => {});
     }
     setAudioTrackIndex(index);
   };
