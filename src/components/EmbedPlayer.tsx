@@ -264,6 +264,32 @@ function isDailymotionLastFiveSeconds(data: unknown): boolean {
   return duration > 5 && currentTime >= 0 && duration - currentTime <= 5;
 }
 
+type HlsQualityLevel = {
+  height?: number;
+  width?: number;
+};
+
+function normalizeHlsQualityLevels(levels: HlsQualityLevel[]): HlsQualityLevel[] {
+  const byHeight = new Map<number, HlsQualityLevel>();
+  for (const level of levels) {
+    const height = Number(level.height);
+    if (!Number.isFinite(height) || height <= 0) continue;
+    if (!byHeight.has(height)) byHeight.set(height, { height, width: level.width });
+  }
+  return [...byHeight.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
+}
+
+function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
+  const levels: HlsQualityLevel[] = [];
+  for (const line of manifest.split(/\r?\n/)) {
+    if (!line.startsWith("#EXT-X-STREAM-INF")) continue;
+    const resolution = line.match(/RESOLUTION=(\d+)x(\d+)/i);
+    if (!resolution) continue;
+    levels.push({ width: Number(resolution[1]), height: Number(resolution[2]) });
+  }
+  return normalizeHlsQualityLevels(levels);
+}
+
 /**
  * Generic player for non-YouTube sources (Vimeo, Dailymotion, Odysee,
  * BitChute, Rumble, Bilibili, Twitch, Streamable, Facebook, Google Drive,
@@ -309,26 +335,44 @@ export function EmbedPlayer({
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
   const [audioTracks, setAudioTracks] = useState<Array<{ lang?: string; name?: string }>>([]);
   const [audioTrackIndex, setAudioTrackIndex] = useState(-1);
-  const [qualityLevels, setQualityLevels] = useState<Array<{ height?: number; width?: number }>>(
-    [],
-  );
-  const [qualityIndex, setQualityIndex] = useState(-1);
+  const [qualityLevels, setQualityLevels] = useState<HlsQualityLevel[]>([]);
+  const [qualityHeight, setQualityHeight] = useState<number | null>(null);
   const videoElRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<{
     audioTrack: number;
     currentLevel: number;
-    levels: Array<{ height?: number; width?: number }>;
+    levels: HlsQualityLevel[];
     loadSource: (source: string) => void;
   } | null>(null);
   const hlsSourceRef = useRef<string | null>(null);
+  const pendingPlaybackRef = useRef<{ time: number; shouldPlay: boolean } | null>(null);
+  const startAppliedRef = useRef(false);
   const needsResolve =
     kind === "video" && (src.startsWith("/api/extract") || /\.m3u8(\?|$)/.test(src));
+
+  const restorePendingPlayback = () => {
+    const video = videoElRef.current;
+    const pending = pendingPlaybackRef.current;
+    if (!video || !pending || video.readyState < 1) return;
+
+    try {
+      if (pending.time > 0) video.currentTime = pending.time;
+    } catch {
+      // Some native HLS implementations expose duration only after playback starts.
+    }
+    pendingPlaybackRef.current = null;
+    if (pending.shouldPlay) video.play?.().catch(() => {});
+  };
+
   useEffect(() => {
+    startAppliedRef.current = false;
+    pendingPlaybackRef.current = null;
+    setVideoLoadError(null);
     if (!needsResolve) {
       setAudioTracks([]);
       setAudioTrackIndex(-1);
       setQualityLevels([]);
-      setQualityIndex(-1);
+      setQualityHeight(null);
       hlsRef.current = null;
       hlsSourceRef.current = null;
       return;
@@ -337,7 +381,8 @@ export function EmbedPlayer({
     let hls: { destroy(): void } | null = null;
     setAudioTracks([]);
     setAudioTrackIndex(-1);
-    setQualityIndex(-1);
+    setQualityLevels([]);
+    setQualityHeight(null);
     hlsRef.current = null;
     hlsSourceRef.current = null;
     (async () => {
@@ -352,15 +397,50 @@ export function EmbedPlayer({
         if (cancelled || !videoElRef.current) return;
         const v = videoElRef.current;
         const isHls = /\.m3u8(\?|$)/.test(url);
+        const nativeHls = isHls && Boolean(v.canPlayType("application/vnd.apple.mpegurl"));
         const playbackUrl = isHls ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}` : url;
         hlsSourceRef.current = isHls ? playbackUrl : null;
-        if (isHls && !v.canPlayType("application/vnd.apple.mpegurl")) {
+
+        if (nativeHls) {
+          // Native HLS does not expose master levels, so inspect our same-origin
+          // proxy once. The selector is rendered only from real RESOLUTION tags.
+          void fetch(playbackUrl, { cache: "no-store" })
+            .then((response) => (response.ok ? response.text() : ""))
+            .then((manifest) => {
+              if (!cancelled && manifest) setQualityLevels(parseHlsQualityLevels(manifest));
+            })
+            .catch(() => {});
+          v.src = playbackUrl;
+          v.load();
+        } else if (isHls) {
           const { default: Hls } = await import("hls.js");
           if (cancelled) return;
           if (!Hls.isSupported()) throw Error("This browser cannot play HLS streams");
-          const instance = new Hls();
+          const instance = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            startFragPrefetch: true,
+            maxBufferLength: 90,
+            maxMaxBufferLength: 300,
+            maxBufferSize: 120 * 1024 * 1024,
+            maxBufferHole: 0.5,
+            backBufferLength: 30,
+            capLevelToPlayerSize: false,
+            fragLoadingMaxRetry: 6,
+            fragLoadingRetryDelay: 1000,
+            fragLoadingMaxRetryTimeout: 10000,
+            manifestLoadingMaxRetry: 4,
+            manifestLoadingRetryDelay: 1000,
+            manifestLoadingMaxRetryTimeout: 10000,
+            levelLoadingMaxRetry: 4,
+            levelLoadingRetryDelay: 1000,
+            levelLoadingMaxRetryTimeout: 10000,
+            nudgeOffset: 0.1,
+            nudgeMaxRetry: 5,
+          });
           hls = instance;
           hlsRef.current = instance;
+          let fatalRecoveryAttempts = 0;
           const chooseHindiAudio = (tracks: Array<{ lang?: string; name?: string }>) => {
             if (cancelled) return;
             setAudioTracks(tracks);
@@ -384,17 +464,32 @@ export function EmbedPlayer({
             chooseHindiAudio(d.audioTracks || []);
           });
           instance.on(Hls.Events.MANIFEST_PARSED, (_e, d) => {
+            fatalRecoveryAttempts = 0;
+            setVideoLoadError(null);
             chooseHindiAudio(instance.audioTracks || []);
-            setQualityLevels(d.levels || instance.levels || []);
-            setQualityIndex(-1);
+            setQualityLevels(normalizeHlsQualityLevels(d.levels || instance.levels || []));
             window.setTimeout(() => chooseHindiAudio(instance.audioTracks || []), 500);
+          });
+          instance.on(Hls.Events.ERROR, (_e, d) => {
+            if (cancelled || !d?.fatal) return;
+            if (d.type === Hls.ErrorTypes.NETWORK_ERROR && fatalRecoveryAttempts < 3) {
+              fatalRecoveryAttempts += 1;
+              instance.startLoad();
+              return;
+            }
+            if (d.type === Hls.ErrorTypes.MEDIA_ERROR && fatalRecoveryAttempts < 3) {
+              fatalRecoveryAttempts += 1;
+              instance.recoverMediaError();
+              return;
+            }
+            setVideoLoadError(`HLS error: ${d.details || d.type || "fatal"}`);
           });
           instance.loadSource(playbackUrl);
           instance.attachMedia(v);
-          instance.on(Hls.Events.ERROR, (_e, d) => {
-            if (d?.fatal) setVideoLoadError(`HLS error: ${d?.details || d?.type || "fatal"}`);
-          });
-        } else v.src = playbackUrl;
+        } else {
+          v.src = playbackUrl;
+          v.load();
+        }
         v.play?.().catch(() => {});
       } catch (e) {
         if (!cancelled) setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
@@ -807,6 +902,35 @@ export function EmbedPlayer({
     }
   };
 
+  const audioOptions =
+    audioTracks.length > 1
+      ? audioTracks
+      : [
+          { name: "हिन्दी", lang: "hi" },
+          { name: "日本語", lang: "ja" },
+        ];
+  const qualityOptions = qualityLevels.map((level) => ({
+    value: level.height || 0,
+    label: level.height ? `${level.height}p` : "",
+  }));
+
+  const reloadPlaybackSource = (nextSource: string) => {
+    const video = videoElRef.current;
+    if (!video) return;
+    const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    pendingPlaybackRef.current = {
+      time: Math.max(0, currentTime),
+      shouldPlay: !video.paused && !video.ended,
+    };
+    hlsSourceRef.current = nextSource;
+    if (hlsRef.current) {
+      hlsRef.current.loadSource(nextSource);
+    } else {
+      video.src = nextSource;
+      video.load();
+    }
+  };
+
   const selectAudioTrack = (index: number) => {
     if (!Number.isInteger(index) || index < 0) return;
     const code = audioOptions[index]?.lang || "hi";
@@ -815,50 +939,21 @@ export function EmbedPlayer({
 
     const next = new URL(source, window.location.origin);
     next.searchParams.set("audio", code);
-    const nextSource = `${next.pathname}${next.search}`;
-    hlsSourceRef.current = nextSource;
-    if (hlsRef.current) {
-      // Reload the explicitly muxed a1/a2/a3/a4 playlist. This avoids the
-      // browser/Hls.js alternate-audio preference bug on this CDN.
-      hlsRef.current.loadSource(nextSource);
-    } else if (videoElRef.current) {
-      videoElRef.current.src = nextSource;
-      videoElRef.current.play?.().catch(() => {});
-    }
+    reloadPlaybackSource(`${next.pathname}${next.search}`);
     setAudioTrackIndex(index);
   };
 
-  const selectQuality = (index: number) => {
-    if (!Number.isInteger(index)) return;
+  const selectQuality = (height: number | null) => {
+    if (height !== null && !qualityOptions.some((option) => option.value === height)) return;
     const source = hlsSourceRef.current;
     if (!source) return;
 
-    const height = index < 0 ? "auto" : index === 0 ? "720" : index === 1 ? "360" : "auto";
     const next = new URL(source, window.location.origin);
-    if (height === "auto") next.searchParams.delete("quality");
-    else next.searchParams.set("quality", height);
-    const nextSource = `${next.pathname}${next.search}`;
-    hlsSourceRef.current = nextSource;
-    if (hlsRef.current) {
-      hlsRef.current.loadSource(nextSource);
-    } else if (videoElRef.current) {
-      videoElRef.current.src = nextSource;
-      videoElRef.current.play?.().catch(() => {});
-    }
-    setQualityIndex(index);
+    if (height === null) next.searchParams.delete("quality");
+    else next.searchParams.set("quality", String(height));
+    reloadPlaybackSource(`${next.pathname}${next.search}`);
+    setQualityHeight(height);
   };
-
-  const audioOptions =
-    audioTracks.length > 1
-      ? audioTracks
-      : [
-          { name: "हिन्दी", lang: "hi" },
-          { name: "日本語", lang: "ja" },
-        ];
-  const qualityOptions = [
-    { value: 0, label: "720p" },
-    { value: 1, label: "360p" },
-  ];
   const isTv = useIsTvBrowser();
   return (
     <div
@@ -891,16 +986,22 @@ export function EmbedPlayer({
             src={needsResolve ? undefined : src}
             controls
             autoPlay
+            preload="auto"
+            playsInline
             className="absolute inset-0 w-full h-full bg-black"
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
-              if ((startAt ?? 0) > 0 && v.duration > 0) {
-                try {
-                  v.currentTime = Math.min(startAt, Math.max(0, v.duration - 5));
-                } catch {
-                  /* Seeking before metadata is ready is harmless. */
+              if (!startAppliedRef.current) {
+                if ((startAt ?? 0) > 0 && v.duration > 0) {
+                  try {
+                    v.currentTime = Math.min(startAt, Math.max(0, v.duration - 5));
+                  } catch {
+                    /* Seeking before metadata is ready is harmless. */
+                  }
                 }
+                startAppliedRef.current = true;
               }
+              restorePendingPlayback();
             }}
             onTimeUpdate={(e) => {
               const v = e.currentTarget;
@@ -926,6 +1027,15 @@ export function EmbedPlayer({
                 /* Progress listeners must never break playback. */
               }
             }}
+            onWaiting={(e) => {
+              const v = e.currentTarget;
+              if (!v.paused) v.play?.().catch(() => {});
+            }}
+            onStalled={(e) => {
+              const v = e.currentTarget;
+              if (!v.paused) v.play?.().catch(() => {});
+            }}
+            onPlaying={() => setVideoLoadError(null)}
             onError={(e) => {
               const code = e.currentTarget.error?.code;
               const names: Record<number, string> = {
@@ -995,12 +1105,15 @@ export function EmbedPlayer({
             Keep this control available for iframe providers too; their own
             controls cannot fullscreen Vidd's cross-origin parent reliably. */}
         <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-          {kind === "video" && needsResolve && (
+          {kind === "video" && needsResolve && qualityOptions.length > 0 && (
             <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
               <span>Quality</span>
               <select
-                value={qualityIndex}
-                onChange={(e) => selectQuality(Number(e.currentTarget.value))}
+                value={qualityHeight ?? -1}
+                onChange={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  selectQuality(value < 0 ? null : value);
+                }}
                 className="max-w-24 bg-transparent text-white outline-none"
                 aria-label="Video quality"
               >

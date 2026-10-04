@@ -30,6 +30,13 @@ function audioCode(raw: string | null): string {
   return AUDIO_SUFFIX[code] ? code : "hi";
 }
 
+function qualityCode(raw: string | null): string {
+  const value = (raw || "auto").toLowerCase();
+  if (value === "auto") return "auto";
+  const height = Number(value);
+  return Number.isInteger(height) && height >= 144 && height <= 4320 ? String(height) : "auto";
+}
+
 function absoluteUrl(raw: string, base: string): string | null {
   try {
     const url = new URL(raw, base);
@@ -118,9 +125,7 @@ export const Route = createFileRoute("/api/hlsproxy")({
         const reqUrl = new URL(request.url);
         const raw = (reqUrl.searchParams.get("u") || "").trim();
         const audio = audioCode(reqUrl.searchParams.get("audio"));
-        const requestedQuality = reqUrl.searchParams.get("quality") || "auto";
-        const quality =
-          requestedQuality === "720" || requestedQuality === "360" ? requestedQuality : "auto";
+        const quality = qualityCode(reqUrl.searchParams.get("quality"));
         let target: URL;
         try {
           target = new URL(raw);
