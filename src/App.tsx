@@ -70,215 +70,61 @@ const CATEGORY_MATCH: Record<string, (m: Movie) => boolean> = {
 const OTT_TITLES = {
   // Netflix India anime catalogue (official Netflix genre pages, Sep 2026).
   netflix: [
-    "ranma 1 2",
-    "sakamoto days",
-    "dan da dan",
-    "dandadan",
-    "the fragrant flower blooms with dignity",
-    "jojo's bizarre adventure",
-    "horimiya",
-    "my dress up darling",
-    "komi can't communicate",
-    "blue box",
-    "witch watch",
-    "my happy marriage",
-    "from me to you",
-    "kimi ni todoke",
-    "my love story with yamada kun at lv999",
-    "baki",
-    "baki hanma",
-    "kengan ashura",
-    "tougen anki",
-    "lookism",
-    "rising impact",
-    "the seven deadly sins",
-    "four knights of the apocalypse",
-    "parasyte the maxim",
-    "kotaro lives alone",
-    "the summer hikaru died",
-    "delicious in dungeon",
-    "dorohedoro",
-    "shaman king",
-    "cowboy bebop",
-    "beastars",
-    "violet evergarden",
-    "neon genesis evangelion",
-    "kakegurui",
-    "tokyo ghoul",
-    "onimusha",
-    "cyberpunk edgerunners",
-    "pluto",
-    "romantic killer",
-    "blue period",
-    "great pretender",
-    "devilman crybaby",
-    "little witch academia",
-    "saiki k",
-    "hi score girl",
-    "record of ragnarok",
-    "edens zero",
-    "monster",
-    "death note",
-    "one punch man",
-    "dragon ball z",
-    "dr stone",
-    "fairy tail",
-    "gin tama",
-    "gintama",
-    "frieren",
-    "one piece",
-    "hunter x hunter",
-    "hajime no ippo",
-    "my hero academia",
-    "mushoku tensei",
-    "spy x family",
-    "vinland saga",
-    "kuroko's basketball",
-    "the apothecary diaries",
-    "chainsaw man",
-    "black clover",
-    "jujutsu kaisen",
-    "bleach",
-    "naruto",
-    "boruto",
-    "classroom of the elite",
-    "aoashi",
-    "smoking behind the supermarket",
-    "that time i got reincarnated as a slime",
-    "hell's paradise",
-    "overlord",
-    "mob psycho 100",
-    "tokyo revengers",
-    "mashle",
-    "the rising of the shield hero",
-    "a sign of affection",
-    "your lie in april",
-    "cells at work",
-    "akane banashi",
-    "assassination classroom",
+    "ranma 1 2", "sakamoto days", "dan da dan", "dandadan", "the fragrant flower blooms with dignity",
+    "jojo's bizarre adventure", "horimiya", "my dress up darling", "komi can't communicate",
+    "blue box", "witch watch", "my happy marriage", "from me to you", "kimi ni todoke",
+    "my love story with yamada kun at lv999", "baki", "baki hanma", "kengan ashura",
+    "tougen anki", "lookism", "rising impact", "the seven deadly sins", "four knights of the apocalypse",
+    "parasyte the maxim", "kotaro lives alone", "the summer hikaru died", "delicious in dungeon",
+    "dorohedoro", "shaman king", "cowboy bebop", "beastars", "violet evergarden",
+    "neon genesis evangelion", "kakegurui", "tokyo ghoul", "onimusha", "cyberpunk edgerunners",
+    "pluto", "romantic killer", "blue period", "great pretender", "devilman crybaby",
+    "little witch academia", "saiki k", "hi score girl", "record of ragnarok", "edens zero",
+    "monster", "death note", "one punch man", "dragon ball z", "dr stone", "fairy tail",
+    "gin tama", "gintama", "frieren", "one piece", "hunter x hunter", "hajime no ippo",
+    "my hero academia", "mushoku tensei", "spy x family", "vinland saga", "kuroko's basketball",
+    "the apothecary diaries", "chainsaw man", "black clover", "jujutsu kaisen", "bleach",
+    "naruto", "boruto", "classroom of the elite", "aoashi", "smoking behind the supermarket",
+    "that time i got reincarnated as a slime", "hell's paradise", "overlord", "mob psycho 100",
+    "tokyo revengers", "mashle", "the rising of the shield hero", "a sign of affection",
+    "your lie in april", "cells at work", "akane banashi", "assassination classroom",
   ],
   // Prime Video India + its Anime Times channel. Anime Times is an optional
   // Prime Video Channel, but users still discover/watch it inside Prime Video.
   prime: [
-    "vinland saga",
-    "dororo",
-    "banana fish",
-    "wotakoi",
-    "love is hard for otaku",
-    "re creators",
-    "inuyashiki",
-    "made in abyss",
-    "land of the lustrous",
-    "scum's wish",
-    "evangelion",
-    "psycho pass",
-    "odd taxi",
-    "sonny boy",
-    "pet",
-    "ergo proxy",
-    "kabaneri of the iron fortress",
-    "blade of the immortal",
-    "grand blue",
-    "after the rain",
-    "welcome to the ballroom",
-    "boarding school juliet",
-    "elfen lied",
-    "ubel blatt",
-    "magilumiere magical girls",
-    "mobile suit gundam gquuuuuux",
-    "tatsuki fujimoto 17 26",
-    "hunter x hunter",
-    "one punch man",
-    "kaguya sama",
-    "mushoku tensei",
-    "goblin slayer",
-    "spy x family",
-    "mob psycho 100",
-    "cells at work",
-    "jojo's bizarre adventure",
-    "assassination classroom",
-    "rent a girlfriend",
-    "dark gathering",
-    "tokyo revengers",
-    "re zero",
-    "bofuri",
-    "the god of high school",
-    "my next life as a villainess",
-    "talentless nana",
-    "beast tamer",
-    "zombie land saga",
-    "welcome to demon school iruma kun",
-    "campfire cooking in another world",
-    "in spectre",
-    "shikimori's not just a cutie",
-    "i've been killing slimes for 300 years",
-    "kemono jihen",
-    "sweet reincarnation",
-    "i got a cheat skill in another world",
-    "solo leveling",
-    "attack on titan",
-    "jujutsu kaisen",
-    "black clover",
-    "chainsaw man",
-    "demon slayer",
-    "death note",
-    "one piece",
-    "naruto",
-    "my hero academia",
-    "frieren",
-    "the apothecary diaries",
-    "bleach",
-    "clevatess",
-    "that time i got reincarnated as a slime",
-    "dr stone",
-    "classroom of the elite",
-    "daemons of the shadow realm",
-    "from overshadowed to overpowered",
-    "the exiled heavy knight",
+    "vinland saga", "dororo", "banana fish", "wotakoi", "love is hard for otaku",
+    "re creators", "inuyashiki", "made in abyss", "land of the lustrous", "scum's wish",
+    "evangelion", "psycho pass", "odd taxi", "sonny boy", "pet", "ergo proxy",
+    "kabaneri of the iron fortress", "blade of the immortal", "grand blue", "after the rain",
+    "welcome to the ballroom", "boarding school juliet", "elfen lied", "ubel blatt",
+    "magilumiere magical girls", "mobile suit gundam gquuuuuux", "tatsuki fujimoto 17 26",
+    "hunter x hunter", "one punch man", "kaguya sama", "mushoku tensei", "goblin slayer",
+    "spy x family", "mob psycho 100", "cells at work", "jojo's bizarre adventure",
+    "assassination classroom", "rent a girlfriend", "dark gathering", "tokyo revengers",
+    "re zero", "bofuri", "the god of high school", "my next life as a villainess",
+    "talentless nana", "beast tamer", "zombie land saga", "welcome to demon school iruma kun",
+    "campfire cooking in another world", "in spectre", "shikimori's not just a cutie",
+    "i've been killing slimes for 300 years", "kemono jihen", "sweet reincarnation",
+    "i got a cheat skill in another world", "solo leveling", "attack on titan", "jujutsu kaisen",
+    "black clover", "chainsaw man", "demon slayer", "death note", "one piece", "naruto",
+    "my hero academia", "frieren", "the apothecary diaries", "bleach", "clevatess",
+    "that time i got reincarnated as a slime", "dr stone", "classroom of the elite",
+    "daemons of the shadow realm", "from overshadowed to overpowered", "the exiled heavy knight",
   ],
   crunchyroll: [
-    "demon slayer",
-    "jujutsu kaisen",
-    "solo leveling",
-    "attack on titan",
-    "my hero academia",
-    "one piece",
-    "naruto",
-    "black clover",
-    "dr stone",
-    "re zero",
-    "that time i got reincarnated as a slime",
-    "mushoku tensei",
-    "chainsaw man",
-    "spy x family",
-    "blue lock",
-    "haikyu",
-    "one punch man",
-    "mob psycho 100",
-    "tokyo revengers",
-    "frieren",
-    "the apothecary diaries",
-    "shangri la frontier",
-    "the rising of the shield hero",
-    "konosuba",
-    "overlord",
-    "fairy tail",
-    "bleach",
-    "jojo's bizarre adventure",
-    "rent a girlfriend",
-    "a sign of affection",
-    "mashle",
-    "bocchi the rock",
-    "my dress up darling",
+    "demon slayer", "jujutsu kaisen", "solo leveling", "attack on titan",
+    "my hero academia", "one piece", "naruto", "black clover", "dr stone",
+    "re zero", "that time i got reincarnated as a slime", "mushoku tensei",
+    "chainsaw man", "spy x family", "blue lock", "haikyu", "one punch man",
+    "mob psycho 100", "tokyo revengers", "frieren", "the apothecary diaries",
+    "shangri la frontier", "the rising of the shield hero", "konosuba", "overlord",
+    "fairy tail", "bleach", "jojo's bizarre adventure", "rent a girlfriend",
+    "a sign of affection", "mashle", "bocchi the rock", "my dress up darling",
   ],
 } as const;
 
 const normalizeOttTitle = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 
 /**
  * Group flat episode rows that share a playlistId into one series collection
@@ -315,9 +161,9 @@ function buildCollections(movies: Movie[], covers: Record<string, string>): Movi
     // Nxsha's anime catalogue uses its own season sequence (starting at 0),
     // so for the over-expanded legacy collections keep the first two real TV
     // seasons and renumber them to Nxsha's S0/S1 convention.
-    const seasonNumbers = Array.from(new Set(eps.map((e) => e.seasonNumber || 1))).sort(
-      (a, b) => a - b,
-    );
+    const seasonNumbers = Array.from(
+      new Set(eps.map((e) => e.seasonNumber || 1)),
+    ).sort((a, b) => a - b);
     // Naye "Nxsha Direct" collections (nxsha-tv-*) TMDB-accurate hote hain —
     // unke season numbers pehle se sahi hain, renumbering hack skip karo.
     const isTmdbAccurate = m.playlistId.startsWith("nxsha-tv-");
@@ -1429,13 +1275,11 @@ function App() {
                         <RowSkeleton />
                       </>
                     ) : (
-                      (
-                        [
-                          ["NETFLIX Anime", ottRows.netflix],
-                          ["Prime Video & Anime Times", ottRows.prime],
-                          ["Crunchyroll Anime", ottRows.crunchyroll],
-                        ] as const
-                      ).map(([title, movies]) =>
+                      ([
+                        ["NETFLIX Anime", ottRows.netflix],
+                        ["Prime Video & Anime Times", ottRows.prime],
+                        ["Crunchyroll Anime", ottRows.crunchyroll],
+                      ] as const).map(([title, movies]) =>
                         movies.length > 0 ? (
                           <MovieRow
                             key={title}
@@ -1518,91 +1362,91 @@ function App() {
 
                 {activeCategory !== "ott" && (
                   <div className="px-4 md:px-12">
-                    {showLibrarySkeleton ? (
-                      <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {Array.from({ length: 12 }, (_, i) => (
-                          <div key={`skeleton-${i}`} className="cv-card animate-pulse">
-                            <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800" />
-                            <div className="h-3 w-2/3 rounded bg-white/10 mt-2" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : categoryMovies.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-20">
-                        <p className="text-gray-400 text-lg">No titles found</p>
-                        <p className="text-gray-600 text-sm mt-2">
-                          {activeCategory === "mylist"
-                            ? 'Add movies and shows to your list by clicking the "+" button'
-                            : isAdmin
-                              ? "Upload a video or sync a playlist to see content here"
-                              : "Ask the admin to add content"}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {categoryMovies.slice(0, gridVisible).map((movie) => (
-                          <div
-                            key={movie.id}
-                            className="tv-category-card cv-card group cursor-pointer"
-                            onClick={() => setSelectedMovie(movie)}
-                            tabIndex={0}
-                            role="button"
-                            aria-label={`${movie.title} — open details`}
-                            onKeyDown={(e) => {
-                              if (
-                                (e.key === "Enter" || e.key === " ") &&
-                                e.target === e.currentTarget
-                              ) {
-                                e.preventDefault();
-                                setSelectedMovie(movie);
-                              }
-                            }}
-                          >
-                            <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800">
-                              <SmartImage
-                                src={movieImageSources(movie)}
-                                alt={movie.title}
-                                loading="lazy"
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                              />
-                              <div
-                                className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center ${IS_TV ? "hidden" : ""}`}
-                              >
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePlay(movie);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center"
-                                >
-                                  <svg
-                                    className="w-5 h-5 text-black ml-0.5"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path d="M8 5v14l11-7z" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                            <p className="text-gray-300 text-sm mt-2 truncate">{movie.title}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {categoryMovies.length > gridVisible && (
-                      <div className="flex flex-col items-center gap-2 py-8">
-                        <p className="text-gray-500 text-xs">
-                          Showing {gridVisible} of {categoryMovies.length}
-                        </p>
-                        <button
-                          onClick={showMoreGrid}
-                          className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+                  {showLibrarySkeleton ? (
+                    <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <div key={`skeleton-${i}`} className="cv-card animate-pulse">
+                          <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800" />
+                          <div className="h-3 w-2/3 rounded bg-white/10 mt-2" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : categoryMovies.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <p className="text-gray-400 text-lg">No titles found</p>
+                      <p className="text-gray-600 text-sm mt-2">
+                        {activeCategory === "mylist"
+                          ? 'Add movies and shows to your list by clicking the "+" button'
+                          : isAdmin
+                            ? "Upload a video or sync a playlist to see content here"
+                            : "Ask the admin to add content"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="tv-category-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {categoryMovies.slice(0, gridVisible).map((movie) => (
+                        <div
+                          key={movie.id}
+                          className="tv-category-card cv-card group cursor-pointer"
+                          onClick={() => setSelectedMovie(movie)}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`${movie.title} — open details`}
+                          onKeyDown={(e) => {
+                            if (
+                              (e.key === "Enter" || e.key === " ") &&
+                              e.target === e.currentTarget
+                            ) {
+                              e.preventDefault();
+                              setSelectedMovie(movie);
+                            }
+                          }}
                         >
-                          Load more
-                        </button>
-                      </div>
-                    )}
+                          <div className="legacy-media tv-card-media relative overflow-hidden rounded-md bg-gray-800">
+                            <SmartImage
+                              src={movieImageSources(movie)}
+                              alt={movie.title}
+                              loading="lazy"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                            <div
+                              className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center ${IS_TV ? "hidden" : ""}`}
+                            >
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePlay(movie);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center"
+                              >
+                                <svg
+                                  className="w-5 h-5 text-black ml-0.5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-gray-300 text-sm mt-2 truncate">{movie.title}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {categoryMovies.length > gridVisible && (
+                    <div className="flex flex-col items-center gap-2 py-8">
+                      <p className="text-gray-500 text-xs">
+                        Showing {gridVisible} of {categoryMovies.length}
+                      </p>
+                      <button
+                        onClick={showMoreGrid}
+                        className="px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm font-semibold transition"
+                      >
+                        Load more
+                      </button>
+                    </div>
+                  )}
                   </div>
                 )}
               </div>
