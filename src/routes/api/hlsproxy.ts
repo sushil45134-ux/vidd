@@ -39,9 +39,10 @@ function absoluteUrl(raw: string, base: string): string | null {
   }
 }
 
-function proxyUrl(raw: string, requestUrl: string, audio: string): string {
+function proxyUrl(raw: string, requestUrl: string, audio: string, quality: string): string {
   const url = new URL("/api/hlsproxy", requestUrl);
   url.searchParams.set("audio", audio);
+  if (quality !== "auto") url.searchParams.set("quality", quality);
   url.searchParams.set("u", raw);
   return url.href;
 }
@@ -56,10 +57,12 @@ function rewriteManifest(
   manifestUrl: string,
   requestUrl: string,
   audio: string,
+  quality: string,
 ): string {
   const suffix = AUDIO_SUFFIX[audio];
   const isMaster = manifest.includes("#EXT-X-STREAM-INF");
   let nextVariant = false;
+  let keepVariant = true;
 
   return manifest
     .split(/\r?\n/)
@@ -73,24 +76,27 @@ function rewriteManifest(
 
       if (isMaster && line.startsWith("#EXT-X-STREAM-INF")) {
         nextVariant = true;
-        return line.replace(/,AUDIO="[^"]*"/i, "");
+        const height = Number(line.match(/RESOLUTION=\d+x(\d+)/i)?.[1] || 0);
+        keepVariant = quality === "auto" || !height || String(height) === quality;
+        return keepVariant ? line.replace(/,AUDIO="[^"]*"/i, "") : "";
       }
 
       if (isMaster && nextVariant && !line.startsWith("#")) {
         nextVariant = false;
+        if (!keepVariant) return "";
         const abs = absoluteUrl(line.trim(), manifestUrl);
-        return abs ? proxyUrl(selectMuxedVariant(abs, suffix), requestUrl, audio) : line;
+        return abs ? proxyUrl(selectMuxedVariant(abs, suffix), requestUrl, audio, quality) : line;
       }
 
       if (line.startsWith("#")) {
         return line.replace(/URI="([^"]+)"/g, (full, raw: string) => {
           const abs = absoluteUrl(raw, manifestUrl);
-          return abs ? `URI="${proxyUrl(abs, requestUrl, audio)}"` : full;
+          return abs ? `URI="${proxyUrl(abs, requestUrl, audio, quality)}"` : full;
         });
       }
 
       const abs = absoluteUrl(line.trim(), manifestUrl);
-      return abs ? proxyUrl(abs, requestUrl, audio) : line;
+      return abs ? proxyUrl(abs, requestUrl, audio, quality) : line;
     })
     .join("\n");
 }
@@ -102,6 +108,9 @@ export const Route = createFileRoute("/api/hlsproxy")({
         const reqUrl = new URL(request.url);
         const raw = (reqUrl.searchParams.get("u") || "").trim();
         const audio = audioCode(reqUrl.searchParams.get("audio"));
+        const requestedQuality = reqUrl.searchParams.get("quality") || "auto";
+        const quality =
+          requestedQuality === "720" || requestedQuality === "360" ? requestedQuality : "auto";
         let target: URL;
         try {
           target = new URL(raw);
@@ -139,7 +148,7 @@ export const Route = createFileRoute("/api/hlsproxy")({
 
           if (isManifest) {
             const text = await upstream.text();
-            const body = rewriteManifest(text, finalUrl, reqUrl.href, audio);
+            const body = rewriteManifest(text, finalUrl, reqUrl.href, audio, quality);
             return new Response(body, {
               headers: {
                 "Content-Type": "application/vnd.apple.mpegurl; charset=utf-8",

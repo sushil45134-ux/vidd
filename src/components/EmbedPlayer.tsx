@@ -337,7 +337,6 @@ export function EmbedPlayer({
     let hls: { destroy(): void } | null = null;
     setAudioTracks([]);
     setAudioTrackIndex(-1);
-    setQualityLevels([]);
     setQualityIndex(-1);
     hlsRef.current = null;
     hlsSourceRef.current = null;
@@ -830,8 +829,22 @@ export function EmbedPlayer({
   };
 
   const selectQuality = (index: number) => {
-    if (!hlsRef.current || !Number.isInteger(index)) return;
-    hlsRef.current.currentLevel = index;
+    if (!Number.isInteger(index)) return;
+    const source = hlsSourceRef.current;
+    if (!source) return;
+
+    const height = index < 0 ? "auto" : index === 0 ? "720" : index === 1 ? "360" : "auto";
+    const next = new URL(source, window.location.origin);
+    if (height === "auto") next.searchParams.delete("quality");
+    else next.searchParams.set("quality", height);
+    const nextSource = `${next.pathname}${next.search}`;
+    hlsSourceRef.current = nextSource;
+    if (hlsRef.current) {
+      hlsRef.current.loadSource(nextSource);
+    } else if (videoElRef.current) {
+      videoElRef.current.src = nextSource;
+      videoElRef.current.play?.().catch(() => {});
+    }
     setQualityIndex(index);
   };
 
@@ -842,6 +855,10 @@ export function EmbedPlayer({
           { name: "हिन्दी", lang: "hi" },
           { name: "日本語", lang: "ja" },
         ];
+  const qualityOptions = [
+    { value: 0, label: "720p" },
+    { value: 1, label: "360p" },
+  ];
   const isTv = useIsTvBrowser();
   return (
     <div
@@ -978,7 +995,7 @@ export function EmbedPlayer({
             Keep this control available for iframe providers too; their own
             controls cannot fullscreen Vidd's cross-origin parent reliably. */}
         <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-          {kind === "video" && qualityLevels.length > 1 && (
+          {kind === "video" && needsResolve && (
             <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
               <span>Quality</span>
               <select
@@ -990,13 +1007,9 @@ export function EmbedPlayer({
                 <option value={-1} className="bg-black">
                   Auto
                 </option>
-                {qualityLevels.map((level, index) => (
-                  <option
-                    key={`${level.height || "level"}-${index}`}
-                    value={index}
-                    className="bg-black"
-                  >
-                    {level.height ? `${level.height}p` : `Level ${index + 1}`}
+                {qualityOptions.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-black">
+                    {option.label}
                   </option>
                 ))}
               </select>
