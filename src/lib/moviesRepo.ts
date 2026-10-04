@@ -2,8 +2,27 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Movie } from "@/data";
 import { isTvBrowser } from "./browser";
 
+function isFranchiseNxshaMovie(r: any): boolean {
+  const embed = String(r.embed_url || "");
+  const title = String(r.title || "");
+  return (
+    /nxsha/i.test(embed) &&
+    /\/embed\/movie\//i.test(embed) &&
+    /doraemon|crayon\s+shin|shinchan|pokemon|pok[eé]mon/i.test(title)
+  );
+}
+
+function toonstreamVideoUrl(r: any): string {
+  const params = new URLSearchParams({
+    title: String(r.title || ""),
+    year: String(r.year || ""),
+  });
+  return `/api/toonstream?${params.toString()}`;
+}
+
 // DB row -> Movie
 export function rowToMovie(r: any): Movie {
+  const replaceNxsha = isFranchiseNxshaMovie(r);
   const fallbackImage = r.youtube_id
     ? `https://img.youtube.com/vi/${r.youtube_id}/hqdefault.jpg`
     : r.embed_platform === "Dailymotion" && r.embed_url
@@ -22,11 +41,11 @@ export function rowToMovie(r: any): Movie {
     match: r.match_score ?? 95,
     cast: r.cast_members ?? undefined,
     creator: r.creator ?? undefined,
-    videoUrl: r.video_url ?? undefined,
+    videoUrl: replaceNxsha ? toonstreamVideoUrl(r) : (r.video_url ?? undefined),
     thumbnailUrl: r.thumbnail_url ?? undefined,
     youtubeId: r.youtube_id ?? undefined,
-    embedUrl: r.embed_url ?? undefined,
-    embedPlatform: r.embed_platform ?? undefined,
+    embedUrl: replaceNxsha ? undefined : (r.embed_url ?? undefined),
+    embedPlatform: replaceNxsha ? "ToonStream" : (r.embed_platform ?? undefined),
     createdAt: r.created_at ?? undefined,
     playlistId: r.playlist_id ?? undefined,
     playlistTitle: r.playlist_title ?? undefined,
@@ -122,7 +141,11 @@ async function fetchMoviesPageViaProxy(
   }
 }
 
-const NETMIRROR_DEMO = (import.meta as any).env?.VITE_NETMIRROR_DEMO === "1";
+// Keep the test row opt-in in production, but make branch Previews usable even
+// when the Vercel Preview environment variable cannot be configured.
+const IS_VERCEL_PREVIEW =
+  typeof window !== "undefined" && /-git-[^.]+-/i.test(window.location.hostname);
+const NETMIRROR_DEMO = (import.meta as any).env?.VITE_NETMIRROR_DEMO === "1" || IS_VERCEL_PREVIEW;
 const NETMIRROR_DEMO_MOVIES: Movie[] = [
   {
     id: 915085900,

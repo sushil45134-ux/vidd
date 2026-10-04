@@ -545,6 +545,17 @@ function App() {
     [uploadedCollections, syncedCollections],
   );
 
+  // Keep the Preview-only Doraemon test easy to reach from My List. This is
+  // deliberately hostname-gated so production never gets demo content.
+  useEffect(() => {
+    if (typeof window === "undefined" || !/-git-[^.]+-/i.test(window.location.hostname)) return;
+    const doraemon = displayItems.find((movie) => movie.id === 915085901);
+    if (!doraemon) return;
+    setMyList((prev) =>
+      prev.some((movie) => movie.id === doraemon.id) ? prev : [doraemon, ...prev],
+    );
+  }, [displayItems]);
+
   // Automatic home shelf: every anime series that received a DB entry in the
   // last 24 hours appears here, newest drop first. The rolling window avoids
   // midnight/timezone gaps between the 6-hour anime cron and a visitor's local
