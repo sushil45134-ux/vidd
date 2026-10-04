@@ -372,6 +372,7 @@ function App() {
   }, []);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [playingMovie, setPlayingMovie] = useState<Movie | null>(null);
+  const [unavailableMovieIds, setUnavailableMovieIds] = useState<Set<number>>(new Set());
   const [resumeAt, setResumeAt] = useState(0);
   const [myList, setMyList] = useState<Movie[]>([]);
   const [likedMovies, setLikedMovies] = useState<Set<number>>(new Set());
@@ -528,15 +529,24 @@ function App() {
     [uploadedMovies, syncedMovies],
   );
 
+  const visibleUploadedMovies = useMemo(
+    () => uploadedMovies.filter((movie) => !unavailableMovieIds.has(movie.id)),
+    [uploadedMovies, unavailableMovieIds],
+  );
+  const visibleSyncedMovies = useMemo(
+    () => syncedMovies.filter((movie) => !unavailableMovieIds.has(movie.id)),
+    [syncedMovies, unavailableMovieIds],
+  );
+
   // Group episodes (synced playlists AND user-uploaded series) into
   // playlist collections (Crunchyroll-style)
   const syncedCollections = useMemo(
-    () => buildCollections(syncedMovies, collectionCovers),
-    [syncedMovies, collectionCovers],
+    () => buildCollections(visibleSyncedMovies, collectionCovers),
+    [visibleSyncedMovies, collectionCovers],
   );
   const uploadedCollections = useMemo(
-    () => buildCollections(uploadedMovies, collectionCovers),
-    [uploadedMovies, collectionCovers],
+    () => buildCollections(visibleUploadedMovies, collectionCovers),
+    [visibleUploadedMovies, collectionCovers],
   );
 
   // What we show in rows / categories (collections instead of individual episodes)
@@ -839,6 +849,18 @@ function App() {
   // Stable identity (the TV back-stack relies on mount-time registration).
   const closeModal = useCallback(() => setSelectedMovie(null), []);
   const closePlayer = useCallback(() => setPlayingMovie(null), []);
+  const handleUnavailable = useCallback((movie: Movie) => {
+    // Resolver-backed entries that have no working ToonStream mirror are
+    // removed from this session's rows; database data remains untouched.
+    setUnavailableMovieIds((previous) => {
+      if (previous.has(movie.id)) return previous;
+      const next = new Set(previous);
+      next.add(movie.id);
+      return next;
+    });
+    setPlayingMovie((current) => (current?.id === movie.id ? null : current));
+    setSelectedMovie((current) => (current?.id === movie.id ? null : current));
+  }, []);
   const closeNotifications = useCallback(() => {
     setShowNotifications(false);
     // Panel band karte hi sab read — badge reset.
@@ -1620,6 +1642,7 @@ function App() {
             startAt={resumeAt}
             onProgress={handleWatchProgress}
             onEnded={handleWatchEnded}
+            onUnavailable={handleUnavailable}
             episodes={playerEpisodes}
           />
         )}

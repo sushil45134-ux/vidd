@@ -122,6 +122,10 @@ function cleanUrl(raw: string): string | null {
   try {
     const url = new URL(decoded);
     if (url.protocol !== "https:") return null;
+    if (url.hostname === "rubystm.com" && /^\/d\/https?:\/\//i.test(url.pathname)) {
+      const nested = decodeURIComponent(url.pathname.slice(3));
+      return cleanUrl(nested);
+    }
     const host = url.hostname.toLowerCase();
     if (
       !host.includes("vidmoly.") &&

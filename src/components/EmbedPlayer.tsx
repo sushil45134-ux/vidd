@@ -19,6 +19,8 @@ interface EmbedPlayerProps {
   startAt?: number;
   /** Playback clock for Continue Watching (0,0) = started, clock unknown. */
   onProgress?: (currentSec: number, durationSec: number) => void;
+  /** Fired when a resolver-backed video has no working source. */
+  onUnavailable?: () => void;
   /** Fired when a direct video file ends (Continue Watching cleanup). */
   onEnded?: () => void;
 }
@@ -311,6 +313,7 @@ export function EmbedPlayer({
   hasNext,
   startAt = 0,
   onProgress,
+  onUnavailable,
   onEnded,
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
@@ -326,6 +329,8 @@ export function EmbedPlayer({
   onProgressRef.current = onProgress;
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
+  const onUnavailableRef = useRef(onUnavailable);
+  onUnavailableRef.current = onUnavailable;
   const latestClockRef = useRef<{ current: number; total: number } | null>(null);
   const lastReportAtRef = useRef(0);
   const dailymotionRootRef = useRef<HTMLDivElement>(null);
@@ -514,7 +519,10 @@ export function EmbedPlayer({
         }
         v.play?.().catch(() => {});
       } catch (e) {
-        if (!cancelled) setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
+        if (!cancelled) {
+          setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
+          if (src.startsWith("/api/toonstream")) onUnavailableRef.current?.();
+        }
       }
     })();
     return () => {
