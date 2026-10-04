@@ -14,6 +14,7 @@ const TOONSTREAM_ORIGIN = "https://toonstream.us";
 const PROVIDER_ORDER = ["vidmoly", "rubystm", "upns.one", "upnshare"];
 const resolveCache = new Map<string, { urls: string[]; expiresAt: number }>();
 const discoveryCache = new Map<string, { slugs: string[]; expiresAt: number }>();
+const tagPageCache = new Map<string, { html: string | null; expiresAt: number }>();
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const DISCOVERY_TTL_MS = 30 * 60 * 1000;
 
@@ -78,6 +79,28 @@ function discoveryScore(title: string, slug: string): number {
   return overlap / Math.max(1, wanted.size);
 }
 
+async function fetchTagPage(source: string): Promise<string | null> {
+  const cached = tagPageCache.get(source);
+  if (cached && cached.expiresAt > Date.now()) return cached.html;
+  try {
+    const response = await fetch(source, {
+      headers: {
+        "User-Agent": UA,
+        Referer: `${TOONSTREAM_ORIGIN}/`,
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    const html = response.ok ? await response.text() : null;
+    tagPageCache.set(source, { html, expiresAt: Date.now() + DISCOVERY_TTL_MS });
+    return html;
+  } catch {
+    tagPageCache.set(source, { html: null, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return null;
+  }
+}
+
 async function discoverMovieSlugs(title: string): Promise<string[]> {
   const key = slugify(title);
   const cached = discoveryCache.get(key);
@@ -85,23 +108,10 @@ async function discoverMovieSlugs(title: string): Promise<string[]> {
 
   const candidates = new Set<string>();
   for (const source of tagSourcesFor(title)) {
-    try {
-      const response = await fetch(source, {
-        headers: {
-          "User-Agent": UA,
-          Referer: `${TOONSTREAM_ORIGIN}/`,
-          Accept: "text/html,application/xhtml+xml",
-        },
-        redirect: "follow",
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!response.ok) continue;
-      const html = await response.text();
-      const pattern = /(?:https?:\/\/toonstream\.us)?\/movies\/([a-z0-9][a-z0-9-]*)/gi;
-      for (const match of html.matchAll(pattern)) candidates.add(match[1]);
-    } catch {
-      // Direct title candidates remain the primary path if tag discovery fails.
-    }
+    const html = await fetchTagPage(source);
+    if (!html) continue;
+    const pattern = /(?:https?:\/\/toonstream\.us)?\/movies\/([a-z0-9][a-z0-9-]*)/gi;
+    for (const match of html.matchAll(pattern)) candidates.add(match[1]);
   }
 
   const slugs = [...candidates]
