@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AnirollRouteImport } from './routes/aniroll'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
 import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
 import { Route as ApiAnimeTrailerRouteImport } from './routes/api/anime-trailer'
+import { Route as ApiAnirollRouteImport } from './routes/api/aniroll'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiExtractRouteImport } from './routes/api/extract'
@@ -36,6 +38,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnirollRoute = AnirollRouteImport.update({
+  id: '/aniroll',
+  path: '/aniroll',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAnimeRoute = ApiAnimeRouteImport.update({
   id: '/api/anime',
   path: '/api/anime',
@@ -54,6 +61,11 @@ const ApiAnimeSyncRoute = ApiAnimeSyncRouteImport.update({
 const ApiAnimeTrailerRoute = ApiAnimeTrailerRouteImport.update({
   id: '/api/anime-trailer',
   path: '/api/anime-trailer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnirollRoute = ApiAnirollRouteImport.update({
+  id: '/api/aniroll',
+  path: '/api/aniroll',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthRoute = ApiAuthRouteImport.update({
@@ -110,10 +122,12 @@ const ApiToonstreamRoute = ApiToonstreamRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/aniroll': typeof AnirollRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
+  '/api/aniroll': typeof ApiAnirollRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/extract': typeof ApiExtractRoute
@@ -128,10 +142,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/aniroll': typeof AnirollRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
+  '/api/aniroll': typeof ApiAnirollRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/extract': typeof ApiExtractRoute
@@ -147,10 +163,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/aniroll': typeof AnirollRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
+  '/api/aniroll': typeof ApiAnirollRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
   '/api/extract': typeof ApiExtractRoute
@@ -167,10 +185,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/aniroll'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
     | '/api/anime-trailer'
+    | '/api/aniroll'
     | '/api/auth'
     | '/api/config'
     | '/api/extract'
@@ -185,10 +205,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/aniroll'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
     | '/api/anime-trailer'
+    | '/api/aniroll'
     | '/api/auth'
     | '/api/config'
     | '/api/extract'
@@ -203,10 +225,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/aniroll'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
     | '/api/anime-trailer'
+    | '/api/aniroll'
     | '/api/auth'
     | '/api/config'
     | '/api/extract'
@@ -222,10 +246,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AnirollRoute: typeof AnirollRoute
   ApiAnimeRoute: typeof ApiAnimeRoute
   ApiAnimeAutoRoute: typeof ApiAnimeAutoRoute
   ApiAnimeSyncRoute: typeof ApiAnimeSyncRoute
   ApiAnimeTrailerRoute: typeof ApiAnimeTrailerRoute
+  ApiAnirollRoute: typeof ApiAnirollRoute
   ApiAuthRoute: typeof ApiAuthRoute
   ApiConfigRoute: typeof ApiConfigRoute
   ApiExtractRoute: typeof ApiExtractRoute
@@ -254,6 +280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/aniroll': {
+      id: '/aniroll'
+      path: '/aniroll'
+      fullPath: '/aniroll'
+      preLoaderRoute: typeof AnirollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/anime': {
       id: '/api/anime'
       path: '/api/anime'
@@ -280,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/api/anime-trailer'
       fullPath: '/api/anime-trailer'
       preLoaderRoute: typeof ApiAnimeTrailerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/aniroll': {
+      id: '/api/aniroll'
+      path: '/api/aniroll'
+      fullPath: '/api/aniroll'
+      preLoaderRoute: typeof ApiAnirollRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth': {
@@ -358,10 +398,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AnirollRoute: AnirollRoute,
   ApiAnimeRoute: ApiAnimeRoute,
   ApiAnimeAutoRoute: ApiAnimeAutoRoute,
   ApiAnimeSyncRoute: ApiAnimeSyncRoute,
   ApiAnimeTrailerRoute: ApiAnimeTrailerRoute,
+  ApiAnirollRoute: ApiAnirollRoute,
   ApiAuthRoute: ApiAuthRoute,
   ApiConfigRoute: ApiConfigRoute,
   ApiExtractRoute: ApiExtractRoute,

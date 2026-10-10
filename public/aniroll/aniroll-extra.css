@@ -1,0 +1,17 @@
+/* AniRoll × vid — small additions on top of the original UI (look unchanged). */
+
+.embed-frame-slot{position:absolute;inset:0;display:none;background:#000;z-index:2}
+.video-stage.embed-mode .embed-frame-slot{display:block}
+.video-stage.embed-mode video,
+.video-stage.embed-mode .big-play,
+.video-stage.embed-mode .player-controls{display:none!important}
+.embed-frame-slot iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+.continue-section .continue-grid:empty{display:none}
+.catalog-end{margin:22px 0 0;color:#a9abb0;font-size:13px}
+.empty{padding:22px 16px;color:#a9abb0;font-weight:700;text-align:center}
+.notice-empty{padding:18px 14px;color:#a9abb0;font-size:14px}
+.hero-actions [hidden]{display:none!important}
+.hero-media img{background:#0b0b0c}
+.show-card .poster img,.rail-poster img,.episode-card img,.recommend-card img,.mini-item img,.result img{background:#15171b}
+.is-busy .show-grid::before{content:"Loading catalog…";display:block;grid-column:1/-1;padding:40px 0;color:#a9abb0;font-weight:700;text-align:center}
