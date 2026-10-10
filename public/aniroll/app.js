@@ -14,9 +14,38 @@
   var GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
   var FALLBACK = 'data:image/svg+xml,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900"><rect width="600" height="900" fill="#15171b"/>' +
-    '<path d="M106 450C206 272 394 272 494 450C394 628 206 628 106 450Z" fill="#f47521"/>' +
-    '<circle cx="300" cy="450" r="92" fill="#202227"/><path d="M276 380L366 450L276 520Z" fill="#fff"/></svg>'
+    '<path d="M106 260C206 82 394 82 494 260C394 438 206 438 106 260Z" fill="#f47521"/>' +
+    '<circle cx="300" cy="260" r="62" fill="#202227"/><path d="M280 220L330 260L280 300Z" fill="#fff"/></svg>'
   );
+  // When a poster/thumbnail can't load, draw the title on the dark card so the
+  // anime is still identifiable (YouTube thumbnails can be blocked on some networks).
+  function titleArt(title) {
+    var words = String(title || 'AniRoll').split(/\s+/), lines = [], line = '';
+    each(words, function (w) {
+      if ((line + ' ' + w).trim().length > 16 && line) { lines.push(line); line = w; }
+      else { line = (line + ' ' + w).trim(); }
+    });
+    if (line) lines.push(line);
+    lines = lines.slice(0, 5);
+    var text = '';
+    each(lines, function (l, i) {
+      text += '<text x="300" y="' + (470 + i * 66) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="54" font-weight="900" fill="#f7f7f7">' + escapeHtml(l) + '</text>';
+    });
+    return 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900"><rect width="600" height="900" fill="#15171b"/>' +
+      '<rect y="0" width="600" height="900" fill="#202227" opacity=".5"/>' +
+      '<path d="M106 200C206 22 394 22 494 200C394 378 206 378 106 200Z" fill="#f47521"/>' +
+      '<circle cx="300" cy="200" r="60" fill="#202227"/><path d="M280 160L330 200L280 240Z" fill="#fff"/>' +
+      text + '</svg>'
+    );
+  }
+  function artAltTitle(alt) {
+    return String(alt || '').replace(/\s+(anime movie poster|anime poster|poster|artwork|(episode \d+ )?thumbnail)$/i, '');
+  }
+  window.__arFail = function (img) {
+    img.onerror = null;
+    img.src = titleArt(artAltTitle(img.alt));
+  };
   window.__arFallback = FALLBACK;
 
   /* ── tiny DOM helpers (same contract as the original demo) ── */
@@ -49,7 +78,7 @@
 
   function posterImage(src, alt, lazy) {
     var real = src || FALLBACK;
-    var onerr = ' onerror="this.onerror=null;this.src=window.__arFallback"';
+    var onerr = ' onerror="window.__arFail(this)"';
     if (lazy && src) {
       return '<img src="' + GIF + '" data-src="' + escapeHtml(real) + '" loading="lazy" decoding="async" width="600" height="900" alt="' + escapeHtml(alt) + '"' + onerr + '>';
     }
@@ -57,7 +86,7 @@
   }
   function wideImage(src, alt, lazy) {
     var real = src || FALLBACK;
-    var onerr = ' onerror="this.onerror=null;this.src=window.__arFallback"';
+    var onerr = ' onerror="window.__arFail(this)"';
     if (lazy && src) {
       return '<img src="' + GIF + '" data-src="' + escapeHtml(real) + '" loading="lazy" decoding="async" width="320" height="180" alt="' + escapeHtml(alt) + '"' + onerr + '>';
     }
@@ -206,7 +235,7 @@
     byId('heroDesc').textContent = h.desc;
     var img = byId('heroImg');
     img.src = h.backdrop || h.img || FALLBACK;
-    img.onerror = function () { this.onerror = null; this.src = FALLBACK; };
+    img.onerror = function () { window.__arFail(this); };
     img.alt = h.title + ' artwork';
     byId('heroPlay').setAttribute('data-play-show', h.id);
     byId('heroSave').setAttribute('data-save-key', h.id);
@@ -419,7 +448,7 @@
     var image = byId('detailImg');
     image.src = item.img || FALLBACK;
     image.alt = item.title + ' anime poster';
-    image.onerror = function () { this.onerror = null; this.src = FALLBACK; };
+    image.onerror = function () { window.__arFail(this); };
     byId('detailHero').style.backgroundImage = item.backdrop ? 'url("' + safeUrl(item.backdrop) + '")' : '';
     var genreHtml = '';
     each(item.genres, function (genre, i) {
