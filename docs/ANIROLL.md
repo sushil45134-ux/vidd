@@ -1,5 +1,7 @@
 # AniRoll UI on vid
 
+The home page `/` redirects (307) to the AniRoll UI, so the site opens as AniRoll.
+
 The AniRoll anime UI (originally `UI Demo.html` in `sushil45134-ux/anime`) is
 hosted inside vid at **`/aniroll`**, with vid's own data and playback behind it.
 The look, layout, and interactions are the original; only the data layer changed.

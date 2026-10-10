@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import App from "../App";
 import previewAsset from "../assets/vid-og-thumbnail.jpg.asset.json";
 import { loadSsrLibrary } from "../lib/ssrLibrary";
@@ -6,6 +6,11 @@ import { loadSsrLibrary } from "../lib/ssrLibrary";
 const previewImageUrl = `https://id-preview--064af4ad-946f-41f8-807e-2d2af0d045c3.lovable.app${previewAsset.url}`;
 
 export const Route = createFileRoute("/")({
+  // The home page is the AniRoll UI now (public/aniroll, wired to vid's
+  // catalogue and playback). vid's own home stays reachable via its routes.
+  beforeLoad: () => {
+    throw redirect({ href: "/aniroll/index.html", statusCode: 307 });
+  },
   // Server-rendered poster library: old TV browsers that can never execute
   // the ES-module client bundle (and crawlers / slow networks) still get the
   // full library in plain HTML instead of an eternal loading skeleton.
