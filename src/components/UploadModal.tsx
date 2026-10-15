@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { audioLanguageLabel } from "../lib/audioSources";
+import { audioLanguageLabel, audioTrackLabel } from "../lib/audioSources";
 import {
   X,
   Languages,
@@ -540,6 +540,11 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
   const [streamCheck, setStreamCheck] = useState<{
     state: "idle" | "checking" | "ok" | "warn" | "error";
     note: string;
+    /** What the probe found: the audio tracks are the "kitne audio hain?" answer. */
+    languages?: Array<{ name: string; lang: string; isDefault?: boolean }>;
+    qualities?: number[];
+    drm?: string[];
+    kind?: string;
   }>({ state: "idle", note: "" });
 
   // Cloud series state (Google Drive / MEGA share links)
@@ -772,18 +777,98 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     try {
       const res = await fetch(`/api/probe?url=${encodeURIComponent(url)}`);
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; kind?: string; note?: string }
+        | {
+            ok?: boolean;
+            kind?: string;
+            note?: string;
+            languages?: Array<{ name: string; lang: string; isDefault?: boolean }>;
+            qualities?: number[];
+            drm?: string[];
+          }
         | null;
       if (!data?.note) {
         setStreamCheck({ state: "warn", note: "Could not check this link right now." });
         return;
       }
       const state = data.ok ? (data.kind === "hls" ? "ok" : "warn") : "error";
-      setStreamCheck({ state, note: data.note });
+      setStreamCheck({
+        state,
+        note: data.note,
+        languages: data.languages,
+        qualities: data.qualities,
+        drm: data.drm,
+        kind: data.kind,
+      });
     } catch {
       setStreamCheck({ state: "warn", note: "Could not check this link right now." });
     }
   };
+
+  /**
+   * The verdict for a pasted link, shown wherever the link was entered — and,
+   * importantly, also after the platform is recognised, because that is when the
+   * answer matters ("kitne audio hain?"). HLS links are detected instantly, so a
+   * note that only rendered before detection would never be seen.
+   */
+  const streamCheckPanel = streamCheck.state !== "idle" && (
+    <div className="mt-3">
+      <p
+        className={`text-xs ${
+          streamCheck.state === "ok"
+            ? "text-emerald-400"
+            : streamCheck.state === "error"
+              ? "text-red-400"
+              : streamCheck.state === "checking"
+                ? "text-gray-400"
+                : "text-amber-400"
+        }`}
+      >
+        {streamCheck.state === "ok"
+          ? "✓ "
+          : streamCheck.state === "error"
+            ? "✕ "
+            : streamCheck.state === "warn"
+              ? "! "
+              : ""}
+        {streamCheck.note}
+      </p>
+
+      {/*
+        The audio count, spelled out: the most asked question about a link, and
+        the manifest already knows the answer.
+      */}
+      {streamCheck.languages && streamCheck.languages.length > 0 && (
+        <div className="mt-2 bg-[#222] rounded-lg px-3 py-2 space-y-1">
+          <p className="text-xs text-white">
+            <span className="text-gray-400">Audio: </span>
+            <b>
+              {streamCheck.languages.length}
+              {streamCheck.languages.length === 1 ? " language" : " languages"}
+            </b>
+            <span className="text-gray-400">
+              {" — "}
+              {streamCheck.languages
+                .map((track, index) =>
+                  audioTrackLabel({ lang: track.lang, name: track.name }, index),
+                )
+                .join(", ")}
+            </span>
+          </p>
+          {(streamCheck.qualities?.length ?? 0) > 0 && (
+            <p className="text-xs text-gray-400">
+              Quality: {streamCheck.qualities?.map((height) => `${height}p`).join(", ")}
+            </p>
+          )}
+          {streamCheck.state === "ok" && streamCheck.languages.length === 1 && (
+            <p className="text-xs text-amber-300">
+              Is link me ek hi audio hai. Doosri language ke liye us site ke player se language
+              switch karke uska link neeche “Audio languages” me add karo.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   const addAudioSource = () => {
     const url = audioDraftUrl.trim().replace(/&amp;/g, "&");
@@ -1396,22 +1481,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         />
                       </div>
                       {embedError && <p className="text-red-500 text-xs mt-2">{embedError}</p>}
-                      {streamCheck.state !== "idle" && (
-                        <p
-                          className={`text-xs mt-2 ${
-                            streamCheck.state === "ok"
-                              ? "text-emerald-400"
-                              : streamCheck.state === "error"
-                                ? "text-red-400"
-                                : streamCheck.state === "checking"
-                                  ? "text-gray-400"
-                                  : "text-amber-400"
-                          }`}
-                        >
-                          {streamCheck.state === "ok" ? "✓ " : streamCheck.state === "error" ? "✕ " : streamCheck.state === "warn" ? "! " : ""}
-                          {streamCheck.note}
-                        </p>
-                      )}
+                      {streamCheckPanel}
 
                       {/* Paste from clipboard */}
                       <button
@@ -1497,6 +1567,8 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         <Trash2 size={18} />
                       </button>
                     </div>
+
+                    {streamCheckPanel}
 
                     {/*
                       Multi-audio: sources like this publish one playlist per
