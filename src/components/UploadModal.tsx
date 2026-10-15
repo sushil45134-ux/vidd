@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { audioLanguageLabel, audioTrackLabel } from "../lib/audioSources";
+import { detectDrm, parseAudioRenditions, parseVariantHeights } from "../lib/videoSource";
 import {
   X,
   Languages,
@@ -771,9 +772,70 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     }
   };
 
+  /**
+   * Read the playlist from the *viewer's* browser.
+   *
+   * CDNs like net52 hand the stream to a real browser but refuse our server the
+   * same request (that is exactly why the player has a "play directly from the
+   * CDN" step). When the server-side check cannot read the manifest, the page
+   * still can — so the audio count must not depend on our server being welcome.
+   */
+  const readPlaylistInBrowser = async (url: string): Promise<string | null> => {
+    try {
+      const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
+      if (!res.ok) return null;
+      const text = await res.text();
+      return text.trimStart().startsWith("#EXTM3U") ? text : null;
+    } catch {
+      // No CORS header on the CDN → the browser cannot read it either.
+      return null;
+    }
+  };
+
   const checkStream = async (url: string) => {
     if (!/^https?:\/\//i.test(url)) return;
     setStreamCheck({ state: "checking", note: "Checking the link…" });
+
+    /**
+     * Last word on the link: read the manifest from the page itself. Returns
+     * false when the browser cannot read it either (no CORS header), so the
+     * caller can fall back to whatever the server said.
+     */
+    const readFromThisBrowser = async (): Promise<boolean> => {
+      const manifest = await readPlaylistInBrowser(url);
+      if (!manifest) return false;
+
+      const drm = detectDrm(manifest);
+      const qualities = parseVariantHeights(manifest);
+      if (drm.length > 0) {
+        setStreamCheck({
+          state: "error",
+          note: `This stream is DRM-protected (${drm.join(", ")}) — no browser can play it without the service's licence. Use a non-DRM source.`,
+          languages: [],
+          qualities,
+          drm,
+          kind: "drm",
+        });
+        return true;
+      }
+
+      const languages = parseAudioRenditions(manifest);
+      setStreamCheck({
+        state: "ok",
+        note:
+          languages.length === 0
+            ? "Playable HLS stream with a single audio track (the playlist lists no separate languages) — read in your browser, because our server cannot reach this CDN."
+            : `Playable HLS stream with ${languages.length} audio language${
+                languages.length === 1 ? "" : "s"
+              } (${languages.map((track, index) => audioTrackLabel(track, index)).join(", ")}) — read in your browser, because our server cannot reach this CDN.`,
+        languages,
+        qualities,
+        drm: [],
+        kind: "hls",
+      });
+      return true;
+    };
+
     try {
       const res = await fetch(`/api/probe?url=${encodeURIComponent(url)}`);
       const data = (await res.json().catch(() => null)) as
@@ -790,17 +852,24 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         setStreamCheck({ state: "warn", note: "Could not check this link right now." });
         return;
       }
-      const state = data.ok ? (data.kind === "hls" ? "ok" : "warn") : "error";
+
       setStreamCheck({
-        state,
+        state: data.ok ? (data.kind === "hls" ? "ok" : "warn") : "error",
         note: data.note,
         languages: data.languages,
         qualities: data.qualities,
         drm: data.drm,
         kind: data.kind,
       });
+
+      // The server could not read the playlist (blocked, refused, unreachable):
+      // ask the viewer's browser instead. A DRM verdict is already final.
+      const serverReadNothing = !data.ok && data.kind !== "drm" && !data.languages?.length;
+      if (serverReadNothing) await readFromThisBrowser();
     } catch {
-      setStreamCheck({ state: "warn", note: "Could not check this link right now." });
+      if (!(await readFromThisBrowser())) {
+        setStreamCheck({ state: "warn", note: "Could not check this link right now." });
+      }
     }
   };
 
