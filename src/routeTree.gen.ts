@@ -17,6 +17,7 @@ import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
 import { Route as ApiAnimeTrailerRouteImport } from './routes/api/anime-trailer'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
+import { Route as ApiCrunchyrollProxyRouteImport } from './routes/api/crunchyroll-proxy'
 import { Route as ApiExtractRouteImport } from './routes/api/extract'
 import { Route as ApiHlsproxyRouteImport } from './routes/api/hlsproxy'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
@@ -64,6 +65,11 @@ const ApiAuthRoute = ApiAuthRouteImport.update({
 const ApiConfigRoute = ApiConfigRouteImport.update({
   id: '/api/config',
   path: '/api/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrunchyrollProxyRoute = ApiCrunchyrollProxyRouteImport.update({
+  id: '/api/crunchyroll-proxy',
+  path: '/api/crunchyroll-proxy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExtractRoute = ApiExtractRouteImport.update({
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
+  '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
   '/api/movies': typeof ApiMoviesRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
+  '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
   '/api/movies': typeof ApiMoviesRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
+  '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
   '/api/movies': typeof ApiMoviesRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
+    | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
     | '/api/movies'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
+    | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
     | '/api/movies'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
+    | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
     | '/api/movies'
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   ApiAnimeTrailerRoute: typeof ApiAnimeTrailerRoute
   ApiAuthRoute: typeof ApiAuthRoute
   ApiConfigRoute: typeof ApiConfigRoute
+  ApiCrunchyrollProxyRoute: typeof ApiCrunchyrollProxyRoute
   ApiExtractRoute: typeof ApiExtractRoute
   ApiHlsproxyRoute: typeof ApiHlsproxyRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
@@ -294,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/api/config'
       fullPath: '/api/config'
       preLoaderRoute: typeof ApiConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crunchyroll-proxy': {
+      id: '/api/crunchyroll-proxy'
+      path: '/api/crunchyroll-proxy'
+      fullPath: '/api/crunchyroll-proxy'
+      preLoaderRoute: typeof ApiCrunchyrollProxyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/extract': {
@@ -364,6 +384,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnimeTrailerRoute: ApiAnimeTrailerRoute,
   ApiAuthRoute: ApiAuthRoute,
   ApiConfigRoute: ApiConfigRoute,
+  ApiCrunchyrollProxyRoute: ApiCrunchyrollProxyRoute,
   ApiExtractRoute: ApiExtractRoute,
   ApiHlsproxyRoute: ApiHlsproxyRoute,
   ApiMoviesRoute: ApiMoviesRoute,

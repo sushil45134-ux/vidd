@@ -533,7 +533,11 @@ export function EmbedPlayer({
       hlsSourceRef.current = null;
     };
   }, [needsResolve, src]);
-  const [playerSrc, setPlayerSrc] = useState(iframeSrc);
+  const [playerSrc, setPlayerSrc] = useState(
+    isCrunchyroll
+      ? `/api/crunchyroll-proxy?url=${encodeURIComponent(src)}`
+      : iframeSrc,
+  );
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
   const isAndroidPhone = useAndroidPhone();
   const isNxsha = kind === "iframe" && isNxshaUrl(src);
@@ -1011,10 +1015,10 @@ export function EmbedPlayer({
             }
             allowFullScreen
             title="Video player"
-            referrerPolicy="no-referrer-when-downgrade"
+            referrerPolicy={isCrunchyroll ? "no-referrer" : "no-referrer-when-downgrade"}
             sandbox={
               isCrunchyroll
-                ? "allow-forms allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                ? undefined
                 : "allow-forms allow-scripts allow-same-origin allow-presentation"
             }
           />
