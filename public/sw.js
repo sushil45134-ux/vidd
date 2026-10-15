@@ -6,9 +6,10 @@
  *  - Never cache API/Supabase traffic — always live.
  */
 
-// v2: bump to evict every cached shell/asset from older deploys — devices
-// that had installed an earlier build refresh their caches in one step.
-const VERSION = "vid-v2";
+// v3: bump to evict every cached shell/asset from older deploys — devices that
+// had installed an earlier build (before the HLS/multi-audio player fixes)
+// refresh their caches in one step instead of serving the old bundle.
+const VERSION = "vid-v3";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 

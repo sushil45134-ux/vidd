@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, useEffect } from "react";
 import type { Movie } from "../data";
 import { VideoPlayer } from "./VideoPlayer";
 import { EmbedPlayer } from "./EmbedPlayer";
+import { isRemoteMediaUrl } from "../lib/videoSource";
 
 export default function PlayerOverlay({
   movie,
@@ -70,9 +71,15 @@ export default function PlayerOverlay({
   const hasPrev = queue.length > 1 && idx > 0;
   const hasNext = queue.length > 1 && idx < queue.length - 1;
 
+  // Rows saved by earlier builds parked a raw media address in `embedUrl`
+  // (a pasted .m3u8/.mp4 used to be treated as a generic iframe). Framing a
+  // playlist can never play, so such rows are routed to the video player, which
+  // proxies and plays them properly.
+  const embedIsDirectMedia = !!current.embedUrl && isRemoteMediaUrl(current.embedUrl);
+
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).
-  if (!current.youtubeId && current.embedUrl) {
+  if (!current.youtubeId && current.embedUrl && !embedIsDirectMedia) {
     return (
       <EmbedPlayer
         key={current.id}
@@ -91,12 +98,15 @@ export default function PlayerOverlay({
     );
   }
 
-  // Uploaded file / direct video URL.
-  if (!current.youtubeId && !current.embedUrl && current.videoUrl) {
+  // Uploaded file / direct video URL (or a media address parked in embedUrl).
+  const mediaSrc = !current.youtubeId
+    ? (embedIsDirectMedia ? current.embedUrl : undefined) || current.videoUrl
+    : undefined;
+  if (mediaSrc) {
     return (
       <EmbedPlayer
         key={current.id}
-        src={current.videoUrl}
+        src={mediaSrc}
         kind="video"
         onClose={onClose}
         hasPrev={hasPrev}

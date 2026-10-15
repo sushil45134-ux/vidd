@@ -512,6 +512,15 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
   const [embedInput, setEmbedInput] = useState("");
   const [detected, setDetected] = useState<PlatformResult | null>(null);
   const [embedError, setEmbedError] = useState("");
+  /**
+   * Result of asking the server whether the pasted link really is playable
+   * (playlist? which languages? DRM? expired token?). Shown live in the form so
+   * a dead link is caught while adding, not by a black player later.
+   */
+  const [streamCheck, setStreamCheck] = useState<{
+    state: "idle" | "checking" | "ok" | "warn" | "error";
+    note: string;
+  }>({ state: "idle", note: "" });
 
   // Cloud series state (Google Drive / MEGA share links)
   const [cloudInputs, setCloudInputs] = useState<Record<CloudTab, string>>({ drive: "", mega: "" });
@@ -714,11 +723,17 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
   const handleEmbedInput = (val: string) => {
     setEmbedInput(val);
     setEmbedError("");
+    setStreamCheck({ state: "idle", note: "" });
     const result = detectPlatform(val);
     setDetected(result);
     if (result) {
       if (!title) setTitle(`${result.platform} Video`);
       if (result.thumbnail) setThumbnailUrl(result.thumbnail);
+      // Streams can silently stop working (signed, short-lived CDN tokens), so
+      // check the link server-side right away.
+      if (result.platform === "HLS Stream" || result.platform === "Direct Video") {
+        void checkStream(result.embedUrl);
+      }
       return;
     }
     // DASH (and DRM'd CENC paths) cannot play in a browser without a licence —
@@ -731,11 +746,31 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     }
   };
 
+  const checkStream = async (url: string) => {
+    if (!/^https?:\/\//i.test(url)) return;
+    setStreamCheck({ state: "checking", note: "Checking the link…" });
+    try {
+      const res = await fetch(`/api/probe?url=${encodeURIComponent(url)}`);
+      const data = (await res.json().catch(() => null)) as
+        | { ok?: boolean; kind?: string; note?: string }
+        | null;
+      if (!data?.note) {
+        setStreamCheck({ state: "warn", note: "Could not check this link right now." });
+        return;
+      }
+      const state = data.ok ? (data.kind === "hls" ? "ok" : "warn") : "error";
+      setStreamCheck({ state, note: data.note });
+    } catch {
+      setStreamCheck({ state: "warn", note: "Could not check this link right now." });
+    }
+  };
+
   const clearEmbed = () => {
     setEmbedInput("");
     setDetected(null);
     setEmbedError("");
     setThumbnailUrl("");
+    setStreamCheck({ state: "idle", note: "" });
   };
 
   const hasSource =
@@ -1315,6 +1350,22 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         />
                       </div>
                       {embedError && <p className="text-red-500 text-xs mt-2">{embedError}</p>}
+                      {streamCheck.state !== "idle" && (
+                        <p
+                          className={`text-xs mt-2 ${
+                            streamCheck.state === "ok"
+                              ? "text-emerald-400"
+                              : streamCheck.state === "error"
+                                ? "text-red-400"
+                                : streamCheck.state === "checking"
+                                  ? "text-gray-400"
+                                  : "text-amber-400"
+                          }`}
+                        >
+                          {streamCheck.state === "ok" ? "✓ " : streamCheck.state === "error" ? "✕ " : streamCheck.state === "warn" ? "! " : ""}
+                          {streamCheck.note}
+                        </p>
+                      )}
 
                       {/* Paste from clipboard */}
                       <button

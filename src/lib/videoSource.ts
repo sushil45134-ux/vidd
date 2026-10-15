@@ -88,3 +88,70 @@ export async function evaluatePlaylistProbe(
   const text = await readResponsePrefix(response);
   return { isPlaylist: PLAYLIST_MAGIC.test(text), text, contentType };
 }
+
+/**
+ * DRM markers a browser can never decrypt on its own.
+ *
+ * AES-128 HLS (`METHOD=AES-128` plus a key URI) is fine — hls.js handles it.
+ * Sample-AES / Widevine / PlayReady / FairPlay / CENC key ids are not: those
+ * need a licence server and a device CDM.
+ */
+const DRM_MARKERS: Array<[RegExp, string]> = [
+  [/com\.widevine|edef8ba9-79d6-4ace-a3c8-27dcd51d21ed/i, "Widevine"],
+  [/com\.microsoft\.playready|9a04f079-9840-4286-ab92-e65be0885f95/i, "PlayReady"],
+  [/com\.apple\.fps|94ce86fb-07ff-4f43-adb8-93d2fa968ca2/i, "FairPlay"],
+  [/METHOD=SAMPLE-AES/i, "Sample-AES"],
+  [/cenc:default_KID/i, "CENC"],
+];
+
+export function detectDrm(text: string): string[] {
+  return DRM_MARKERS.filter(([re]) => re.test(text)).map(([, label]) => label);
+}
+
+export type AudioRendition = { name: string; lang: string; isDefault: boolean };
+
+/** The `#EXT-X-MEDIA:TYPE=AUDIO` entries — the languages an HLS master ships. */
+export function parseAudioRenditions(manifest: string): AudioRendition[] {
+  const out: AudioRendition[] = [];
+  for (const line of manifest.split(/\r?\n/)) {
+    if (!/^#EXT-X-MEDIA:/i.test(line) || !/TYPE=AUDIO/i.test(line)) continue;
+    const attr = (key: string) => {
+      const quoted = line.match(new RegExp(`${key}="([^"]*)"`, "i"));
+      if (quoted) return quoted[1].trim();
+      const bare = line.match(new RegExp(`${key}=([^,]+)`, "i"));
+      return bare ? bare[1].trim() : "";
+    };
+    out.push({
+      name: attr("NAME") || attr("LANGUAGE") || `Track ${out.length + 1}`,
+      lang: (attr("LANGUAGE") || "").toLowerCase(),
+      isDefault: /YES/i.test(attr("DEFAULT")),
+    });
+  }
+  return out;
+}
+
+/** `RESOLUTION=WxH` values from a master playlist, deduped and ascending. */
+export function parseVariantHeights(manifest: string): number[] {
+  const heights = new Set<number>();
+  for (const match of manifest.matchAll(/RESOLUTION=\d+x(\d+)/gi)) {
+    const height = Number(match[1]);
+    if (Number.isInteger(height) && height > 0) heights.add(height);
+  }
+  return [...heights].sort((a, b) => a - b);
+}
+
+/**
+ * A short, non-sensitive label for a media URL: host plus file name, never the
+ * query string (CDN tokens live there). Diagnostics use it so a screenshot of
+ * an error says which source failed.
+ */
+export function describeSource(url: string): string {
+  try {
+    const parsed = new URL(url, "http://localhost");
+    if (parsed.pathname.startsWith("/api/")) return parsed.pathname;
+    const file = parsed.pathname.split("/").filter(Boolean).pop() || "/";
+    return `${parsed.host}/${file}`;
+  } catch {
+    return url.slice(0, 48);
+  }
+}

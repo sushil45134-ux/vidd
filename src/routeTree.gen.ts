@@ -24,6 +24,7 @@ import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
 import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
+import { Route as ApiProbeRouteImport } from './routes/api/probe'
 import { Route as ApiStreamRouteImport } from './routes/api/stream'
 import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
 import { Route as ApiToonstreamRouteImport } from './routes/api/toonstream'
@@ -103,6 +104,11 @@ const ApiPortraitPosterRoute = ApiPortraitPosterRouteImport.update({
   path: '/api/portrait-poster',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProbeRoute = ApiProbeRouteImport.update({
+  id: '/api/probe',
+  path: '/api/probe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStreamRoute = ApiStreamRouteImport.update({
   id: '/api/stream',
   path: '/api/stream',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
+  '/api/probe': typeof ApiProbeRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
   '/api/toonstream': typeof ApiToonstreamRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
+  '/api/probe': typeof ApiProbeRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
   '/api/toonstream': typeof ApiToonstreamRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
+  '/api/probe': typeof ApiProbeRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
   '/api/toonstream': typeof ApiToonstreamRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
+    | '/api/probe'
     | '/api/stream'
     | '/api/supabase'
     | '/api/toonstream'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
+    | '/api/probe'
     | '/api/stream'
     | '/api/supabase'
     | '/api/toonstream'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
+    | '/api/probe'
     | '/api/stream'
     | '/api/supabase'
     | '/api/toonstream'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiNxshaFetchRoute: typeof ApiNxshaFetchRoute
   ApiPortraitPosterRoute: typeof ApiPortraitPosterRoute
+  ApiProbeRoute: typeof ApiProbeRoute
   ApiStreamRoute: typeof ApiStreamRoute
   ApiSupabaseRoute: typeof ApiSupabaseRoute
   ApiToonstreamRoute: typeof ApiToonstreamRoute
@@ -371,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPortraitPosterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/probe': {
+      id: '/api/probe'
+      path: '/api/probe'
+      fullPath: '/api/probe'
+      preLoaderRoute: typeof ApiProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/stream': {
       id: '/api/stream'
       path: '/api/stream'
@@ -411,6 +431,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMoviesRoute: ApiMoviesRoute,
   ApiNxshaFetchRoute: ApiNxshaFetchRoute,
   ApiPortraitPosterRoute: ApiPortraitPosterRoute,
+  ApiProbeRoute: ApiProbeRoute,
   ApiStreamRoute: ApiStreamRoute,
   ApiSupabaseRoute: ApiSupabaseRoute,
   ApiToonstreamRoute: ApiToonstreamRoute,

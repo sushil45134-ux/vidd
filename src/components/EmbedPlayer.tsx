@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
-import { evaluatePlaylistProbe, isHlsUrl, isRemoteMediaUrl } from "../lib/videoSource";
+import { evaluatePlaylistProbe, describeSource, detectDrm, isHlsUrl, isRemoteMediaUrl } from "../lib/videoSource";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import { useAndroidPhone } from "../hooks/useAndroidPhone";
@@ -282,22 +282,6 @@ function normalizeHlsQualityLevels(levels: HlsQualityLevel[]): HlsQualityLevel[]
   return [...byHeight.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
 }
 
-/**
- * A playlist that needs a DRM licence (Widevine / PlayReady / FairPlay /
- * Sample-AES) can never decode in a plain browser. Detect it so the viewer gets
- * a reason instead of a silent black player.
- */
-function detectDrm(text: string): string[] {
-  const markers: Array<[RegExp, string]> = [
-    [/com\.widevine|edef8ba9-79d6-4ace-a3c8-27dcd51d21ed/i, "Widevine"],
-    [/com\.microsoft\.playready|9a04f079-9840-4286-ab92-e65be0885f95/i, "PlayReady"],
-    [/com\.apple\.fps|94ce86fb-07ff-4f43-adb8-93d2fa968ca2/i, "FairPlay"],
-    [/METHOD=SAMPLE-AES/i, "Sample-AES"],
-    [/cenc:default_KID/i, "CENC"],
-  ];
-  return markers.filter(([re]) => re.test(text)).map(([, label]) => label);
-}
-
 /** Readable names for the languages these sources actually ship. */
 const LANGUAGE_LABELS: Record<string, string> = {
   hi: "हिन्दी (Hindi)",
@@ -427,6 +411,8 @@ export function EmbedPlayer({
    * providers publish playlists without a `.m3u8` extension.
    */
   const [forceHls, setForceHls] = useState(false);
+  /** Latest source the player actually tried (for readable error diagnostics). */
+  const currentSrcRef = useRef(src);
   /** HLS-ness is decided from the ORIGINAL url — the proxy wrapper hides it. */
   const sourceLooksHls = isHlsUrl(src);
   const needsResolve =
@@ -474,6 +460,7 @@ export function EmbedPlayer({
     (async () => {
       try {
         let url = src;
+        currentSrcRef.current = src;
         if (src.startsWith("/api/toonstream")) {
           const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json&sources=1`);
           const d = await r.json().catch(() => null);
@@ -671,7 +658,8 @@ export function EmbedPlayer({
         v.play?.().catch(() => {});
       } catch (e) {
         if (!cancelled) {
-          setVideoLoadError(e instanceof Error ? e.message : "Stream resolve failed");
+          const reason = e instanceof Error ? e.message : "Stream resolve failed";
+          setVideoLoadError(`${reason} [${describeSource(src)} · ${forceHls ? "hls" : "auto"}]`);
           if (src.startsWith("/api/toonstream")) onUnavailableRef.current?.();
         }
       }
@@ -1290,26 +1278,21 @@ export function EmbedPlayer({
               // Providers that hide the extension hand us a playlist: it reaches
               // the browser as "not supported". Retry once through the HLS path,
               // which probes the real content-type, before reporting anything.
-              if (
-                needsResolve &&
-                !isHlsUrl(src) &&
-                !forceHls &&
-                (code === 3 || code === 4) &&
-                videoElRef.current
-              ) {
+              if (needsResolve && !forceHls && (code === 3 || code === 4) && videoElRef.current) {
                 setVideoLoadError("Checking whether this link is an HLS stream…");
                 setForceHls(true);
                 return;
               }
               const label = `Video error ${code || "unknown"}: ${names[code || 0] || "playback failed"}`;
+              const src = `${describeSource(currentSrcRef.current)} · ${forceHls ? "hls" : "file"}`;
               // DECODE / SRC_NOT_SUPPORTED on a file that downloaded fine almost
               // always means the media is encrypted (CENC) or is a DASH fragment
               // rather than a complete file.
               const encryptedHint =
                 code === 3 || code === 4
-                  ? " — the file may be DRM-encrypted (CENC) or only a single DASH fragment, which a browser cannot decode. Try the full .mp4 or .m3u8 URL, or watch on the original service."
+                  ? " — the file may be DRM-encrypted (CENC) or only a single DASH fragment, which a browser cannot decode. Paste the .m3u8 master URL (or a full .mp4), or watch on the original service."
                   : "";
-              setVideoLoadError(`${label}${encryptedHint}`);
+              setVideoLoadError(`${label}${encryptedHint} [${src}]`);
             }}
             onEnded={() => {
               try {

@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { detectDrm } from "../../lib/videoSource";
+import { isBlockedHost, parseMediaTarget } from "../../lib/proxyGuards";
 
 /**
  * /api/media-proxy — generic same-origin proxy for direct media URLs.
@@ -43,25 +45,6 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
-/**
- * DRM markers a browser cannot decrypt on its own.
- *
- * AES-128 HLS (`METHOD=AES-128` with a key URI) is fine — hls.js handles it.
- * Sample-AES / Widevine / PlayReady / FairPlay / CENC key ids are not: those
- * need a license server and a hardware/sandbox CDM.
- */
-const DRM_MARKERS: Array<{ re: RegExp; label: string }> = [
-  { re: /com\.widevine|urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed/i, label: "Widevine" },
-  { re: /com\.microsoft\.playready|urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95/i, label: "PlayReady" },
-  { re: /com\.apple\.fps|urn:uuid:94ce86fb-07ff-4f43-adb8-93d2fa968ca2/i, label: "FairPlay" },
-  { re: /METHOD=SAMPLE-AES/i, label: "Sample-AES" },
-  { re: /cenc:default_KID/i, label: "CENC" },
-];
-
-function detectDrm(text: string): string[] {
-  return DRM_MARKERS.filter(({ re }) => re.test(text)).map(({ label }) => label);
-}
-
 const PASS_THROUGH_HEADERS = [
   "content-type",
   "content-length",
@@ -73,11 +56,9 @@ const PASS_THROUGH_HEADERS = [
   "expires",
 ];
 
-/**
- * Reject loopback / link-local / private ranges so the route cannot be used as
- * an SSRF pivot. Self-hosters who intentionally proxy a LAN media server can
- * opt out with MEDIA_PROXY_ALLOW_LOCAL=1.
- */
+/** Shared SSRF-guarded parser (see src/lib/proxyGuards.ts). */
+const parseTarget = parseMediaTarget;
+
 /** Every HLS playlist starts with this tag. */
 const PLAYLIST_MAGIC = /^\s*#EXTM3U/;
 
@@ -132,41 +113,6 @@ function streamFromPrefix(
       void reader.cancel(reason).catch(() => {});
     },
   });
-}
-
-function isBlockedHost(hostname: string): boolean {
-  // Reads through globalThis so the check also works on the edge runtime.
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  if (env?.MEDIA_PROXY_ALLOW_LOCAL === "1") return false;
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) return true;
-  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80")) {
-    return true;
-  }
-  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [a, b] = v4.slice(1).map(Number);
-    if (a === 0 || a === 10 || a === 127) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true;
-  }
-  return false;
-}
-
-function parseTarget(raw: string | null): URL | null {
-  if (!raw) return null;
-  const decoded = raw.replace(/&amp;/g, "&").trim();
-  let url: URL;
-  try {
-    url = new URL(decoded);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  if (isBlockedHost(url.hostname)) return null;
-  return url;
 }
 
 function proxyUrlFor(target: string, requestUrl: string, passthrough: URLSearchParams): string {
