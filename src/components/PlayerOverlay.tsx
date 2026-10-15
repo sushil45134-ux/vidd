@@ -108,6 +108,7 @@ export default function PlayerOverlay({
         key={current.id}
         src={mediaSrc}
         kind="video"
+        audioSources={current.audioSources}
         onClose={onClose}
         hasPrev={hasPrev}
         hasNext={hasNext}

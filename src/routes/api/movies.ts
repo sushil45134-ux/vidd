@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isMissingAudioColumnError } from "@/lib/audioSources";
 
 /**
  * TV-safe movies API — server-side proxy to Supabase.
@@ -54,11 +55,31 @@ export const Route = createFileRoute("/api/movies")({
             headers["Prefer"] = "count=exact";
           }
 
-          const res = await fetch(supaUrl.toString(), { headers });
+          const fetchMovies = (select: string) => {
+            supaUrl.searchParams.set("select", select);
+            return fetch(supaUrl.toString(), { headers });
+          };
 
+          let res = await fetchMovies(columns);
           if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            return Response.json({ error: `Supabase error ${res.status}`, details: text.slice(0, 500) }, { status: res.status });
+            const firstError = await res.text().catch(() => "");
+            // Database without the multi-audio column: drop just that field and
+            // retry, so the library keeps loading instead of showing an error.
+            if (columns.includes("audio_sources") && isMissingAudioColumnError(firstError)) {
+              res = await fetchMovies(
+                columns
+                  .split(",")
+                  .filter((column) => column.trim() !== "audio_sources")
+                  .join(","),
+              );
+            }
+            if (!res.ok) {
+              const text = await res.text().catch(() => firstError);
+              return Response.json(
+                { error: `Supabase error ${res.status}`, details: text.slice(0, 500) },
+                { status: res.status },
+              );
+            }
           }
 
           const data = await res.json();
