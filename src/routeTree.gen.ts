@@ -17,11 +17,14 @@ import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
 import { Route as ApiAnimeTrailerRouteImport } from './routes/api/anime-trailer'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
 import { Route as ApiConfigRouteImport } from './routes/api/config'
+import { Route as ApiCrunchyrollProxyRouteImport } from './routes/api/crunchyroll-proxy'
 import { Route as ApiExtractRouteImport } from './routes/api/extract'
 import { Route as ApiHlsproxyRouteImport } from './routes/api/hlsproxy'
+import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
 import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
+import { Route as ApiProbeRouteImport } from './routes/api/probe'
 import { Route as ApiStreamRouteImport } from './routes/api/stream'
 import { Route as ApiSupabaseRouteImport } from './routes/api/supabase'
 import { Route as ApiToonstreamRouteImport } from './routes/api/toonstream'
@@ -66,6 +69,11 @@ const ApiConfigRoute = ApiConfigRouteImport.update({
   path: '/api/config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCrunchyrollProxyRoute = ApiCrunchyrollProxyRouteImport.update({
+  id: '/api/crunchyroll-proxy',
+  path: '/api/crunchyroll-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiExtractRoute = ApiExtractRouteImport.update({
   id: '/api/extract',
   path: '/api/extract',
@@ -74,6 +82,11 @@ const ApiExtractRoute = ApiExtractRouteImport.update({
 const ApiHlsproxyRoute = ApiHlsproxyRouteImport.update({
   id: '/api/hlsproxy',
   path: '/api/hlsproxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMediaProxyRoute = ApiMediaProxyRouteImport.update({
+  id: '/api/media-proxy',
+  path: '/api/media-proxy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMoviesRoute = ApiMoviesRouteImport.update({
@@ -89,6 +102,11 @@ const ApiNxshaFetchRoute = ApiNxshaFetchRouteImport.update({
 const ApiPortraitPosterRoute = ApiPortraitPosterRouteImport.update({
   id: '/api/portrait-poster',
   path: '/api/portrait-poster',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProbeRoute = ApiProbeRouteImport.update({
+  id: '/api/probe',
+  path: '/api/probe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStreamRoute = ApiStreamRouteImport.update({
@@ -116,11 +134,14 @@ export interface FileRoutesByFullPath {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
+  '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
+  '/api/probe': typeof ApiProbeRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
   '/api/toonstream': typeof ApiToonstreamRoute
@@ -134,11 +155,14 @@ export interface FileRoutesByTo {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
+  '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
+  '/api/probe': typeof ApiProbeRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
   '/api/toonstream': typeof ApiToonstreamRoute
@@ -153,11 +177,14 @@ export interface FileRoutesById {
   '/api/anime-trailer': typeof ApiAnimeTrailerRoute
   '/api/auth': typeof ApiAuthRoute
   '/api/config': typeof ApiConfigRoute
+  '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
+  '/api/probe': typeof ApiProbeRoute
   '/api/stream': typeof ApiStreamRoute
   '/api/supabase': typeof ApiSupabaseRoute
   '/api/toonstream': typeof ApiToonstreamRoute
@@ -173,11 +200,14 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
+    | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
+    | '/api/media-proxy'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
+    | '/api/probe'
     | '/api/stream'
     | '/api/supabase'
     | '/api/toonstream'
@@ -191,11 +221,14 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
+    | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
+    | '/api/media-proxy'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
+    | '/api/probe'
     | '/api/stream'
     | '/api/supabase'
     | '/api/toonstream'
@@ -209,11 +242,14 @@ export interface FileRouteTypes {
     | '/api/anime-trailer'
     | '/api/auth'
     | '/api/config'
+    | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
+    | '/api/media-proxy'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
+    | '/api/probe'
     | '/api/stream'
     | '/api/supabase'
     | '/api/toonstream'
@@ -228,11 +264,14 @@ export interface RootRouteChildren {
   ApiAnimeTrailerRoute: typeof ApiAnimeTrailerRoute
   ApiAuthRoute: typeof ApiAuthRoute
   ApiConfigRoute: typeof ApiConfigRoute
+  ApiCrunchyrollProxyRoute: typeof ApiCrunchyrollProxyRoute
   ApiExtractRoute: typeof ApiExtractRoute
   ApiHlsproxyRoute: typeof ApiHlsproxyRoute
+  ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiNxshaFetchRoute: typeof ApiNxshaFetchRoute
   ApiPortraitPosterRoute: typeof ApiPortraitPosterRoute
+  ApiProbeRoute: typeof ApiProbeRoute
   ApiStreamRoute: typeof ApiStreamRoute
   ApiSupabaseRoute: typeof ApiSupabaseRoute
   ApiToonstreamRoute: typeof ApiToonstreamRoute
@@ -296,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/crunchyroll-proxy': {
+      id: '/api/crunchyroll-proxy'
+      path: '/api/crunchyroll-proxy'
+      fullPath: '/api/crunchyroll-proxy'
+      preLoaderRoute: typeof ApiCrunchyrollProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/extract': {
       id: '/api/extract'
       path: '/api/extract'
@@ -308,6 +354,13 @@ declare module '@tanstack/react-router' {
       path: '/api/hlsproxy'
       fullPath: '/api/hlsproxy'
       preLoaderRoute: typeof ApiHlsproxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/media-proxy': {
+      id: '/api/media-proxy'
+      path: '/api/media-proxy'
+      fullPath: '/api/media-proxy'
+      preLoaderRoute: typeof ApiMediaProxyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/movies': {
@@ -329,6 +382,13 @@ declare module '@tanstack/react-router' {
       path: '/api/portrait-poster'
       fullPath: '/api/portrait-poster'
       preLoaderRoute: typeof ApiPortraitPosterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/probe': {
+      id: '/api/probe'
+      path: '/api/probe'
+      fullPath: '/api/probe'
+      preLoaderRoute: typeof ApiProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stream': {
@@ -364,11 +424,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnimeTrailerRoute: ApiAnimeTrailerRoute,
   ApiAuthRoute: ApiAuthRoute,
   ApiConfigRoute: ApiConfigRoute,
+  ApiCrunchyrollProxyRoute: ApiCrunchyrollProxyRoute,
   ApiExtractRoute: ApiExtractRoute,
   ApiHlsproxyRoute: ApiHlsproxyRoute,
+  ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiMoviesRoute: ApiMoviesRoute,
   ApiNxshaFetchRoute: ApiNxshaFetchRoute,
   ApiPortraitPosterRoute: ApiPortraitPosterRoute,
+  ApiProbeRoute: ApiProbeRoute,
   ApiStreamRoute: ApiStreamRoute,
   ApiSupabaseRoute: ApiSupabaseRoute,
   ApiToonstreamRoute: ApiToonstreamRoute,
