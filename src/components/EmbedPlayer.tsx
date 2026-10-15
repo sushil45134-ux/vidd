@@ -1225,9 +1225,15 @@ export function EmbedPlayer({
           </>
         )}
 
-        {/* Crunchyroll: optional cookie input for authenticated playback through proxy */}
+        {/* Crunchyroll: the video itself is Widevine/CENC encrypted, so the
+            in-site player can only ever show their page. Be upfront about it
+            and keep the direct link one tap away. */}
         {isCrunchyroll && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+            <p className="max-w-md rounded-lg bg-black/70 px-3 py-1.5 text-center text-[11px] leading-snug text-orange-200 backdrop-blur-sm">
+              Crunchyroll video is DRM (Widevine) locked — if the frame stays black, open it on
+              Crunchyroll. Everything plays normally there.
+            </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
