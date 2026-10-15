@@ -533,7 +533,21 @@ export function EmbedPlayer({
       hlsSourceRef.current = null;
     };
   }, [needsResolve, src]);
-  const [crCookie, setCrCookie] = useState("");
+  // The cookie is never hard-coded in the bundle: it is pasted by the viewer
+  // and kept in localStorage on their own device only.
+  const [crCookie, setCrCookie] = useState(() => {
+    try {
+      return localStorage.getItem("crunchyroll_cookie") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("crunchyroll_cookie", crCookie);
+    } catch {}
+  }, [crCookie]);
   const [showCookieInput, setShowCookieInput] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(
     isCrunchyroll
