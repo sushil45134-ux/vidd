@@ -149,11 +149,16 @@ function rewriteManifestText(
       continue;
     }
     if (trimmed.startsWith("#")) {
-      // Rewrite URI="…" attributes (EXT-X-KEY, EXT-X-MAP, EXT-X-MEDIA, I-FRAME…).
+      // Rewrite URI="…" / URI='…' attributes (EXT-X-KEY, EXT-X-MAP,
+      // EXT-X-MEDIA audio/subtitle renditions, I-FRAME streams…).
       out.push(
-        line.replace(/URI="([^"]+)"/g, (_m, uri: string) =>
-          `URI="${rewriteUri(uri, manifest, requestUrl, passthrough)}"`,
-        ),
+        line
+          .replace(/URI="([^"]*)"/g, (_m, uri: string) =>
+            `URI="${rewriteUri(uri, manifest, requestUrl, passthrough)}"`,
+          )
+          .replace(/URI='([^']*)'/g, (_m, uri: string) =>
+            `URI="${rewriteUri(uri, manifest, requestUrl, passthrough)}"`,
+          ),
       );
       continue;
     }
@@ -174,11 +179,7 @@ export const Route = createFileRoute("/api/media-proxy")({
           return new Response("invalid or blocked url", { status: 400, headers: CORS });
         }
         try {
-          const upstream = await fetch(target.href, {
-            method: "HEAD",
-            headers: buildUpstreamHeaders(request, requestUrl),
-            redirect: "follow",
-          });
+          const upstream = await fetchUpstream(target, request, requestUrl, { method: "HEAD" });
           return new Response(null, { status: upstream.status, headers: outHeaders(upstream) });
         } catch (err) {
           return new Response(`proxy error: ${message(err)}`, { status: 502, headers: CORS });
@@ -199,11 +200,7 @@ export const Route = createFileRoute("/api/media-proxy")({
         }
 
         try {
-          const upstream = await fetch(target.href, {
-            method: "GET",
-            headers: buildUpstreamHeaders(request, requestUrl),
-            redirect: "follow",
-          });
+          const upstream = await fetchUpstream(target, request, requestUrl, { method: "GET" });
 
           const contentType = (upstream.headers.get("content-type") || "").toLowerCase();
           const looksLikePlaylist =
@@ -246,6 +243,41 @@ export const Route = createFileRoute("/api/media-proxy")({
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * Fetch the media, self-healing against hotlink protection.
+ *
+ * Anti-hotlink CDNs answer 401/403/406 when `Referer` is missing. Rather than
+ * guessing up-front, retry once with the *media's own* origin as Referer (what
+ * the CDN's own player would send). An explicit `referer`/`origin` param always
+ * wins and is sent on the first attempt.
+ */
+async function fetchUpstream(
+  target: URL,
+  request: Request,
+  requestUrl: URL,
+  init: { method: "GET" | "HEAD" },
+): Promise<Response> {
+  const explicit = Boolean(
+    requestUrl.searchParams.get("referer") || requestUrl.searchParams.get("origin"),
+  );
+  const response = await fetch(target.href, {
+    method: init.method,
+    headers: buildUpstreamHeaders(request, requestUrl),
+    redirect: "follow",
+  });
+  if (explicit || ![401, 403, 406].includes(response.status)) return response;
+
+  const retry = new URLSearchParams(requestUrl.searchParams);
+  retry.set("referer", `${target.origin}/`);
+  const headers = buildUpstreamHeaders(request, new URL(`http://x/?${retry}`));
+  const retried = await fetch(target.href, {
+    method: init.method,
+    headers,
+    redirect: "follow",
+  });
+  return retried.status >= 200 && retried.status < 400 ? retried : response;
 }
 
 function buildUpstreamHeaders(request: Request, requestUrl: URL): Record<string, string> {

@@ -297,6 +297,48 @@ function detectDrm(text: string): string[] {
   return markers.filter(([re]) => re.test(text)).map(([, label]) => label);
 }
 
+/** Readable names for the languages these sources actually ship. */
+const LANGUAGE_LABELS: Record<string, string> = {
+  hi: "हिन्दी (Hindi)",
+  ja: "日本語 (Japanese)",
+  en: "English",
+  ta: "தமிழ் (Tamil)",
+  te: "తెలుగు (Telugu)",
+  ml: "മലയാളം (Malayalam)",
+  kn: "ಕನ್ನಡ (Kannada)",
+  bn: "বাংলা (Bengali)",
+  mr: "मराठी (Marathi)",
+  pa: "ਪੰਜਾਬੀ (Punjabi)",
+  ur: "اردو (Urdu)",
+  ko: "한국어 (Korean)",
+  zh: "中文 (Chinese)",
+  es: "Español",
+  pt: "Português",
+  fr: "Français",
+  de: "Deutsch",
+  ar: "العربية",
+  ru: "Русский",
+  id: "Bahasa Indonesia",
+  th: "ไทย",
+  vi: "Tiếng Việt",
+};
+
+function isHindiTrack(track: { lang?: string; name?: string }): boolean {
+  const lang = String(track.lang || "").toLowerCase();
+  const label = `${lang} ${String(track.name || "")}`;
+  return /hindi|हिंदी|हिन्दी/i.test(label) || lang === "hi" || lang === "hin" || lang.startsWith("hi-");
+}
+
+/** Menu label: the manifest's own name, else a readable language name. */
+function audioTrackLabel(track: { lang?: string; name?: string }, index: number): string {
+  const lang = String(track.lang || "").toLowerCase();
+  const base = lang.split("-")[0];
+  const name = String(track.name || "").trim();
+  // Drop bare language codes the manifest used as a placeholder ("hi", "und").
+  if (name && !/^[a-z]{2,3}(-[a-z0-9]+)?$/i.test(name)) return name;
+  return LANGUAGE_LABELS[base] || name || track.lang || `Track ${index + 1}`;
+}
+
 function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
   const levels: HlsQualityLevel[] = [];
   for (const line of manifest.split(/\r?\n/)) {
@@ -355,8 +397,12 @@ export function EmbedPlayer({
   const dailymotionStoppedRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
-  const [audioTracks, setAudioTracks] = useState<Array<{ lang?: string; name?: string }>>([]);
+  const [audioTracks, setAudioTracks] = useState<
+    Array<{ lang?: string; name?: string; default?: boolean }>
+  >([]);
   const [audioTrackIndex, setAudioTrackIndex] = useState(-1);
+  /** Set once the viewer picks an audio language — never auto-overridden after. */
+  const userPickedAudioRef = useRef<number | null>(null);
   const [qualityLevels, setQualityLevels] = useState<HlsQualityLevel[]>([]);
   const [qualityHeight, setQualityHeight] = useState<number | null>(null);
   const videoElRef = useRef<HTMLVideoElement>(null);
@@ -532,34 +578,48 @@ export function EmbedPlayer({
           hls = instance;
           hlsRef.current = instance;
           let fatalRecoveryAttempts = 0;
-          const chooseHindiAudio = (tracks: Array<{ lang?: string; name?: string }>) => {
+          /**
+           * Publish the rendition list to the UI. Preference order:
+           *   1. what the viewer picked by hand (never override that),
+           *   2. a Hindi track (most of our catalogue is Hindi-dubbed),
+           *   3. the track the provider marked DEFAULT=YES,
+           *   4. whatever hls.js already selected.
+           */
+          const syncAudioTracks = (tracks: Array<{ lang?: string; name?: string; default?: boolean }>) => {
             if (cancelled) return;
             setAudioTracks(tracks);
-            const hindiIndex = tracks.findIndex((track) => {
-              const lang = String(track.lang || "").toLowerCase();
-              const label = `${lang} ${String(track.name || "")}`;
-              return (
-                /hindi|हिंदी|हिन्दी/i.test(label) ||
-                lang === "hi" ||
-                lang === "hin" ||
-                lang.startsWith("hi-")
-              );
-            });
-            const targetIndex = hindiIndex >= 0 ? hindiIndex : instance.audioTrack;
+            if (tracks.length === 0) return;
+            const picked = userPickedAudioRef.current;
+            if (picked !== null && picked < tracks.length) {
+              if (instance.audioTrack !== picked) instance.audioTrack = picked;
+              setAudioTrackIndex(picked);
+              return;
+            }
+            const hindiIndex = tracks.findIndex(isHindiTrack);
+            const defaultIndex = tracks.findIndex((track) => track.default);
+            const targetIndex =
+              hindiIndex >= 0 ? hindiIndex : defaultIndex >= 0 ? defaultIndex : instance.audioTrack;
             if (targetIndex >= 0 && instance.audioTrack !== targetIndex) {
               instance.audioTrack = targetIndex;
             }
             setAudioTrackIndex(targetIndex);
           };
           instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, d) => {
-            chooseHindiAudio(d.audioTracks || []);
+            syncAudioTracks(d.audioTracks || []);
+          });
+          instance.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_e, d) => {
+            if (cancelled || userPickedAudioRef.current !== null) return;
+            if (typeof d?.id === "number") setAudioTrackIndex(d.id);
           });
           instance.on(Hls.Events.MANIFEST_PARSED, (_e, d) => {
             fatalRecoveryAttempts = 0;
             setVideoLoadError(null);
-            chooseHindiAudio(instance.audioTracks || []);
+            syncAudioTracks(instance.audioTracks || []);
             setQualityLevels(normalizeHlsQualityLevels(d.levels || instance.levels || []));
-            window.setTimeout(() => chooseHindiAudio(instance.audioTracks || []), 500);
+            window.setTimeout(() => syncAudioTracks(instance.audioTracks || []), 500);
+          });
+          instance.on(Hls.Events.LEVEL_SWITCHED, () => {
+            if (!cancelled) setQualityLevels(normalizeHlsQualityLevels(instance.levels || []));
           });
           instance.on(Hls.Events.ERROR, (_e, d) => {
             if (cancelled || !d?.fatal) return;
@@ -1021,13 +1081,8 @@ export function EmbedPlayer({
     }
   };
 
-  const audioOptions =
-    audioTracks.length > 1
-      ? audioTracks
-      : [
-          { name: "हिन्दी", lang: "hi" },
-          { name: "日本語", lang: "ja" },
-        ];
+  // Only the languages the stream really ships — no invented entries.
+  const audioOptions = audioTracks;
   const qualityOptions = qualityLevels.map((level) => ({
     value: level.height || 0,
     label: level.height ? `${level.height}p` : "",
@@ -1051,13 +1106,47 @@ export function EmbedPlayer({
   };
 
   const selectAudioTrack = (index: number) => {
-    if (!Number.isInteger(index) || index < 0) return;
-    const code = audioOptions[index]?.lang || "hi";
+    if (!Number.isInteger(index) || index < 0 || index >= audioTracks.length) return;
     const source = hlsSourceRef.current;
-    if (!source) return;
+    const instance = hlsRef.current as {
+      audioTrack: number;
+      audioTracks?: Array<{ lang?: string; name?: string }>;
+    } | null;
 
+    // 1. hls.js multiplexes every rendition of a generic HLS master, so switch
+    //    in place: instant, resume position kept, no network reload.
+    if (instance) {
+      try {
+        userPickedAudioRef.current = index;
+        instance.audioTrack = index;
+        setAudioTrackIndex(index);
+        return;
+      } catch {
+        userPickedAudioRef.current = null;
+      }
+    }
+
+    // 2. Native HLS (Safari / iOS) exposes the element's own audio track list.
+    const video = videoElRef.current as unknown as {
+      audioTracks?: { enabled: boolean }[];
+    } | null;
+    const nativeTracks = video?.audioTracks;
+    if (nativeTracks && nativeTracks.length > index) {
+      for (let i = 0; i < nativeTracks.length; i += 1) nativeTracks[i].enabled = i === index;
+      userPickedAudioRef.current = index;
+      setAudioTrackIndex(index);
+      return;
+    }
+
+    // 3. Vidmoly-style embeds publish one muxed playlist per language, so the
+    //    language has to be requested again from the proxy. Any other source
+    //    has no way to re-request a language — reloading would just restart the
+    //    same audio from zero, so leave playback alone.
+    if (!source || !source.includes("/api/hlsproxy")) return;
+    const code = audioTracks[index]?.lang || "hi";
     const next = new URL(source, window.location.origin);
-    next.searchParams.set("audio", code);
+    next.searchParams.set("audio", code.split("-")[0]);
+    userPickedAudioRef.current = index;
     reloadPlaybackSource(`${next.pathname}${next.search}`);
     setAudioTrackIndex(index);
   };
@@ -1299,13 +1388,13 @@ export function EmbedPlayer({
               </select>
             </label>
           )}
-          {kind === "video" && needsResolve && (
+          {kind === "video" && needsResolve && audioTracks.length > 1 && (
             <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
               <span>Audio</span>
               <select
                 value={audioTrackIndex >= 0 ? audioTrackIndex : 0}
                 onChange={(e) => selectAudioTrack(Number(e.currentTarget.value))}
-                className="max-w-32 bg-transparent text-white outline-none"
+                className="max-w-40 bg-transparent text-white outline-none"
                 aria-label="Audio track"
               >
                 {audioOptions.map((track, index) => (
@@ -1314,7 +1403,7 @@ export function EmbedPlayer({
                     value={index}
                     className="bg-black"
                   >
-                    {track.name || track.lang || `Track ${index + 1}`}
+                    {audioTrackLabel(track, index)}
                   </option>
                 ))}
               </select>
