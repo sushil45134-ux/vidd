@@ -411,6 +411,17 @@ export function EmbedPlayer({
    * providers publish playlists without a `.m3u8` extension.
    */
   const [forceHls, setForceHls] = useState(false);
+  /**
+   * Playback ladder for a remote stream, so a source that plays in the Add
+   * Movie preview never dies in the library:
+   *   0 → through our proxy (Range, CORS and anti-hotlink handled server-side),
+   *   1 → straight from the CDN (works when the CDN blocks our server but not
+   *       the viewer's browser),
+   *   2 → plain iframe of the raw address — exactly what the Add Movie preview
+   *       renders, so whatever plays there always plays here too.
+   * Every step is only taken when the previous one proved unusable.
+   */
+  const [streamAttempt, setStreamAttempt] = useState(0);
   /** Latest source the player actually tried (for readable error diagnostics). */
   const currentSrcRef = useRef(src);
   /** HLS-ness is decided from the ORIGINAL url — the proxy wrapper hides it. */
@@ -421,6 +432,22 @@ export function EmbedPlayer({
       src.startsWith("/api/toonstream") ||
       sourceLooksHls ||
       isRemoteMediaSrc);
+
+  /** A new source always starts at the top of the ladder. */
+  useEffect(() => {
+    setStreamAttempt(0);
+    setForceHls(false);
+  }, [src]);
+
+  /**
+   * Last-resort mode: an address the viewer proved playable (the Add Movie
+   * preview frames it) is shown in the same way here, instead of a black player.
+   */
+  const useSourceFrame =
+    kind === "video" &&
+    streamAttempt >= 2 &&
+    (sourceLooksHls || isRemoteMediaSrc) &&
+    /^https?:\/\//i.test(src);
 
   const restorePendingPlayback = () => {
     const video = videoElRef.current;
@@ -521,38 +548,51 @@ export function EmbedPlayer({
         const proxyUrl = (absoluteUrl: string) =>
           `/api/media-proxy?u=${encodeURIComponent(absoluteUrl)}`;
         const isAbsoluteUrl = /^https?:\/\//i.test(url);
+        /** Ladder step 0 goes through the proxy; later steps hit the CDN itself. */
+        const useMediaProxy = isAbsoluteUrl && streamAttempt === 0 && !vidmolyHost;
         const playbackUrl = isHls
           ? vidmolyHost
             ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}`
-            : proxyUrl(url)
-          : isAbsoluteUrl
+            : useMediaProxy
+              ? proxyUrl(url)
+              : url
+          : useMediaProxy
             ? proxyUrl(url)
             : url;
         hlsSourceRef.current = isHls ? playbackUrl : null;
 
         let playlistText = "";
-        if (isHls) {
+        if (isHls && useMediaProxy) {
+          /**
+           * Pre-flight through the proxy. Any failure (server blocked by the
+           * CDN, a bot-challenge page instead of the playlist…) is not fatal:
+           * step down the ladder, because the viewer's own browser often gets
+           * what our server cannot.
+           */
+          const stepDown = () => {
+            if (!cancelled) setStreamAttempt(1);
+          };
           const probe = await fetch(playbackUrl, { cache: "no-store" }).catch(() => null);
-          if (probe?.ok) {
-            const evaluated = await evaluatePlaylistProbe(probe, sourceLooksHls).catch(() => null);
-            if (!evaluated?.isPlaylist) {
-              throw Error(
-                `This link is not an HLS playlist — the server sent "${evaluated?.contentType || "an unknown type"}". ` +
-                  `Paste the .m3u8 address of the stream, or a direct video file (.mp4).`,
-              );
-            }
-            playlistText = evaluated.text;
-            // A DRM-locked playlist can never decode here — explain instead of
-            // handing hls.js something it is guaranteed to fail on.
-            const drmHeader = probe.headers.get("X-Stream-Drm");
-            const drm = drmHeader ? drmHeader.split(",").filter(Boolean) : detectDrm(playlistText);
-            if (drm.length > 0) {
-              throw Error(
-                `This stream is DRM-protected (${[...new Set(drm)].join(", ")}) — a browser cannot ` +
-                  `decrypt it without the service's licence. Use a non-DRM source for in-site ` +
-                  `playback, or watch it on the original service.`,
-              );
-            }
+          if (!probe?.ok) {
+            stepDown();
+            return;
+          }
+          const evaluated = await evaluatePlaylistProbe(probe, sourceLooksHls).catch(() => null);
+          if (!evaluated?.isPlaylist) {
+            stepDown();
+            return;
+          }
+          playlistText = evaluated.text;
+          // A DRM-locked playlist can never decode here — explain instead of
+          // handing hls.js something it is guaranteed to fail on.
+          const drmHeader = probe.headers.get("X-Stream-Drm");
+          const drm = drmHeader ? drmHeader.split(",").filter(Boolean) : detectDrm(playlistText);
+          if (drm.length > 0) {
+            throw Error(
+              `This stream is DRM-protected (${[...new Set(drm)].join(", ")}) — a browser cannot ` +
+                `decrypt it without the service's licence. Use a non-DRM source for in-site ` +
+                `playback, or watch it on the original service.`,
+            );
           }
         }
         const nativeHls = isHls && Boolean(v.canPlayType("application/vnd.apple.mpegurl"));
@@ -647,6 +687,21 @@ export function EmbedPlayer({
               instance.recoverMediaError();
               return;
             }
+            /**
+             * Recovery ran out. Before reporting anything, step down the ladder:
+             * a proxy error (403 from the CDN) tries the CDN directly next, and a
+             * direct CORS/network failure falls back to framing the source — the
+             * same thing the Add Movie preview does.
+             */
+            if (streamAttempt < 2) {
+              setVideoLoadError(
+                streamAttempt === 0
+                  ? "Server could not fetch this stream — playing it directly…"
+                  : "Playing the source directly…",
+              );
+              setStreamAttempt(streamAttempt + 1);
+              return;
+            }
             setVideoLoadError(`HLS error: ${d.details || d.type || "fatal"}`);
           });
           instance.loadSource(playbackUrl);
@@ -670,7 +725,7 @@ export function EmbedPlayer({
       hlsRef.current = null;
       hlsSourceRef.current = null;
     };
-  }, [needsResolve, src, forceHls, sourceLooksHls]);
+  }, [needsResolve, src, forceHls, sourceLooksHls, streamAttempt]);
   // The cookie is never hard-coded in the bundle: it is pasted by the viewer
   // and kept in localStorage on their own device only.
   const [crCookie, setCrCookie] = useState(() => {
@@ -1210,6 +1265,18 @@ export function EmbedPlayer({
                 : "allow-forms allow-scripts allow-same-origin allow-presentation"
             }
           />
+        ) : useSourceFrame ? (
+          /* Last resort, deliberately identical to the Add Movie preview: the
+             raw address in a frame. If the viewer saw it play while adding, it
+             plays here too. */
+          <iframe
+            src={src}
+            className="absolute inset-0 w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowFullScreen
+            title="Video player (direct source)"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+          />
         ) : (
           <video
             ref={videoElRef}
@@ -1283,8 +1350,20 @@ export function EmbedPlayer({
                 setForceHls(true);
                 return;
               }
+              // Playlist that still refuses to decode: step down the ladder
+              // (proxy → direct → framed source) before showing an error.
+              if (
+                needsResolve &&
+                (sourceLooksHls || isRemoteMediaSrc) &&
+                /^https?:\/\//i.test(src) &&
+                streamAttempt < 2
+              ) {
+                setStreamAttempt(streamAttempt + 1);
+                setVideoLoadError("Trying the next playback method…");
+                return;
+              }
               const label = `Video error ${code || "unknown"}: ${names[code || 0] || "playback failed"}`;
-              const src = `${describeSource(currentSrcRef.current)} · ${forceHls ? "hls" : "file"}`;
+              const sourceTag = `${describeSource(currentSrcRef.current)} · ${forceHls ? "hls" : "file"} · step${streamAttempt}`;
               // DECODE / SRC_NOT_SUPPORTED on a file that downloaded fine almost
               // always means the media is encrypted (CENC) or is a DASH fragment
               // rather than a complete file.
@@ -1292,7 +1371,7 @@ export function EmbedPlayer({
                 code === 3 || code === 4
                   ? " — the file may be DRM-encrypted (CENC) or only a single DASH fragment, which a browser cannot decode. Paste the .m3u8 master URL (or a full .mp4), or watch on the original service."
                   : "";
-              setVideoLoadError(`${label}${encryptedHint} [${src}]`);
+              setVideoLoadError(`${label}${encryptedHint} [${sourceTag}]`);
             }}
             onEnded={() => {
               try {
@@ -1341,6 +1420,26 @@ export function EmbedPlayer({
         {/* Crunchyroll: the video itself is Widevine/CENC encrypted, so the
             in-site player can only ever show their page. Be upfront about it
             and keep the direct link one tap away. */}
+        {/* Playing straight from the source (proxy + hls.js both failed): say so,
+            and keep one tap to retry the site player. */}
+        {useSourceFrame && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+            <p className="rounded-full bg-black/70 px-3 py-1.5 text-[11px] text-gray-300 backdrop-blur-sm">
+              Playing directly from {describeSource(src)}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setVideoLoadError(null);
+                setStreamAttempt(0);
+              }}
+              className="rounded-full bg-white/15 hover:bg-white/25 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm transition-colors"
+            >
+              Try site player
+            </button>
+          </div>
+        )}
+
         {isCrunchyroll && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
             <p className="max-w-md rounded-lg bg-black/70 px-3 py-1.5 text-center text-[11px] leading-snug text-orange-200 backdrop-blur-sm">

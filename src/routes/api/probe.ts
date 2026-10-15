@@ -103,14 +103,16 @@ export const Route = createFileRoute("/api/probe")({
 
         const status = upstream.status;
         if (status >= 400) {
-          const expired = /403|401|410/.test(String(status));
+          const refused = /401|403|406/.test(String(status));
           return json({
             ok: false,
             kind: "error",
             status,
-            note: expired
-              ? `The server refused the link (HTTP ${status}). These CDN links are usually signed and short-lived — copy a fresh URL from the source page and paste it again.`
-              : `The server answered HTTP ${status} for this link.`,
+            note: refused
+              ? `Our server was refused (HTTP ${status}) — this CDN may block server-side requests, or the signed link expired. The player will still try playing it directly in the viewer's browser; if that fails too, copy a fresh URL from the source page.`
+              : status === 410
+                ? `The server answered HTTP 410 (gone) — a signed link that has expired. Copy a fresh URL from the source page.`
+                : `The server answered HTTP ${status} for this link.`,
           });
         }
 
