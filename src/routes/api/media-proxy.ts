@@ -306,6 +306,12 @@ function buildUpstreamHeaders(request: Request, requestUrl: URL): Record<string,
     "User-Agent": UA,
     Accept: "*/*",
     "Accept-Language": "en-US,en;q=0.9",
+    // Fetch metadata, exactly as a browser page fetching media sends it. Some
+    // CDNs (net52 among them) answer a bare server request with 403 and only
+    // serve requests that look like they came from a page.
+    "Sec-Fetch-Site": "cross-site",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
   };
 
   const range = request.headers.get("range");

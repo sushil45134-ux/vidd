@@ -77,15 +77,21 @@ export const Route = createFileRoute("/api/probe")({
         try {
           // The link usually works for the provider's own player *and* when the
           // browser sends a matching Referer — retry the same way the proxy does.
-          upstream = await fetch(target.href, {
-            headers: { "User-Agent": UA, Accept: "*/*" },
-            redirect: "follow",
-          });
+          // Fetch metadata the way a browser page asks for media: a bare server
+          // request is refused by some CDNs (net52) even when the link is fine.
+          const browserish = {
+            "User-Agent": UA,
+            Accept: "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Dest": "empty",
+          };
+          upstream = await fetch(target.href, { headers: browserish, redirect: "follow" });
           if ([401, 403, 406].includes(upstream.status)) {
             const retried = await fetch(target.href, {
               headers: {
-                "User-Agent": UA,
-                Accept: "*/*",
+                ...browserish,
                 Referer: `${target.origin}/`,
                 Origin: target.origin,
               },
