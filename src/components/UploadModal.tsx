@@ -329,6 +329,18 @@ function detectPlatform(input: string): PlatformResult | null {
     };
   }
 
+  // ── HLS / M3U8 stream ──────────────────────────────────────
+  if (/\.m3u8(\?|$)/i.test(url)) {
+    return {
+      platform: "HLS Stream",
+      id: url,
+      embedUrl: url,
+      thumbnail: "",
+      color: "bg-cyan-600",
+      icon: "📡",
+    };
+  }
+
   // ── Generic iframe / direct embed URL ──────────────────────
   // If it looks like a URL with a video embed path
   if (
@@ -390,6 +402,7 @@ const PLATFORMS = [
     color: "text-red-400",
   },
   { name: "Crunchyroll", examples: ["crunchyroll.com/watch/..."], color: "text-orange-400" },
+  { name: "HLS Stream", examples: [".m3u8 URL"], color: "text-cyan-400" },
   { name: "Any embed", examples: ["Paste any <iframe> embed code"], color: "text-gray-400" },
 ];
 
@@ -998,10 +1011,18 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       match: 99,
       cast: ["User Upload"],
       creator: "You",
-      videoUrl: sourceTab === "file" ? videoUrl : undefined,
+      videoUrl:
+        sourceTab === "file"
+          ? videoUrl
+          : detected?.platform === "HLS Stream"
+            ? detected.embedUrl
+            : undefined,
       thumbnailUrl: thumbnailUrl || detected?.thumbnail || undefined,
       youtubeId: detected?.platform === "YouTube" ? detected.id : undefined,
-      embedUrl: detected && detected.platform !== "YouTube" ? detected.embedUrl : undefined,
+      embedUrl:
+        detected && detected.platform !== "YouTube" && detected.platform !== "HLS Stream"
+          ? detected.embedUrl
+          : undefined,
       embedPlatform: detected ? detected.platform : undefined,
     };
 
