@@ -78,6 +78,62 @@ const PASS_THROUGH_HEADERS = [
  * an SSRF pivot. Self-hosters who intentionally proxy a LAN media server can
  * opt out with MEDIA_PROXY_ALLOW_LOCAL=1.
  */
+/** Every HLS playlist starts with this tag. */
+const PLAYLIST_MAGIC = /^\s*#EXTM3U/;
+
+/** Read up to `maxBytes` from a stream, leaving the rest of the stream intact. */
+async function readPrefixBytes(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  maxBytes: number,
+): Promise<Uint8Array<ArrayBufferLike>> {
+  const chunks: Uint8Array<ArrayBufferLike>[] = [];
+  let size = 0;
+  try {
+    while (size < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      chunks.push(value);
+      size += value.byteLength;
+    }
+  } catch {
+    // Whatever arrived is still usable.
+  }
+  const merged = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged;
+}
+
+/** Re-emit the bytes we sniffed, then keep streaming the upstream body. */
+function streamFromPrefix(
+  prefix: Uint8Array<ArrayBufferLike>,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (prefix.byteLength > 0) controller.enqueue(prefix);
+    },
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(value);
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    cancel(reason) {
+      void reader.cancel(reason).catch(() => {});
+    },
+  });
+}
+
 function isBlockedHost(hostname: string): boolean {
   // Reads through globalThis so the check also works on the edge runtime.
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
@@ -203,15 +259,28 @@ export const Route = createFileRoute("/api/media-proxy")({
           const upstream = await fetchUpstream(target, request, requestUrl, { method: "GET" });
 
           const contentType = (upstream.headers.get("content-type") || "").toLowerCase();
-          const looksLikePlaylist =
+          const headerSaysPlaylist =
             contentType.includes("mpegurl") ||
             /\.m3u8(\?|$)/i.test(target.pathname) ||
             /\.m3u8(\?|$)/i.test(target.href);
 
-          if (looksLikePlaylist) {
-            const text = await upstream.text();
+          // Providers often hide the extension and send `application/octet-stream`
+          // for playlists, so sniff the first bytes of the body as well. The
+          // sniffed bytes are re-emitted, so nothing is lost and media files
+          // still stream instead of being buffered.
+          const reader = upstream.body?.getReader();
+          let prefix: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
+          if (reader) prefix = await readPrefixBytes(reader, 1024);
+          const bodyIsPlaylist = PLAYLIST_MAGIC.test(new TextDecoder().decode(prefix));
+
+          if (bodyIsPlaylist || headerSaysPlaylist) {
+            const text = reader
+              ? await new Response(streamFromPrefix(prefix, reader)).text()
+              : await upstream.text();
             const headers = outHeaders(upstream, true);
-            headers.set("Content-Type", "application/vnd.apple.mpegurl");
+            // Only relabel when the body really is a playlist — an HTML "session
+            // expired" page must keep its own type so the player can say so.
+            if (bodyIsPlaylist) headers.set("Content-Type", "application/vnd.apple.mpegurl");
             headers.delete("Content-Length");
             headers.delete("Content-Range");
             // Tell the player up-front when the playlist is DRM-locked, so it
@@ -229,7 +298,13 @@ export const Route = createFileRoute("/api/media-proxy")({
 
           // Stream media straight through — never buffer, so multi-GB files and
           // Range seeks stay cheap.
-          return new Response(upstream.body, {
+          if (!reader) {
+            return new Response(upstream.body, {
+              status: upstream.status,
+              headers: outHeaders(upstream),
+            });
+          }
+          return new Response(streamFromPrefix(prefix, reader), {
             status: upstream.status,
             headers: outHeaders(upstream),
           });

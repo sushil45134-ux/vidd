@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { X, Maximize, Minimize } from "lucide-react";
+import { evaluatePlaylistProbe, isHlsUrl, isRemoteMediaUrl } from "../lib/videoSource";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import { useAndroidPhone } from "../hooks/useAndroidPhone";
@@ -420,15 +421,19 @@ export function EmbedPlayer({
    * need the same-origin media proxy: without it CORS and hotlink protection
    * stop the browser from playing them at all.
    */
-  const isRemoteMediaSrc =
-    kind === "video" &&
-    /^https?:\/\//i.test(src) &&
-    /\.(mp4|m4v|webm|ogv|ogg|mov|mkv|ts|m3u8)(\?|#|$)/i.test(src);
+  const isRemoteMediaSrc = kind === "video" && isRemoteMediaUrl(src);
+  /**
+   * Force the HLS path after a plain <video> failed on a proxied link: some
+   * providers publish playlists without a `.m3u8` extension.
+   */
+  const [forceHls, setForceHls] = useState(false);
+  /** HLS-ness is decided from the ORIGINAL url — the proxy wrapper hides it. */
+  const sourceLooksHls = isHlsUrl(src);
   const needsResolve =
     kind === "video" &&
     (src.startsWith("/api/extract") ||
       src.startsWith("/api/toonstream") ||
-      /\.m3u8(\?|$)/.test(src) ||
+      sourceLooksHls ||
       isRemoteMediaSrc);
 
   const restorePendingPlayback = () => {
@@ -493,16 +498,13 @@ export function EmbedPlayer({
           const d = await r.json().catch(() => null);
           if (!d?.ok || !d.streamUrl) throw Error(d?.error || `extract failed (HTTP ${r.status})`);
           url = String(d.streamUrl);
-        } else if (isRemoteMediaSrc) {
-          // External CDN link pasted by hand (e.g. a crunchyrollcdn.com URL).
-          // Play it through our own origin so CORS and hotlink protection on
-          // the CDN cannot block the browser.
-          url = `/api/media-proxy?u=${encodeURIComponent(src)}`;
         }
+        // NOTE: the pasted link is deliberately NOT wrapped here. Wrapping
+        // happens once, below, where we already know whether the source is a
+        // playlist — wrapping twice produced `/api/media-proxy?u=%2Fapi%2F…`,
+        // which the proxy can only answer with 400.
         if (cancelled || !videoElRef.current) return;
         const v = videoElRef.current;
-        const isHls = /\.m3u8(\?|$)/.test(url);
-        const nativeHls = isHls && Boolean(v.canPlayType("application/vnd.apple.mpegurl"));
         // Vidmoly needs its own audio-suffix aware proxy; every other host goes
         // through the generic media proxy (same-origin, Range + CORS safe).
         let vidmolyHost = false;
@@ -513,21 +515,50 @@ export function EmbedPlayer({
         } catch {
           vidmolyHost = false;
         }
+
+        /**
+         * Playlist detection + pre-flight.
+         *
+         * The extension test runs on the ORIGINAL source, never on the wrapper:
+         * `/api/media-proxy?u=…%2Fv.m3u8%3Ftoken` hides the `.m3u8`, and
+         * treating it as a plain file ends in MEDIA_ERR_SRC_NOT_SUPPORTED.
+         * When a provider hides the extension, the probe's content-type
+         * decides; a body that is not a playlist is dropped instead of being
+         * buffered, and a forced (error-retry) probe that really is a file
+         * fails fast with a readable reason.
+         */
+        let isHls = sourceLooksHls || forceHls;
+        // Any absolute media address (pasted CDN link or resolved embed host)
+        // plays through our own origin, so CORS, hotlink protection and Range
+        // seeking are handled server-side. Exactly one wrapper, always.
+        const proxyUrl = (absoluteUrl: string) =>
+          `/api/media-proxy?u=${encodeURIComponent(absoluteUrl)}`;
+        const isAbsoluteUrl = /^https?:\/\//i.test(url);
         const playbackUrl = isHls
           ? vidmolyHost
             ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}`
-            : `/api/media-proxy?u=${encodeURIComponent(url)}`
-          : url;
+            : proxyUrl(url)
+          : isAbsoluteUrl
+            ? proxyUrl(url)
+            : url;
         hlsSourceRef.current = isHls ? playbackUrl : null;
 
-        // Pre-flight the playlist: if it is DRM-locked there is no point handing
-        // it to hls.js — explain the reason instead.
+        let playlistText = "";
         if (isHls) {
           const probe = await fetch(playbackUrl, { cache: "no-store" }).catch(() => null);
           if (probe?.ok) {
+            const evaluated = await evaluatePlaylistProbe(probe, sourceLooksHls).catch(() => null);
+            if (!evaluated?.isPlaylist) {
+              throw Error(
+                `This link is not an HLS playlist — the server sent "${evaluated?.contentType || "an unknown type"}". ` +
+                  `Paste the .m3u8 address of the stream, or a direct video file (.mp4).`,
+              );
+            }
+            playlistText = evaluated.text;
+            // A DRM-locked playlist can never decode here — explain instead of
+            // handing hls.js something it is guaranteed to fail on.
             const drmHeader = probe.headers.get("X-Stream-Drm");
-            const text = await probe.text().catch(() => "");
-            const drm = drmHeader ? drmHeader.split(",").filter(Boolean) : detectDrm(text);
+            const drm = drmHeader ? drmHeader.split(",").filter(Boolean) : detectDrm(playlistText);
             if (drm.length > 0) {
               throw Error(
                 `This stream is DRM-protected (${[...new Set(drm)].join(", ")}) — a browser cannot ` +
@@ -537,16 +568,12 @@ export function EmbedPlayer({
             }
           }
         }
+        const nativeHls = isHls && Boolean(v.canPlayType("application/vnd.apple.mpegurl"));
 
         if (nativeHls) {
-          // Native HLS does not expose master levels, so inspect our same-origin
-          // proxy once. The selector is rendered only from real RESOLUTION tags.
-          void fetch(playbackUrl, { cache: "no-store" })
-            .then((response) => (response.ok ? response.text() : ""))
-            .then((manifest) => {
-              if (!cancelled && manifest) setQualityLevels(parseHlsQualityLevels(manifest));
-            })
-            .catch(() => {});
+          // Native HLS does not expose master levels, so inspect the manifest we
+          // already fetched. The selector only shows real RESOLUTION tags.
+          if (playlistText) setQualityLevels(parseHlsQualityLevels(playlistText));
           v.src = playbackUrl;
           v.load();
         } else if (isHls) {
@@ -655,7 +682,7 @@ export function EmbedPlayer({
       hlsRef.current = null;
       hlsSourceRef.current = null;
     };
-  }, [needsResolve, src]);
+  }, [needsResolve, src, forceHls, sourceLooksHls]);
   // The cookie is never hard-coded in the bundle: it is pasted by the viewer
   // and kept in localStorage on their own device only.
   const [crCookie, setCrCookie] = useState(() => {
@@ -1260,6 +1287,20 @@ export function EmbedPlayer({
                 3: "DECODE",
                 4: "SRC_NOT_SUPPORTED",
               };
+              // Providers that hide the extension hand us a playlist: it reaches
+              // the browser as "not supported". Retry once through the HLS path,
+              // which probes the real content-type, before reporting anything.
+              if (
+                needsResolve &&
+                !isHlsUrl(src) &&
+                !forceHls &&
+                (code === 3 || code === 4) &&
+                videoElRef.current
+              ) {
+                setVideoLoadError("Checking whether this link is an HLS stream…");
+                setForceHls(true);
+                return;
+              }
               const label = `Video error ${code || "unknown"}: ${names[code || 0] || "playback failed"}`;
               // DECODE / SRC_NOT_SUPPORTED on a file that downloaded fine almost
               // always means the media is encrypted (CENC) or is a DASH fragment
