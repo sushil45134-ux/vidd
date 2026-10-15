@@ -1,0 +1,97 @@
+name: Stream audio probe
+
+# Answers "is stream me kitne audio hain?" from a network that can actually
+# reach the CDN (GitHub runners), when a sandbox/dev machine is blocked.
+#
+# Privacy: the playlist is fetched but the response is only summarised. Every
+# `URI="..."` (segment/rendition links that carry signed CDN tokens) is redacted
+# before it reaches the log, because run logs are public in this repository.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "HLS master playlist URL (the link you paste in Add Movie)"
+        required: true
+      referer:
+        description: "Optional Referer, if the CDN needs the site that hosts it"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch the playlist
+        env:
+          PLAY_URL: ${{ inputs.url }}
+          REFERER: ${{ inputs.referer }}
+        run: |
+          set +e
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+          REF_ARGS=()
+          [ -n "$REFERER" ] && REF_ARGS=(-e "$REFERER")
+          # redact() strips query strings + URI attributes so signed tokens never
+          # end up in a public log.
+          redact() { sed -E 's#(https?://[^"'"'"' ]*)\?[^"'"'"' ]*#\1?<redacted>#g; s/URI="[^"]*"/URI="<redacted>"/g'; }
+
+          echo "host: $(printf '%s' "$PLAY_URL" | sed -E 's#https?://([^/]+).*#\1#')"
+          echo "curl: $(curl -sS -L --max-time 60 -A "$UA" "${REF_ARGS[@]}" -o /tmp/master.m3u8 \
+            -w 'HTTP %{http_code} | type=%{content_type} | bytes=%{size_download} | time=%{time_total}s' \
+            "$PLAY_URL" 2>&1 | redact)"
+          echo
+          echo "--- first bytes of the response ---"
+          head -c 120 /tmp/master.m3u8 | redact
+          echo
+          echo
+
+      - name: Count the audio languages
+        run: |
+          set +e
+          redact() { sed -E 's#(https?://[^"'"'"' ]*)\?[^"'"'"' ]*#\1?<redacted>#g; s/URI="[^"]*"/URI="<redacted>"/g'; }
+          MASTER=/tmp/master.m3u8
+          BODY=$(cat "$MASTER" 2>/dev/null)
+
+          echo "is it a playlist?      $([ "${BODY:0:7}" = "#EXTM3U" ] && echo YES || echo 'NO — not an m3u8 (expired link / HTML error page / blocked)')"
+          echo "media playlist (VOD)?  $(echo "$BODY" | grep -c '^#EXTINF' ) segment lines"
+          echo "variants (qualities):  $(echo "$BODY" | grep -c '^#EXT-X-STREAM-INF')"
+          echo "groups declared:       $(echo "$BODY" | grep -c '^#EXT-X-MEDIA')"
+          echo
+
+          echo "=== audio renditions (each line = one audio track) ==="
+          echo "$BODY" | grep 'TYPE=AUDIO' | redact | nl -ba
+          echo
+
+          echo "=== every EXT-X-MEDIA line (audio + subtitle + video groups) ==="
+          echo "$BODY" | grep '^#EXT-X-MEDIA' | redact | nl -ba
+          echo
+
+          COUNTS=$(echo "$BODY" | grep 'TYPE=AUDIO' | grep -c 'LANGUAGE=')
+          NAMES=$(echo "$BODY" | grep 'TYPE=AUDIO' | grep -o 'NAME="[^"]*"' | sed 's/NAME=//' | tr '\n' ' ')
+          LANGS=$(echo "$BODY" | grep 'TYPE=AUDIO' | grep -o 'LANGUAGE="[^"]*"' | sed 's/LANGUAGE=//' | tr '\n' ' ')
+          AUDIO_MEDIA=$(echo "$BODY" | grep -c 'TYPE=AUDIO')
+
+          echo "=== VERDICT ==="
+          if [ "${AUDIO_MEDIA:-0}" -gt 0 ]; then
+            echo "audio tracks in this playlist: $AUDIO_MEDIA"
+            echo "with a LANGUAGE tag: $COUNTS"
+            echo "names: $NAMES"
+            echo "languages: $LANGS"
+          else
+            echo "audio tracks in this playlist: 0 (playlist lists no separate audio)"
+            echo "=> single audio, OR this source publishes each dub as its OWN url"
+            echo "   (in that case add each language's link in Add Movie -> Audio languages)"
+          fi
+          echo
+          echo "=== variants ==="
+          echo "$BODY" | grep -A1 '^#EXT-X-STREAM-INF' | grep -o 'RESOLUTION=[0-9x]*' | sort -u | tr '\n' ' '
+          echo
+          echo "=== encryption (DRM check) ==="
+          echo "$BODY" | grep '^#EXT-X-KEY' | grep -o 'METHOD=[A-Za-z0-9-]*' | sort -u | tr '\n' ' '
+          echo
+          echo "=== master head (context, redacted) ==="
+          echo "$BODY" | head -25 | redact
