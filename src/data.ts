@@ -1,3 +1,19 @@
+/**
+ * One language of a multi-audio title.
+ *
+ * Many anime sources publish a *separate* HLS master per dub (Hindi, Tamil,
+ * Japanese…) instead of several `#EXT-X-MEDIA` renditions inside one playlist.
+ * Storing them together lets the player offer a real language switch.
+ */
+export interface AudioSource {
+  /** ISO code ('hi', 'ja', …) — used for the readable label. */
+  lang: string;
+  /** What the viewer sees in the Audio menu, e.g. 'Hindi'. */
+  label: string;
+  /** That language's playlist / media URL. */
+  url: string;
+}
+
 export interface Movie {
   id: number;
   title: string;
@@ -16,6 +32,8 @@ export interface Movie {
   youtubeId?: string;
   embedUrl?: string;
   embedPlatform?: string;
+  /** Extra audio languages (separate URLs) for a multi-audio title. */
+  audioSources?: AudioSource[];
   /** Database insertion time, used for automatically generated "new today" shelves. */
   createdAt?: string;
   // Playlist / collection grouping

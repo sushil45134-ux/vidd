@@ -1,6 +1,21 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Movie } from "@/data";
+import { isMissingAudioColumnError, normalizeAudioSources } from "./audioSources";
 import { isTvBrowser } from "./browser";
+
+/** True when Postgres/Supabase complains about the optional audio column. */
+const isMissingAudioColumn = isMissingAudioColumnError;
+
+/**
+ * The multi-audio column ships in supabase-schema.sql, but the app must keep
+ * working on a database where it has not been added yet. Once a request tells
+ * us the column is missing we stop asking for it for the rest of the session.
+ */
+let audioColumnAvailable: boolean | null = null;
+
+function columnsWithAudio(base: string): string {
+  return audioColumnAvailable === false ? base : `${base},audio_sources`;
+}
 
 function isFranchiseNxshaMovie(r: any): boolean {
   const embed = String(r.embed_url || "");
@@ -46,6 +61,7 @@ export function rowToMovie(r: any): Movie {
     youtubeId: r.youtube_id ?? undefined,
     embedUrl: replaceNxsha ? undefined : (r.embed_url ?? undefined),
     embedPlatform: replaceNxsha ? "ToonStream" : (r.embed_platform ?? undefined),
+    audioSources: normalizeAudioSources(r.audio_sources),
     createdAt: r.created_at ?? undefined,
     playlistId: r.playlist_id ?? undefined,
     playlistTitle: r.playlist_title ?? undefined,
@@ -73,6 +89,9 @@ export function movieToRow(m: Movie, sourceType: "uploaded" | "synced" | "demo")
     youtube_id: m.youtubeId ?? null,
     embed_url: m.embedUrl ?? null,
     embed_platform: m.embedPlatform ?? null,
+    // Always an array: the column is `not null default '[]'`, so sending null
+    // would make a movie without extra languages fail to save at all.
+    audio_sources: m.audioSources && m.audioSources.length > 0 ? m.audioSources : [],
     playlist_id: m.playlistId ?? null,
     playlist_title: m.playlistTitle ?? null,
     episode_number: m.episodeNumber ?? null,
@@ -105,10 +124,14 @@ async function fetchMoviesPage(
   try {
     const { data, error, count } = await client
       .from("movies")
-      .select(columns, exactCount ? { count: "exact" } : undefined)
+      .select(columnsWithAudio(columns), exactCount ? { count: "exact" } : undefined)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .range(from, from + MOVIES_PAGE_SIZE - 1);
+    if (error && isMissingAudioColumn(error)) {
+      audioColumnAvailable = false;
+      return fetchMoviesPage(client, from, exactCount, columns);
+    }
     return { data: (data as any) ?? null, error, count: count ?? null };
   } catch (e) {
     return { data: null, error: e, count: null };
@@ -125,7 +148,7 @@ async function fetchMoviesPageViaProxy(
     const params = new URLSearchParams({
       from: String(from),
       limit: String(MOVIES_PAGE_SIZE),
-      columns,
+      columns: columnsWithAudio(columns),
     });
     if (exactCount) params.set("count", "1");
     const res = await fetch(`/api/movies?${params.toString()}`, {
@@ -133,8 +156,20 @@ async function fetchMoviesPageViaProxy(
       headers: { Accept: "application/json" },
     });
     if (!res.ok) return { data: null, error: `proxy ${res.status}`, count: null };
-    const json = (await res.json()) as { data?: any[]; count?: number | null; error?: string };
-    if (json.error) return { data: null, error: json.error, count: null };
+    const json = (await res.json()) as {
+      data?: any[];
+      count?: number | null;
+      error?: string;
+      details?: string;
+    };
+    if (json.error) {
+      // The proxy reports the Supabase message in `details`, so check both.
+      if (isMissingAudioColumn(json)) {
+        audioColumnAvailable = false;
+        return fetchMoviesPageViaProxy(from, exactCount, columns);
+      }
+      return { data: null, error: json.error, count: null };
+    }
     return { data: json.data ?? null, error: null, count: json.count ?? null };
   } catch (e) {
     return { data: null, error: e, count: null };
@@ -345,7 +380,17 @@ export async function insertMovies(
   const rows = movies.map((m) => movieToRow(m, sourceType));
   try {
     const { data, error } = await supabase.from("movies").insert(rows).select("*");
-    if (error) return [];
+    if (error) {
+      // Older database without `audio_sources`: keep the row, drop that field.
+      if (isMissingAudioColumn(error)) {
+        audioColumnAvailable = false;
+        const stripped = rows.map(({ audio_sources: _drop, ...rest }) => rest);
+        const retry = await supabase.from("movies").insert(stripped).select("*");
+        if (retry.error) return [];
+        return (retry.data ?? []).map(rowToMovie);
+      }
+      return [];
+    }
     return (data ?? []).map(rowToMovie);
   } catch {
     return [];

@@ -31,6 +31,7 @@ create table if not exists public.movies (
   youtube_id     text,
   embed_url      text,
   embed_platform text,   -- 'YouTube' | 'Vimeo' | 'Odysee' | ...
+  audio_sources  jsonb not null default '[]'::jsonb,  -- extra languages (multi-audio)
 
   -- playlist / series grouping
   playlist_id      text,
@@ -45,6 +46,14 @@ create table if not exists public.movies (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
+
+-- Multi-audio titles: extra languages as separate stream URLs.
+--   [{"lang":"hi","label":"Hindi","url":"https://…/hin.m3u8"},
+--    {"lang":"ta","label":"Tamil","url":"https://…/tam.m3u8"}]
+-- Safe to run on an existing project (this is the ONLY line an older database
+-- needs to gain multi-audio); the app keeps working without it.
+alter table public.movies
+  add column if not exists audio_sources jsonb not null default '[]'::jsonb;
 
 create index if not exists movies_playlist_id_idx  on public.movies (playlist_id);
 create index if not exists movies_source_type_idx  on public.movies (source_type);

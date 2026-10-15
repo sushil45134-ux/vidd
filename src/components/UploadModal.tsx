@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { audioLanguageLabel } from "../lib/audioSources";
 import {
   X,
+  Languages,
   Upload,
   Film,
   Play,
@@ -82,6 +84,11 @@ interface PlatformResult {
   color: string;
   icon: string; // emoji
 }
+
+/** Languages offered when adding an extra audio track (shared list). */
+const AUDIO_LANGUAGE_PRESETS = ["hi", "ja", "en", "ta", "te", "ml", "kn", "bn", "mr", "ko", "es", "pt"].map(
+  (lang) => ({ lang, label: audioLanguageLabel(lang) }),
+);
 
 function detectPlatform(input: string): PlatformResult | null {
   const trimmed = input.trim();
@@ -513,6 +520,19 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
   const [detected, setDetected] = useState<PlatformResult | null>(null);
   const [embedError, setEmbedError] = useState("");
   /**
+   * Extra audio languages, each with its own URL.
+   *
+   * Multi-dub anime sources publish one master playlist per language instead of
+   * several `#EXT-X-MEDIA` renditions, so "multi-audio" means keeping those
+   * URLs together. The player then offers them in its Audio menu.
+   */
+  const [audioSources, setAudioSources] = useState<Array<{ lang: string; label: string; url: string }>>(
+    [],
+  );
+  const [audioDraftLang, setAudioDraftLang] = useState("hi");
+  const [audioDraftUrl, setAudioDraftUrl] = useState("");
+  const [audioNote, setAudioNote] = useState("");
+  /**
    * Result of asking the server whether the pasted link really is playable
    * (playlist? which languages? DRM? expired token?). Shown live in the form so
    * a dead link is caught while adding, not by a black player later.
@@ -765,12 +785,37 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     }
   };
 
+  const addAudioSource = () => {
+    const url = audioDraftUrl.trim().replace(/&amp;/g, "&");
+    if (!/^https?:\/\//i.test(url)) {
+      setAudioNote("Paste the full http(s) link for that language.");
+      return;
+    }
+    if (audioSources.some((entry) => entry.url === url)) {
+      setAudioNote("That link is already in the list.");
+      return;
+    }
+    const preset = AUDIO_LANGUAGE_PRESETS.find((option) => option.lang === audioDraftLang);
+    setAudioSources((prev) => [
+      ...prev,
+      { lang: audioDraftLang, label: preset?.label ?? audioDraftLang, url },
+    ]);
+    setAudioDraftUrl("");
+    setAudioNote(`Added ${preset?.label ?? audioDraftLang}.`);
+  };
+
+  const removeAudioSource = (url: string) =>
+    setAudioSources((prev) => prev.filter((entry) => entry.url !== url));
+
   const clearEmbed = () => {
     setEmbedInput("");
     setDetected(null);
     setEmbedError("");
     setThumbnailUrl("");
     setStreamCheck({ state: "idle", note: "" });
+    setAudioSources([]);
+    setAudioDraftUrl("");
+    setAudioNote("");
   };
 
   const hasSource =
@@ -1074,6 +1119,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
           : detected?.platform === "HLS Stream" || detected?.platform === "Direct Video"
             ? detected.embedUrl
             : undefined,
+      audioSources: audioSources.length > 0 ? audioSources : undefined,
       thumbnailUrl: thumbnailUrl || detected?.thumbnail || undefined,
       youtubeId: detected?.platform === "YouTube" ? detected.id : undefined,
       embedUrl:
@@ -1451,6 +1497,90 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         <Trash2 size={18} />
                       </button>
                     </div>
+
+                    {/*
+                      Multi-audio: sources like this publish one playlist per
+                      dub, so each extra language is added with its own link and
+                      shows up in the player's Audio menu.
+                    */}
+                    {(detected.platform === "HLS Stream" || detected.platform === "Direct Video") && (
+                      <div className="mt-4 bg-[#222] rounded-lg p-4">
+                        <div className="flex items-start gap-2 mb-3">
+                          <Languages size={18} className="text-[#e50914] mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-white text-sm font-medium">
+                              Audio languages (multi-audio)
+                            </p>
+                            <p className="text-gray-400 text-xs mt-0.5">
+                              Upar wala link jo audio deta hai wahi default rahega. Doosri language ke
+                              liye us site ke player me language switch karke uska <b>naya link</b> copy
+                              karo aur yahan add karo — phir player me <b>Audio</b> menu se switch kar
+                              sakte ho.
+                            </p>
+                          </div>
+                        </div>
+
+                        {audioSources.length > 0 && (
+                          <div className="space-y-2 mb-3">
+                            {audioSources.map((entry) => (
+                              <div
+                                key={entry.url}
+                                className="flex items-center gap-3 bg-[#2a2a2a] rounded px-3 py-2"
+                              >
+                                <span className="text-white text-xs font-medium flex-shrink-0">
+                                  {entry.label}
+                                </span>
+                                <span className="text-gray-400 text-xs font-mono truncate flex-1">
+                                  {entry.url.slice(0, 52)}
+                                  {entry.url.length > 52 ? "…" : ""}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeAudioSource(entry.url)}
+                                  className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                                  aria-label={`Remove ${entry.label}`}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <select
+                            value={audioDraftLang}
+                            onChange={(e) => setAudioDraftLang(e.target.value)}
+                            className="bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-[#e50914] cursor-pointer sm:w-52"
+                            aria-label="Language"
+                          >
+                            {AUDIO_LANGUAGE_PRESETS.map((option) => (
+                              <option key={option.lang} value={option.lang}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="url"
+                            value={audioDraftUrl}
+                            onChange={(e) => {
+                              setAudioDraftUrl(e.target.value);
+                              setAudioNote("");
+                            }}
+                            placeholder="https://…/hindi/master.m3u8"
+                            className="flex-1 bg-[#333] border border-gray-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-[#e50914] transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={addAudioSource}
+                            className="bg-[#333] hover:bg-[#444] text-white text-sm font-medium px-4 py-2 rounded transition-colors"
+                          >
+                            + Add
+                          </button>
+                        </div>
+                        {audioNote && <p className="text-gray-400 text-xs mt-2">{audioNote}</p>}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

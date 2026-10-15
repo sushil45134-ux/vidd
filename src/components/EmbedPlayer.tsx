@@ -1,6 +1,16 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { X, Maximize, Minimize } from "lucide-react";
-import { evaluatePlaylistProbe, describeSource, detectDrm, isHlsUrl, isRemoteMediaUrl } from "../lib/videoSource";
+import { X, Maximize, Minimize, Info } from "lucide-react";
+import {
+  evaluatePlaylistProbe,
+  describeSource,
+  detectDrm,
+  isHlsUrl,
+  isRemoteMediaUrl,
+  parseAudioRenditions,
+  parseVariantHeights,
+} from "../lib/videoSource";
+import type { AudioSource } from "../data";
+import { audioLanguageLabel } from "../lib/audioSources";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import { useAndroidPhone } from "../hooks/useAndroidPhone";
@@ -9,6 +19,12 @@ import { useScreenWakeLock } from "../hooks/useScreenWakeLock";
 interface EmbedPlayerProps {
   src: string;
   kind: "iframe" | "video";
+  /**
+   * Extra audio languages published as their own URLs. Some sources ship one
+   * master per dub, so a real language switch means swapping the playlist —
+   * playback position is carried over.
+   */
+  audioSources?: AudioSource[];
   onClose: () => void;
   /** Series queue (same playlistId) — previous episode. */
   onPrev?: () => void;
@@ -282,32 +298,6 @@ function normalizeHlsQualityLevels(levels: HlsQualityLevel[]): HlsQualityLevel[]
   return [...byHeight.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
 }
 
-/** Readable names for the languages these sources actually ship. */
-const LANGUAGE_LABELS: Record<string, string> = {
-  hi: "हिन्दी (Hindi)",
-  ja: "日本語 (Japanese)",
-  en: "English",
-  ta: "தமிழ் (Tamil)",
-  te: "తెలుగు (Telugu)",
-  ml: "മലയാളം (Malayalam)",
-  kn: "ಕನ್ನಡ (Kannada)",
-  bn: "বাংলা (Bengali)",
-  mr: "मराठी (Marathi)",
-  pa: "ਪੰਜਾਬੀ (Punjabi)",
-  ur: "اردو (Urdu)",
-  ko: "한국어 (Korean)",
-  zh: "中文 (Chinese)",
-  es: "Español",
-  pt: "Português",
-  fr: "Français",
-  de: "Deutsch",
-  ar: "العربية",
-  ru: "Русский",
-  id: "Bahasa Indonesia",
-  th: "ไทย",
-  vi: "Tiếng Việt",
-};
-
 function isHindiTrack(track: { lang?: string; name?: string }): boolean {
   const lang = String(track.lang || "").toLowerCase();
   const label = `${lang} ${String(track.name || "")}`;
@@ -321,7 +311,7 @@ function audioTrackLabel(track: { lang?: string; name?: string }, index: number)
   const name = String(track.name || "").trim();
   // Drop bare language codes the manifest used as a placeholder ("hi", "und").
   if (name && !/^[a-z]{2,3}(-[a-z0-9]+)?$/i.test(name)) return name;
-  return LANGUAGE_LABELS[base] || name || track.lang || `Track ${index + 1}`;
+  return audioLanguageLabel(base) || name || track.lang || `Track ${index + 1}`;
 }
 
 function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
@@ -349,6 +339,7 @@ function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
 export function EmbedPlayer({
   src,
   kind,
+  audioSources,
   onClose,
   onPrev,
   onNext,
@@ -401,11 +392,22 @@ export function EmbedPlayer({
   const pendingPlaybackRef = useRef<{ time: number; shouldPlay: boolean } | null>(null);
   const startAppliedRef = useRef(false);
   /**
+   * Index of the chosen entry in `audioSources`, or null when the title plays
+   * its own default audio. Switching swaps the whole playlist (that is how
+   * multi-dub sources publish languages) while keeping the position.
+   */
+  const [audioOverride, setAudioOverride] = useState<number | null>(null);
+  const overrideSource =
+    audioOverride !== null && audioSources ? audioSources[audioOverride] : undefined;
+  /** The address actually being played — main stream or chosen language. */
+  const playbackSrc = overrideSource?.url?.trim() ? overrideSource.url.trim() : src;
+
+  /**
    * A direct media file hosted elsewhere (a CDN link pasted by hand). Those
    * need the same-origin media proxy: without it CORS and hotlink protection
    * stop the browser from playing them at all.
    */
-  const isRemoteMediaSrc = kind === "video" && isRemoteMediaUrl(src);
+  const isRemoteMediaSrc = kind === "video" && isRemoteMediaUrl(playbackSrc);
   /**
    * Force the HLS path after a plain <video> failed on a proxied link: some
    * providers publish playlists without a `.m3u8` extension.
@@ -425,11 +427,11 @@ export function EmbedPlayer({
   /** Latest source the player actually tried (for readable error diagnostics). */
   const currentSrcRef = useRef(src);
   /** HLS-ness is decided from the ORIGINAL url — the proxy wrapper hides it. */
-  const sourceLooksHls = isHlsUrl(src);
+  const sourceLooksHls = isHlsUrl(playbackSrc);
   const needsResolve =
     kind === "video" &&
-    (src.startsWith("/api/extract") ||
-      src.startsWith("/api/toonstream") ||
+    (playbackSrc.startsWith("/api/extract") ||
+      playbackSrc.startsWith("/api/toonstream") ||
       sourceLooksHls ||
       isRemoteMediaSrc);
 
@@ -437,6 +439,13 @@ export function EmbedPlayer({
   useEffect(() => {
     setStreamAttempt(0);
     setForceHls(false);
+  }, [playbackSrc]);
+
+  /** Selecting another title (or episode) drops any language override. */
+  useEffect(() => {
+    setAudioOverride(null);
+    pendingPlaybackRef.current = null;
+    startAppliedRef.current = false;
   }, [src]);
 
   /**
@@ -447,7 +456,7 @@ export function EmbedPlayer({
     kind === "video" &&
     streamAttempt >= 2 &&
     (sourceLooksHls || isRemoteMediaSrc) &&
-    /^https?:\/\//i.test(src);
+    /^https?:\/\//i.test(playbackSrc);
 
   const restorePendingPlayback = () => {
     const video = videoElRef.current;
@@ -465,7 +474,9 @@ export function EmbedPlayer({
 
   useEffect(() => {
     startAppliedRef.current = false;
-    pendingPlaybackRef.current = null;
+    // NOTE: pendingPlaybackRef is deliberately NOT cleared here — a language
+    // switch re-runs this effect through a different source and the saved
+    // position is restored on the new element. New titles clear it instead.
     setVideoLoadError(null);
     if (!needsResolve) {
       setAudioTracks([]);
@@ -486,8 +497,8 @@ export function EmbedPlayer({
     hlsSourceRef.current = null;
     (async () => {
       try {
-        let url = src;
-        currentSrcRef.current = src;
+        let url = playbackSrc;
+        currentSrcRef.current = playbackSrc;
         if (src.startsWith("/api/toonstream")) {
           const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json&sources=1`);
           const d = await r.json().catch(() => null);
@@ -583,6 +594,19 @@ export function EmbedPlayer({
             return;
           }
           playlistText = evaluated.text;
+          // Show the languages/qualities the manifest really lists, so the menu
+          // is correct even before (or without) hls.js taking over.
+          const probeTracks = parseAudioRenditions(playlistText).map((track) => ({
+            lang: track.lang,
+            name: track.name,
+            default: track.isDefault,
+          }));
+          if (probeTracks.length > 0) setAudioTracks(probeTracks);
+          if (probeTracks.length === 0) {
+            setQualityLevels(
+              parseVariantHeights(playlistText).map((height) => ({ height, bitrate: 0 })),
+            );
+          }
           // A DRM-locked playlist can never decode here — explain instead of
           // handing hls.js something it is guaranteed to fail on.
           const drmHeader = probe.headers.get("X-Stream-Drm");
@@ -714,7 +738,7 @@ export function EmbedPlayer({
       } catch (e) {
         if (!cancelled) {
           const reason = e instanceof Error ? e.message : "Stream resolve failed";
-          setVideoLoadError(`${reason} [${describeSource(src)} · ${forceHls ? "hls" : "auto"}]`);
+          setVideoLoadError(`${reason} [${describeSource(playbackSrc)} · ${forceHls ? "hls" : "auto"}]`);
           if (src.startsWith("/api/toonstream")) onUnavailableRef.current?.();
         }
       }
@@ -725,7 +749,7 @@ export function EmbedPlayer({
       hlsRef.current = null;
       hlsSourceRef.current = null;
     };
-  }, [needsResolve, src, forceHls, sourceLooksHls, streamAttempt]);
+  }, [needsResolve, playbackSrc, forceHls, sourceLooksHls, streamAttempt]);
   // The cookie is never hard-coded in the bundle: it is pasted by the viewer
   // and kept in localStorage on their own device only.
   const [crCookie, setCrCookie] = useState(() => {
@@ -742,6 +766,8 @@ export function EmbedPlayer({
     } catch {}
   }, [crCookie]);
   const [showCookieInput, setShowCookieInput] = useState(false);
+  /** Diagnostics overlay: what the player found for this stream. */
+  const [showStreamInfo, setShowStreamInfo] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(
     isCrunchyroll
       ? `/api/crunchyroll-proxy?url=${encodeURIComponent(src)}`
@@ -1151,8 +1177,20 @@ export function EmbedPlayer({
     }
   };
 
-  // Only the languages the stream really ships — no invented entries.
-  const audioOptions = audioTracks;
+  /**
+   * The Audio menu shows what actually exists:
+   *   – every rendition inside the current playlist (switch is in place), and
+   *   – every extra language the admin supplied as its own URL (switch swaps
+   *     the playlist, keeping the position).
+   * Nothing is invented when a stream ships a single language.
+   */
+  const extraAudio = audioSources ?? [];
+  const audioOptions: Array<{ lang?: string; name?: string; external?: boolean }> = [
+    ...audioTracks,
+    ...extraAudio.map((entry) => ({ lang: entry.lang, name: entry.label, external: true })),
+  ];
+  const audioSelection = audioOverride === null ? audioTrackIndex : audioTracks.length + audioOverride;
+  const hasAudioChoice = audioOptions.length > 1;
   const qualityOptions = qualityLevels.map((level) => ({
     value: level.height || 0,
     label: level.height ? `${level.height}p` : "",
@@ -1175,8 +1213,33 @@ export function EmbedPlayer({
     }
   };
 
+  /** Carry the playback position across a source swap (language change). */
+  const rememberPosition = () => {
+    const video = videoElRef.current;
+    if (!video) return;
+    pendingPlaybackRef.current = {
+      time: Number.isFinite(video.currentTime) ? Math.max(0, video.currentTime) : 0,
+      shouldPlay: !video.paused && !video.ended,
+    };
+  };
+
   const selectAudioTrack = (index: number) => {
-    if (!Number.isInteger(index) || index < 0 || index >= audioTracks.length) return;
+    if (!Number.isInteger(index) || index < 0 || index >= audioOptions.length) return;
+
+    // Extra language published as its own URL → swap the playlist, keep the clock.
+    if (index >= audioTracks.length) {
+      const nextOverride = index - audioTracks.length;
+      if (!extraAudio[nextOverride]) return;
+      rememberPosition();
+      userPickedAudioRef.current = null;
+      setAudioOverride(nextOverride);
+      setAudioTrackIndex(-1);
+      setStreamAttempt(0);
+      setForceHls(false);
+      setVideoLoadError(null);
+      return;
+    }
+
     const source = hlsSourceRef.current;
     const instance = hlsRef.current as {
       audioTrack: number;
@@ -1270,7 +1333,7 @@ export function EmbedPlayer({
              raw address in a frame. If the viewer saw it play while adding, it
              plays here too. */
           <iframe
-            src={src}
+            src={playbackSrc}
             className="absolute inset-0 w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
@@ -1355,7 +1418,7 @@ export function EmbedPlayer({
               if (
                 needsResolve &&
                 (sourceLooksHls || isRemoteMediaSrc) &&
-                /^https?:\/\//i.test(src) &&
+                /^https?:\/\//i.test(playbackSrc) &&
                 streamAttempt < 2
               ) {
                 setStreamAttempt(streamAttempt + 1);
@@ -1420,12 +1483,64 @@ export function EmbedPlayer({
         {/* Crunchyroll: the video itself is Widevine/CENC encrypted, so the
             in-site player can only ever show their page. Be upfront about it
             and keep the direct link one tap away. */}
+        {/*
+          Stream info: makes a "why is there no language menu?" report answerable
+          without guessing — the panel lists exactly what this stream provides.
+        */}
+        {showStreamInfo && kind === "video" && needsResolve && (
+          <div className="absolute inset-x-0 top-16 z-40 mx-auto max-w-lg rounded-lg bg-black/85 p-4 text-left text-xs leading-relaxed text-gray-200 backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-3">
+              <p className="font-semibold text-white">Stream info</p>
+              <button
+                type="button"
+                onClick={() => setShowStreamInfo(false)}
+                className="text-gray-400 hover:text-white"
+                aria-label="Close stream info"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <p className="mt-2">
+              <span className="text-gray-400">Playing:</span> {describeSource(playbackSrc)}{" "}
+              <span className="text-gray-400">·</span>{" "}
+              {useSourceFrame ? "direct frame" : streamAttempt === 0 ? "site player (proxy)" : "site player (direct)"}
+            </p>
+            <p className="mt-1">
+              <span className="text-gray-400">Languages in this stream:</span>{" "}
+              {audioTracks.length > 0
+                ? audioTracks.map((track, index) => audioTrackLabel(track, index)).join(", ")
+                : "1 (the playlist lists no separate audio)"}
+            </p>
+            {extraAudio.length > 0 && (
+              <p className="mt-1">
+                <span className="text-gray-400">Extra languages added:</span>{" "}
+                {extraAudio.map((entry) => entry.label).join(", ")}
+              </p>
+            )}
+            <p className="mt-1">
+              <span className="text-gray-400">Qualities:</span>{" "}
+              {qualityLevels.length > 0
+                ? qualityLevels
+                    .map((level) => (level.height ? `${level.height}p` : "?"))
+                    .join(", ")
+                : "auto"}
+            </p>
+            {!hasAudioChoice && (
+              <p className="mt-2 text-amber-300">
+                Is stream me sirf ek audio hai. Doosri language ke liye us site ke player me language
+                switch karke uska naya link copy karo, phir Admin → Add Movie → Embed → “Audio
+                languages” me add karo — player ke Audio menu se switch ho jayegi.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Playing straight from the source (proxy + hls.js both failed): say so,
             and keep one tap to retry the site player. */}
         {useSourceFrame && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
             <p className="rounded-full bg-black/70 px-3 py-1.5 text-[11px] text-gray-300 backdrop-blur-sm">
-              Playing directly from {describeSource(src)}
+              Playing directly from {describeSource(playbackSrc)}
             </p>
             <button
               type="button"
@@ -1511,11 +1626,27 @@ export function EmbedPlayer({
               </select>
             </label>
           )}
-          {kind === "video" && needsResolve && audioTracks.length > 1 && (
+          {kind === "video" && needsResolve && (
+            <button
+              type="button"
+              onClick={() => setShowStreamInfo((value) => !value)}
+              className="w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
+              title="Stream info — what the player found"
+              aria-label="Stream info"
+            >
+              <Info size={18} className="text-white" />
+            </button>
+          )}
+          {/*
+            The Audio selector also appears in framed mode (step 2), where a
+            language change swaps the frame — so a multi-dub source keeps its
+            languages even when the site player had to stand aside.
+          */}
+          {(kind === "video" && needsResolve && hasAudioChoice) || (useSourceFrame && hasAudioChoice) ? (
             <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
               <span>Audio</span>
               <select
-                value={audioTrackIndex >= 0 ? audioTrackIndex : 0}
+                value={audioSelection >= 0 ? audioSelection : 0}
                 onChange={(e) => selectAudioTrack(Number(e.currentTarget.value))}
                 className="max-w-40 bg-transparent text-white outline-none"
                 aria-label="Audio track"
@@ -1531,7 +1662,7 @@ export function EmbedPlayer({
                 ))}
               </select>
             </label>
-          )}
+          ) : null}
           <button
             onClick={toggleFullscreen}
             className="w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all backdrop-blur-sm"
