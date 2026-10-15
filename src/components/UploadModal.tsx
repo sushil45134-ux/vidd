@@ -313,6 +313,22 @@ function detectPlatform(input: string): PlatformResult | null {
       icon: "📁",
     };
 
+  // ── Crunchyroll ────────────────────────────────────────────
+  // Crunchyroll has no public embed URL; keep the original watch URL
+  // (or pasted iframe src) so the user's own session is used.
+  if (/crunchyroll\.com/i.test(url)) {
+    const idMatch = url.match(/crunchyroll\.com\/watch\/([^/?#]+)/);
+    const id = idMatch ? idMatch[1] : url;
+    return {
+      platform: "Crunchyroll",
+      id,
+      embedUrl: url,
+      thumbnail: "",
+      color: "bg-orange-600",
+      icon: "🍥",
+    };
+  }
+
   // ── Generic iframe / direct embed URL ──────────────────────
   // If it looks like a URL with a video embed path
   if (
@@ -373,6 +389,7 @@ const PLATFORMS = [
     examples: ["mega.nz/file/...#key", "mega.nz/embed/...#key"],
     color: "text-red-400",
   },
+  { name: "Crunchyroll", examples: ["crunchyroll.com/watch/..."], color: "text-orange-400" },
   { name: "Any embed", examples: ["Paste any <iframe> embed code"], color: "text-gray-400" },
 ];
 

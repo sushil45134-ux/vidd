@@ -318,6 +318,7 @@ export function EmbedPlayer({
 }: EmbedPlayerProps) {
   const iframeSrc = kind === "iframe" ? normalizeEmbedUrl(src) : src;
   const isDailymotion = kind === "iframe" && /(?:dailymotion\.com|dai\.ly)/i.test(src);
+  const isCrunchyroll = kind === "iframe" && /crunchyroll\.com/i.test(src);
   const dailymotionVideoId = isDailymotion ? getDailymotionVideoId(src) : null;
   const dailymotionReactId = useId();
   const dailymotionContainerId = `dm-player-${dailymotionReactId.replace(/[^A-Za-z0-9_-]/g, "")}`;
@@ -1003,11 +1004,19 @@ export function EmbedPlayer({
             ref={iframeRef}
             src={playerSrc}
             className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allow={
+              isCrunchyroll
+                ? "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+                : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            }
             allowFullScreen
             title="Video player"
             referrerPolicy="no-referrer-when-downgrade"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+            sandbox={
+              isCrunchyroll
+                ? "allow-forms allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                : "allow-forms allow-scripts allow-same-origin allow-presentation"
+            }
           />
         ) : (
           <video
@@ -1120,6 +1129,19 @@ export function EmbedPlayer({
               }}
             />
           </>
+        )}
+
+        {/* Crunchyroll fallback: open the watch page in a new tab if the
+            iframe is blocked by the site's framing policy. */}
+        {isCrunchyroll && (
+          <a
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-30 rounded-full bg-orange-600/80 hover:bg-orange-600 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+          >
+            Open on Crunchyroll ↗
+          </a>
         )}
 
         {/* Close (Esc) */}
