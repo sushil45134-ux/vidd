@@ -23,13 +23,20 @@ export const Route = createFileRoute("/api/crunchyroll-proxy")({
         if (!target) {
           return new Response("url required", { status: 400, headers: corsHeaders() });
         }
+        // Decode HTML entities (e.g. &amp; -> &) in pasted URLs.
+        const decodedTarget = target.replace(/&amp;/g, "&");
         let parsed: URL;
         try {
-          parsed = new URL(target);
+          parsed = new URL(decodedTarget);
         } catch {
           return new Response("invalid url", { status: 400, headers: corsHeaders() });
         }
-        if (!/crunchyroll\.com$/i.test(parsed.hostname) && !/\.crunchyroll\.com$/i.test(parsed.hostname)) {
+        const hostOk =
+          /crunchyroll\.com$/i.test(parsed.hostname) ||
+          /\.crunchyroll\.com$/i.test(parsed.hostname) ||
+          /crunchyrollcdn\.com$/i.test(parsed.hostname) ||
+          /\.crunchyrollcdn\.com$/i.test(parsed.hostname);
+        if (!hostOk) {
           return new Response("host not allowed", { status: 403, headers: corsHeaders() });
         }
 

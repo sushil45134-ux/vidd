@@ -330,7 +330,7 @@ function detectPlatform(input: string): PlatformResult | null {
   }
 
   // ── HLS / M3U8 stream ──────────────────────────────────────
-  if (/\.m3u8(\?|$)/i.test(url)) {
+  if (/\.m3u8(\?|#|$)/i.test(url)) {
     return {
       platform: "HLS Stream",
       id: url,
@@ -338,6 +338,18 @@ function detectPlatform(input: string): PlatformResult | null {
       thumbnail: "",
       color: "bg-cyan-600",
       icon: "📡",
+    };
+  }
+
+  // ── Direct media file (CDN link: .mp4 / .webm / .mkv …) ────
+  if (/\.(mp4|m4v|webm|ogv|ogg|mov|mkv|ts)(\?|#|$)/i.test(url)) {
+    return {
+      platform: "Direct Video",
+      id: url,
+      embedUrl: url,
+      thumbnail: "",
+      color: "bg-emerald-600",
+      icon: "🎞️",
     };
   }
 
@@ -403,6 +415,7 @@ const PLATFORMS = [
   },
   { name: "Crunchyroll", examples: ["crunchyroll.com/watch/..."], color: "text-orange-400" },
   { name: "HLS Stream", examples: [".m3u8 URL"], color: "text-cyan-400" },
+  { name: "Direct Video", examples: [".mp4 / .webm / .mkv CDN link"], color: "text-emerald-400" },
   { name: "Any embed", examples: ["Paste any <iframe> embed code"], color: "text-gray-400" },
 ];
 
@@ -706,6 +719,15 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
     if (result) {
       if (!title) setTitle(`${result.platform} Video`);
       if (result.thumbnail) setThumbnailUrl(result.thumbnail);
+      return;
+    }
+    // DASH (and DRM'd CENC paths) cannot play in a browser without a licence —
+    // say so instead of silently saving a link that never starts.
+    if (/\.mpd(\?|#|$)/i.test(val) || /\/dash\//i.test(val) || /\/cenc\//i.test(val)) {
+      setEmbedError(
+        "DASH (.mpd) / CENC links can't play in a browser — they need a DRM licence. " +
+          "Paste the .m3u8 or a full .mp4 file instead (single audio/video fragments won't play either).",
+      );
     }
   };
 
@@ -1014,13 +1036,16 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       videoUrl:
         sourceTab === "file"
           ? videoUrl
-          : detected?.platform === "HLS Stream"
+          : detected?.platform === "HLS Stream" || detected?.platform === "Direct Video"
             ? detected.embedUrl
             : undefined,
       thumbnailUrl: thumbnailUrl || detected?.thumbnail || undefined,
       youtubeId: detected?.platform === "YouTube" ? detected.id : undefined,
       embedUrl:
-        detected && detected.platform !== "YouTube" && detected.platform !== "HLS Stream"
+        detected &&
+        detected.platform !== "YouTube" &&
+        detected.platform !== "HLS Stream" &&
+        detected.platform !== "Direct Video"
           ? detected.embedUrl
           : undefined,
       embedPlatform: detected ? detected.platform : undefined,

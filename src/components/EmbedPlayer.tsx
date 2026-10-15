@@ -281,6 +281,22 @@ function normalizeHlsQualityLevels(levels: HlsQualityLevel[]): HlsQualityLevel[]
   return [...byHeight.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
 }
 
+/**
+ * A playlist that needs a DRM licence (Widevine / PlayReady / FairPlay /
+ * Sample-AES) can never decode in a plain browser. Detect it so the viewer gets
+ * a reason instead of a silent black player.
+ */
+function detectDrm(text: string): string[] {
+  const markers: Array<[RegExp, string]> = [
+    [/com\.widevine|edef8ba9-79d6-4ace-a3c8-27dcd51d21ed/i, "Widevine"],
+    [/com\.microsoft\.playready|9a04f079-9840-4286-ab92-e65be0885f95/i, "PlayReady"],
+    [/com\.apple\.fps|94ce86fb-07ff-4f43-adb8-93d2fa968ca2/i, "FairPlay"],
+    [/METHOD=SAMPLE-AES/i, "Sample-AES"],
+    [/cenc:default_KID/i, "CENC"],
+  ];
+  return markers.filter(([re]) => re.test(text)).map(([, label]) => label);
+}
+
 function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
   const levels: HlsQualityLevel[] = [];
   for (const line of manifest.split(/\r?\n/)) {
@@ -353,11 +369,21 @@ export function EmbedPlayer({
   const hlsSourceRef = useRef<string | null>(null);
   const pendingPlaybackRef = useRef<{ time: number; shouldPlay: boolean } | null>(null);
   const startAppliedRef = useRef(false);
+  /**
+   * A direct media file hosted elsewhere (a CDN link pasted by hand). Those
+   * need the same-origin media proxy: without it CORS and hotlink protection
+   * stop the browser from playing them at all.
+   */
+  const isRemoteMediaSrc =
+    kind === "video" &&
+    /^https?:\/\//i.test(src) &&
+    /\.(mp4|m4v|webm|ogv|ogg|mov|mkv|ts|m3u8)(\?|#|$)/i.test(src);
   const needsResolve =
     kind === "video" &&
     (src.startsWith("/api/extract") ||
       src.startsWith("/api/toonstream") ||
-      /\.m3u8(\?|$)/.test(src));
+      /\.m3u8(\?|$)/.test(src) ||
+      isRemoteMediaSrc);
 
   const restorePendingPlayback = () => {
     const video = videoElRef.current;
@@ -421,13 +447,50 @@ export function EmbedPlayer({
           const d = await r.json().catch(() => null);
           if (!d?.ok || !d.streamUrl) throw Error(d?.error || `extract failed (HTTP ${r.status})`);
           url = String(d.streamUrl);
+        } else if (isRemoteMediaSrc) {
+          // External CDN link pasted by hand (e.g. a crunchyrollcdn.com URL).
+          // Play it through our own origin so CORS and hotlink protection on
+          // the CDN cannot block the browser.
+          url = `/api/media-proxy?u=${encodeURIComponent(src)}`;
         }
         if (cancelled || !videoElRef.current) return;
         const v = videoElRef.current;
         const isHls = /\.m3u8(\?|$)/.test(url);
         const nativeHls = isHls && Boolean(v.canPlayType("application/vnd.apple.mpegurl"));
-        const playbackUrl = isHls ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}` : url;
+        // Vidmoly needs its own audio-suffix aware proxy; every other host goes
+        // through the generic media proxy (same-origin, Range + CORS safe).
+        let vidmolyHost = false;
+        try {
+          vidmolyHost = /(^|\.)(vmpx\.online|vidmoly\.(me|to|biz|net))$/i.test(
+            new URL(url, window.location.href).hostname,
+          );
+        } catch {
+          vidmolyHost = false;
+        }
+        const playbackUrl = isHls
+          ? vidmolyHost
+            ? `/api/hlsproxy?audio=hi&u=${encodeURIComponent(url)}`
+            : `/api/media-proxy?u=${encodeURIComponent(url)}`
+          : url;
         hlsSourceRef.current = isHls ? playbackUrl : null;
+
+        // Pre-flight the playlist: if it is DRM-locked there is no point handing
+        // it to hls.js — explain the reason instead.
+        if (isHls) {
+          const probe = await fetch(playbackUrl, { cache: "no-store" }).catch(() => null);
+          if (probe?.ok) {
+            const drmHeader = probe.headers.get("X-Stream-Drm");
+            const text = await probe.text().catch(() => "");
+            const drm = drmHeader ? drmHeader.split(",").filter(Boolean) : detectDrm(text);
+            if (drm.length > 0) {
+              throw Error(
+                `This stream is DRM-protected (${[...new Set(drm)].join(", ")}) — a browser cannot ` +
+                  `decrypt it without the service's licence. Use a non-DRM source for in-site ` +
+                  `playback, or watch it on the original service.`,
+              );
+            }
+          }
+        }
 
         if (nativeHls) {
           // Native HLS does not expose master levels, so inspect our same-origin
@@ -1108,9 +1171,15 @@ export function EmbedPlayer({
                 3: "DECODE",
                 4: "SRC_NOT_SUPPORTED",
               };
-              setVideoLoadError(
-                `Video error ${code || "unknown"}: ${names[code || 0] || "playback failed"}`,
-              );
+              const label = `Video error ${code || "unknown"}: ${names[code || 0] || "playback failed"}`;
+              // DECODE / SRC_NOT_SUPPORTED on a file that downloaded fine almost
+              // always means the media is encrypted (CENC) or is a DASH fragment
+              // rather than a complete file.
+              const encryptedHint =
+                code === 3 || code === 4
+                  ? " — the file may be DRM-encrypted (CENC) or only a single DASH fragment, which a browser cannot decode. Try the full .mp4 or .m3u8 URL, or watch on the original service."
+                  : "";
+              setVideoLoadError(`${label}${encryptedHint}`);
             }}
             onEnded={() => {
               try {
@@ -1123,7 +1192,7 @@ export function EmbedPlayer({
         )}
         {kind === "video" && videoLoadError && (
           <div className="absolute inset-x-0 top-16 z-30 flex justify-center px-4 pointer-events-none">
-            <div className="rounded-lg bg-red-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+            <div className="max-w-2xl rounded-lg bg-red-600/90 px-4 py-2 text-left text-xs font-semibold leading-relaxed text-white shadow-lg sm:text-sm">
               {videoLoadError}
             </div>
           </div>

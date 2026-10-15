@@ -20,6 +20,7 @@ import { Route as ApiConfigRouteImport } from './routes/api/config'
 import { Route as ApiCrunchyrollProxyRouteImport } from './routes/api/crunchyroll-proxy'
 import { Route as ApiExtractRouteImport } from './routes/api/extract'
 import { Route as ApiHlsproxyRouteImport } from './routes/api/hlsproxy'
+import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
 import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
@@ -82,6 +83,11 @@ const ApiHlsproxyRoute = ApiHlsproxyRouteImport.update({
   path: '/api/hlsproxy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaProxyRoute = ApiMediaProxyRouteImport.update({
+  id: '/api/media-proxy',
+  path: '/api/media-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMoviesRoute = ApiMoviesRouteImport.update({
   id: '/api/movies',
   path: '/api/movies',
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/api/crunchyroll-proxy': typeof ApiCrunchyrollProxyRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/hlsproxy': typeof ApiHlsproxyRoute
+  '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
+    | '/api/media-proxy'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
+    | '/api/media-proxy'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/api/crunchyroll-proxy'
     | '/api/extract'
     | '/api/hlsproxy'
+    | '/api/media-proxy'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
@@ -243,6 +255,7 @@ export interface RootRouteChildren {
   ApiCrunchyrollProxyRoute: typeof ApiCrunchyrollProxyRoute
   ApiExtractRoute: typeof ApiExtractRoute
   ApiHlsproxyRoute: typeof ApiHlsproxyRoute
+  ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiNxshaFetchRoute: typeof ApiNxshaFetchRoute
   ApiPortraitPosterRoute: typeof ApiPortraitPosterRoute
@@ -330,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHlsproxyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media-proxy': {
+      id: '/api/media-proxy'
+      path: '/api/media-proxy'
+      fullPath: '/api/media-proxy'
+      preLoaderRoute: typeof ApiMediaProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/movies': {
       id: '/api/movies'
       path: '/api/movies'
@@ -387,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrunchyrollProxyRoute: ApiCrunchyrollProxyRoute,
   ApiExtractRoute: ApiExtractRoute,
   ApiHlsproxyRoute: ApiHlsproxyRoute,
+  ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiMoviesRoute: ApiMoviesRoute,
   ApiNxshaFetchRoute: ApiNxshaFetchRoute,
   ApiPortraitPosterRoute: ApiPortraitPosterRoute,
