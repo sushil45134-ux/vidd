@@ -533,11 +533,18 @@ export function EmbedPlayer({
       hlsSourceRef.current = null;
     };
   }, [needsResolve, src]);
+  const [crCookie, setCrCookie] = useState("");
+  const [showCookieInput, setShowCookieInput] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(
     isCrunchyroll
       ? `/api/crunchyroll-proxy?url=${encodeURIComponent(src)}`
       : iframeSrc,
   );
+  useEffect(() => {
+    if (!isCrunchyroll) return;
+    const base = `/api/crunchyroll-proxy?url=${encodeURIComponent(src)}`;
+    setPlayerSrc(crCookie.trim() ? `${base}&cookie=${encodeURIComponent(crCookie.trim())}` : base);
+  }, [isCrunchyroll, src, crCookie]);
   const [isDailymotionStopped, setIsDailymotionStopped] = useState(false);
   const isAndroidPhone = useAndroidPhone();
   const isNxsha = kind === "iframe" && isNxshaUrl(src);
@@ -1135,17 +1142,36 @@ export function EmbedPlayer({
           </>
         )}
 
-        {/* Crunchyroll fallback: open the watch page in a new tab if the
-            iframe is blocked by the site's framing policy. */}
+        {/* Crunchyroll: optional cookie input for authenticated playback through proxy */}
         {isCrunchyroll && (
-          <a
-            href={src}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-3 left-1/2 -translate-x-1/2 z-30 rounded-full bg-orange-600/80 hover:bg-orange-600 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm"
-          >
-            Open on Crunchyroll ↗
-          </a>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCookieInput((v) => !v)}
+                className="rounded-full bg-orange-600/80 hover:bg-orange-600 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+              >
+                {showCookieInput ? "Hide cookie" : "Add Crunchyroll cookie"}
+              </button>
+              <a
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-black/60 hover:bg-black/90 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+              >
+                Open on Crunchyroll ↗
+              </a>
+            </div>
+            {showCookieInput && (
+              <input
+                type="text"
+                value={crCookie}
+                onChange={(e) => setCrCookie(e.target.value)}
+                placeholder="Paste etp_rt cookie here"
+                className="w-72 max-w-[80vw] rounded-full bg-black/70 px-4 py-2 text-xs text-white placeholder-white/50 outline-none backdrop-blur-sm"
+              />
+            )}
+          </div>
         )}
 
         {/* Close (Esc) */}
