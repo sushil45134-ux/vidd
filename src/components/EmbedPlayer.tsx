@@ -10,7 +10,7 @@ import {
   parseVariantHeights,
 } from "../lib/videoSource";
 import type { AudioSource } from "../data";
-import { audioLanguageLabel } from "../lib/audioSources";
+import { audioTrackLabel } from "../lib/audioSources";
 import { isTvBrowser } from "../lib/browser";
 import { useIsTvBrowser } from "../hooks/useIsTvBrowser";
 import { useAndroidPhone } from "../hooks/useAndroidPhone";
@@ -305,15 +305,6 @@ function isHindiTrack(track: { lang?: string; name?: string }): boolean {
 }
 
 /** Menu label: the manifest's own name, else a readable language name. */
-function audioTrackLabel(track: { lang?: string; name?: string }, index: number): string {
-  const lang = String(track.lang || "").toLowerCase();
-  const base = lang.split("-")[0];
-  const name = String(track.name || "").trim();
-  // Drop bare language codes the manifest used as a placeholder ("hi", "und").
-  if (name && !/^[a-z]{2,3}(-[a-z0-9]+)?$/i.test(name)) return name;
-  return audioLanguageLabel(base) || name || track.lang || `Track ${index + 1}`;
-}
-
 function parseHlsQualityLevels(manifest: string): HlsQualityLevel[] {
   const levels: HlsQualityLevel[] = [];
   for (const line of manifest.split(/\r?\n/)) {
@@ -1506,10 +1497,11 @@ export function EmbedPlayer({
               {useSourceFrame ? "direct frame" : streamAttempt === 0 ? "site player (proxy)" : "site player (direct)"}
             </p>
             <p className="mt-1">
-              <span className="text-gray-400">Languages in this stream:</span>{" "}
+              <span className="text-gray-400">Audio in this stream:</span>{" "}
+              <b>{audioTracks.length > 0 ? audioTracks.length : 1}</b>
               {audioTracks.length > 0
-                ? audioTracks.map((track, index) => audioTrackLabel(track, index)).join(", ")
-                : "1 (the playlist lists no separate audio)"}
+                ? ` — ${audioTracks.map((track, index) => audioTrackLabel(track, index)).join(", ")}`
+                : " (the playlist lists no separate audio)"}
             </p>
             {extraAudio.length > 0 && (
               <p className="mt-1">
@@ -1643,8 +1635,11 @@ export function EmbedPlayer({
             languages even when the site player had to stand aside.
           */}
           {(kind === "video" && needsResolve && hasAudioChoice) || (useSourceFrame && hasAudioChoice) ? (
-            <label className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
-              <span>Audio</span>
+            <label
+              className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+              title={`${audioOptions.length} audio tracks in this stream`}
+            >
+              <span>Audio · {audioOptions.length}</span>
               <select
                 value={audioSelection >= 0 ? audioSelection : 0}
                 onChange={(e) => selectAudioTrack(Number(e.currentTarget.value))}

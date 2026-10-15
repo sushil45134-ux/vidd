@@ -87,3 +87,20 @@ export function isMissingAudioColumnError(error: unknown): boolean {
     .join(" ");
   return /audio_sources/i.test(text) && /(does not exist|not find|unknown|schema cache|42703|PGRST204)/i.test(text);
 }
+
+/**
+ * What the viewer sees for one audio track: the manifest's own name when it has
+ * a real one, otherwise the readable language name ("hi" → "हिन्दी (Hindi)"),
+ * never a bare two-letter code.
+ */
+export function audioTrackLabel(
+  track: { lang?: string; name?: string },
+  index = 0,
+): string {
+  const lang = String(track.lang || "").toLowerCase();
+  const name = String(track.name || "").trim();
+  // Drop bare language codes the manifest used as a placeholder ("hi", "und").
+  if (name && !/^[a-z]{2,3}(-[a-z0-9]+)?$/i.test(name)) return name;
+  const label = audioLanguageLabel(lang.split("-")[0]);
+  return label || name || track.lang || `Track ${index + 1}`;
+}
