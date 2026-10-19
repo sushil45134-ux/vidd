@@ -8,18 +8,19 @@ episode grid (01–16), quality/subtitle settings, search/nav sab andar.
 
 - Kisi row par m2box link paste hai → play dabate hi M2Box page khulta
   hai **"Sirf Player" crop mode me** (`MovieboxPagePlayer` +
-  `MovieboxCroppedFrame`): iframe ek overflow-hidden dabbe me itna
-  upar dhakela hota hai ki M2Box ka logo/search/menu hamesha kata
-  rahe, aur dabbe ki unchai player (16:9) jitni — dikhta bas video
-  player + episode grid hai (`lib/moviebox.ts` ka `getMovieboxCrop`,
-  nap screenshot-par naapa hua; site header badle to wahi number
-  badlo). Toolbar ka **"Poora Page"** button poora M2Box page wapas
-  dikha deta hai. Upar ki patti me blank aaye to **Direct Video**
-  (neeche wala resolver), **Proxy Try Karo** (`/api/moviebox-frame`),
-  reload aur naya-tab bhi hain.
-- **`/moviebox`** page (Navbar ke **M2Box** button se) — poori M2Box
-  site yahin browse hoti hai; upar koi bhi m2box link paste karke wo
-  title bhi yahin khola ja sakta hai (`/moviebox?url=<link>` bhi chalega).
+  `MovieboxCroppedFrame`): iframe ek fixed 1280px "stage" par render
+  hota hai, stage overflow-hidden dabbe me header/menu jitna upar
+  dhakela hota hai, aur dabbe ki unchai player ke control-bar ke just
+  neeche khatm hoti hai (`MOVIEBOX_STAGE_*` + `getMovieboxCrop`,
+  `lib/moviebox.ts`) — stage CSS-scale ho jata hai, isliye kat har
+  screen par same jagah padta hai. Desktop par andar scroll bhi band
+  hai, neeche wala title/detail hissa kahin se nahi dikhega. Toolbar ka
+  **"Poora Page"** button poora M2Box page wapas dikha deta hai. Upar
+  ki patti me blank aaye to **Direct Video** (neeche wala resolver),
+  **Proxy Try Karo** (`/api/moviebox-frame`), reload aur naya-tab bhi hain.
+- **`/moviebox`** page (Navbar ke **M2Box** button se) — khulte hi
+  M2Box ki website NAHI aati, sirf apna link-paste wala page dikhta
+  hai; link dalte hi seedha sirf-player (`/moviebox?url=<link>` bhi chalega).
 - Neeche wala direct-stream resolver hataya NAHI gaya hai — wo ab
   fallback hai. Dhyan: poora page iframe me tabhi chalega jab tak M2Box
   `X-Frame-Options`/CSP se framing band nahi karta; jis din karega, usi

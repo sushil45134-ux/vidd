@@ -2,24 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { getMovieboxCrop } from "../lib/moviebox";
 
 /**
- * Sirf-Player frame — M2Box page ka bas wahi hissa jo kaam ka hai
- * ================================================================
- * Poora page ek iframe me hi chalta hai, lekin iframe ek
- * overflow-hidden dabbe ke andar utna upar dhakela hota hai ki M2Box
- * ka logo/search/menu wala upar ka hissa hamesha dabbe ke bahar rahe,
- * aur dabbe ki unchai player (16:9) ke hisaab se itni rakhi jati hai
- * ki neeche wali site-detail bhi na dikhe. Dikhne me bas video player
- * + daayein taraf episode grid (mobile par neeche) reh jata hai —
- * bilkul user ke gore hue hisse jaisa. Nap `getMovieboxCrop` me hai
- * aur dabbe ke size ke saath khud badalta hai (ResizeObserver).
+ * Sirf-Player frame — bas player + episode grid, upar-neeche sab kata
+ * ====================================================================
+ * Desktop par iframe ek fixed 1280px wale "stage" par render hota hai
+ * aur stage poori screen ke hisaab se scale hoti hai. Stage ke andar
+ * iframe itna upar dhakela hota hai ki M2Box ka header/menu hamesha
+ * dabbe ke bahar rahe, aur dabbe ki unchai player ke control-bar ke
+ * just neeche khatm hoti hai — title/detail wala hissa bilkul nahi
+ * dikhta. Desktop par iframe ke andar scroll bhi band hai, taaki
+ * scroll karke bhi neeche na pahuncha ja sake (mobile par episode
+ * list player ke neeche hoti hai, isliye wahan scroll khula hai).
  *
- * Do suraksaa:
- *  - Frame ke andar scroll khula hai: nap kahiin 10-20px idhar-udhar
- *    ho to controls/episodes tak halka scroll karke pahuncha ja sakta
- *    hai; header phir bhi kabhi wapas nahi aata (wo shuru se hi
- *    dabbe ke bahar hai, scroll up ki seema wahi hai).
- *  - Fullscreen: video fullscreen hote hi crop hatt jata hai (warna
- *    kata hua upar ka hissa fullscreen me bhi gayab rehta).
+ * Fullscreen: video fullscreen hote hi crop/scale hatt jata hai,
+ * warna kata-scale hua hissa fullscreen me bhi bigda rehta.
  */
 
 interface MovieboxCroppedFrameProps {
@@ -74,6 +69,7 @@ export default function MovieboxCroppedFrame({
       ref={outerRef}
       className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden"
     >
+      {/* Dikhne wala dabba — iske bahar ka sab kata hua hai. */}
       <div
         className="relative overflow-hidden bg-black shrink-0"
         style={
@@ -82,22 +78,44 @@ export default function MovieboxCroppedFrame({
             : { width: crop.frameWidth, height: crop.height }
         }
       >
-        <iframe
-          ref={iframeRef}
-          src={src}
-          title={title || "M2Box player"}
-          className="absolute left-0 w-full border-0"
+        {/* Stage: iframe apni fixed chaudai par, screen ke hisaab se scale. */}
+        <div
+          className="relative"
           style={
             isFullscreen
-              ? { top: 0, height: "100%" }
-              : { top: -crop.cropTop, height: crop.height + crop.cropTop }
+              ? { width: "100%", height: "100%" }
+              : {
+                  width: crop.stageWidth,
+                  height: crop.stageVisibleHeight,
+                  transform: crop.scale !== 1 ? `scale(${crop.scale})` : undefined,
+                  transformOrigin: "top left",
+                }
           }
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
-          allowFullScreen
-          referrerPolicy="no-referrer-when-downgrade"
-          sandbox={sandbox}
-          onLoad={onLoad}
-        />
+        >
+          <iframe
+            ref={iframeRef}
+            src={src}
+            title={title || "M2Box player"}
+            className="absolute left-0 border-0"
+            style={
+              isFullscreen
+                ? { top: 0, width: "100%", height: "100%" }
+                : {
+                    top: -crop.cropTop,
+                    width: crop.stageWidth,
+                    height: crop.stageVisibleHeight + crop.cropTop,
+                  }
+            }
+            // Desktop: andar scroll band — neeche wala hissa kisi tarah na aaye.
+            // Mobile: episode list player ke neeche hai, scroll zaroori hai.
+            {...(crop.stacked || isFullscreen ? {} : { scrolling: "no" })}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+            sandbox={sandbox}
+            onLoad={onLoad}
+          />
+        </div>
       </div>
     </div>
   );

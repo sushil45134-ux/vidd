@@ -267,41 +267,84 @@ export function buildMovieboxPageUrl(
 }
 
 export interface MovieboxCrop {
-  /** Frame ki chaudai (badi screen par site ke content-width par cap). */
+  /** Screen par dikhne wale dabbe ki chaudai (px). */
   frameWidth: number;
-  /** Upar se kitne px kaatenge — M2Box ka logo/search + menu wala hissa. */
+  /** Iframe ke apne (stage) hisaab me upar se kata hissa — header+menu. */
   cropTop: number;
-  /** Dikhne wale hisse ki unchai (player, + mobile par neeche wali episode list). */
+  /** Screen par dikhne wale dabbe ki unchai (px) — iske neeche kuch nahi dikhta. */
   height: number;
   /** Chhoti chaudai par site episode list ko player ke neeche rakh deti hai. */
   stacked: boolean;
+  /** Iframe jis fixed chaudai par render hota hai (desktop par 1280). */
+  stageWidth: number;
+  /** Stage ko screen ke hisaab se kitna bada/chhota dikhana hai. */
+  scale: number;
+  /** Stage ke hisaab me dikhne wala hissa (iframe ki unchai = ye + cropTop). */
+  stageVisibleHeight: number;
 }
+
+/** Desktop par iframe hamesha is fixed chaudai par render hota hai. */
+export const MOVIEBOX_STAGE_WIDTH = 1280;
+/** Stage par M2Box ka header+menu (upar se kata hua hissa). */
+export const MOVIEBOX_STAGE_CROP_TOP = 116;
+/**
+ * Stage par player ke control-bar ke neeche tak ka hissa. Iske neeche
+ * site ki title/detail aati hai jo dikhani hi nahi hai — isliye dabba
+ * bilkul yahin khatm hota hai (aur desktop par andar scroll bhi band
+ * rehta hai, taaki scroll karke bhi neeche na pahuncha ja sake).
+ */
+export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 498;
 
 /**
  * "Sirf Player" crop ka nap-tol.
  *
- * Cross-origin iframe ke andar haath nahi dal sakte, isliye puraani
- * crop trick chalti hai: iframe ko ek overflow-hidden dabbe ke andar
- * `cropTop` px upar dhakelo — M2Box ka header hamesha ke liye dabbe ke
- * bahar reh jata hai, aur dabbe ki unchai player (16:9) ke hisaab se rakh
- * do to neeche ki detail/recommendation bhi nahi dikhti. Nap screenshot
- * par naapa hua hai (desktop par header+menu ≈ 118px, player column
- * content ka ≈ 73.5%, content max ≈ 1320px) — site apna header kabhi
- * badle to bas yahi number badalne hain.
+ * Desktop par iframe ko pehle ek FIXED 1280px wale stage par render
+ * karte hain (site ka layout us ek chaudai par hamesha pakka rehta
+ * hai), phir poore stage ko screen ke hisaab se scale kar dete hain.
+ * Isse upar ka kata (header) aur neeche ka kata (player ke control-bar
+ * ke just neeche) har screen par ekdum waisa hi padta hai. Nap asli
+ * screenshots par naapa gaya hai; site apna layout kabhi badle to bas
+ * upar wale teen number badalne hain.
+ *
+ * Chhoti screen (mobile) par stage nahi banta — wahan site episode
+ * list ko player ke neeche rakh deti hai, to unchai player + controls
+ * + episode grid ke hisaab se banti hai aur andar scroll khula rehta
+ * hai (warna episodes tak pahuncha hi nahi jayega).
  */
 export function getMovieboxCrop(outerWidth: number, outerHeight: number): MovieboxCrop {
   const w = outerWidth > 0 ? outerWidth : 1280;
-  const frameWidth = Math.min(w, 1360);
-  const stacked = frameWidth < 900;
-  const cropTop =
-    frameWidth >= 1024 ? 118 : frameWidth >= 768 ? 112 : frameWidth >= 480 ? 108 : 104;
-  const contentW = Math.min(frameWidth, 1320);
-  const playerW = stacked ? Math.max(0, frameWidth - 24) : contentW * 0.735;
+  const stacked = w < 900;
+
+  if (!stacked) {
+    const scale = w / MOVIEBOX_STAGE_WIDTH;
+    const wanted = MOVIEBOX_STAGE_VISIBLE_HEIGHT * scale;
+    const height = outerHeight > 0 ? Math.min(wanted, outerHeight) : wanted;
+    return {
+      frameWidth: Math.round(w),
+      cropTop: MOVIEBOX_STAGE_CROP_TOP,
+      height: Math.round(height),
+      stacked,
+      stageWidth: MOVIEBOX_STAGE_WIDTH,
+      scale,
+      stageVisibleHeight: MOVIEBOX_STAGE_VISIBLE_HEIGHT,
+    };
+  }
+
+  const cropTop = w >= 768 ? 112 : w >= 480 ? 108 : 104;
+  const playerW = Math.max(0, w - 24);
   const playerH = (playerW * 9) / 16;
-  // Desktop: player + halki si saans. Mobile: player ke neeche episode grid.
-  const wanted = stacked ? playerH + 350 : playerH + 28;
+  // Video + uske neeche wala control-bar (~44px) + episode grid (~320px).
+  const wanted = playerH + 44 + 320;
   const height = outerHeight > 0 ? Math.min(wanted, outerHeight) : wanted;
-  return { frameWidth, cropTop, height: Math.round(height), stacked };
+  return {
+    frameWidth: Math.round(w),
+    cropTop,
+    height: Math.round(height),
+    stacked,
+    stageWidth: Math.round(w),
+    scale: 1,
+    stageVisibleHeight: Math.round(wanted),
+  };
 }
 
 /**
