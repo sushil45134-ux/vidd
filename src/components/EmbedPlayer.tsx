@@ -301,7 +301,9 @@ function normalizeHlsQualityLevels(levels: HlsQualityLevel[]): HlsQualityLevel[]
 function isHindiTrack(track: { lang?: string; name?: string }): boolean {
   const lang = String(track.lang || "").toLowerCase();
   const label = `${lang} ${String(track.name || "")}`;
-  return /hindi|हिंदी|हिन्दी/i.test(label) || lang === "hi" || lang === "hin" || lang.startsWith("hi-");
+  return (
+    /hindi|हिंदी|हिन्दी/i.test(label) || lang === "hi" || lang === "hin" || lang.startsWith("hi-")
+  );
 }
 
 /** Menu label: the manifest's own name, else a readable language name. */
@@ -423,6 +425,7 @@ export function EmbedPlayer({
     kind === "video" &&
     (playbackSrc.startsWith("/api/extract") ||
       playbackSrc.startsWith("/api/toonstream") ||
+      playbackSrc.startsWith("/api/moviebox") ||
       sourceLooksHls ||
       isRemoteMediaSrc);
 
@@ -489,6 +492,9 @@ export function EmbedPlayer({
     (async () => {
       try {
         let url = playbackSrc;
+        /** Set by resolvers whose answer hides the media kind (MovieBox returns
+         *  an extension-less /api/media-proxy URL + an explicit `kind`). */
+        let resolvedIsHls = false;
         currentSrcRef.current = playbackSrc;
         if (src.startsWith("/api/toonstream")) {
           const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json&sources=1`);
@@ -514,6 +520,18 @@ export function EmbedPlayer({
           const d = await r.json().catch(() => null);
           if (!d?.ok || !d.streamUrl) throw Error(d?.error || `extract failed (HTTP ${r.status})`);
           url = String(d.streamUrl);
+        } else if (src.startsWith("/api/moviebox")) {
+          // MovieBox has no iframe embed: the resolver turns a m2box watch
+          // link into a ready /api/media-proxy MP4/HLS URL (the CDN needs a
+          // player Referer our server injects). `kind` says what came back,
+          // because the proxy URL itself has no media extension to sniff.
+          const r = await fetch(`${src}${src.includes("?") ? "&" : "?"}format=json`);
+          const d = await r.json().catch(() => null);
+          if (!d?.ok || !d.streamUrl) {
+            throw Error(d?.error || `MovieBox resolve failed (HTTP ${r.status})`);
+          }
+          url = String(d.streamUrl);
+          resolvedIsHls = d.kind === "hls";
         }
         // NOTE: the pasted link is deliberately NOT wrapped here. Wrapping
         // happens once, below, where we already know whether the source is a
@@ -543,7 +561,7 @@ export function EmbedPlayer({
          * buffered, and a forced (error-retry) probe that really is a file
          * fails fast with a readable reason.
          */
-        let isHls = sourceLooksHls || forceHls;
+        let isHls = sourceLooksHls || forceHls || resolvedIsHls;
         // Any absolute media address (pasted CDN link or resolved embed host)
         // plays through our own origin, so CORS, hotlink protection and Range
         // seeking are handled server-side. Exactly one wrapper, always.
@@ -654,7 +672,9 @@ export function EmbedPlayer({
            *   3. the track the provider marked DEFAULT=YES,
            *   4. whatever hls.js already selected.
            */
-          const syncAudioTracks = (tracks: Array<{ lang?: string; name?: string; default?: boolean }>) => {
+          const syncAudioTracks = (
+            tracks: Array<{ lang?: string; name?: string; default?: boolean }>,
+          ) => {
             if (cancelled) return;
             setAudioTracks(tracks);
             if (tracks.length === 0) return;
@@ -729,7 +749,9 @@ export function EmbedPlayer({
       } catch (e) {
         if (!cancelled) {
           const reason = e instanceof Error ? e.message : "Stream resolve failed";
-          setVideoLoadError(`${reason} [${describeSource(playbackSrc)} · ${forceHls ? "hls" : "auto"}]`);
+          setVideoLoadError(
+            `${reason} [${describeSource(playbackSrc)} · ${forceHls ? "hls" : "auto"}]`,
+          );
           if (src.startsWith("/api/toonstream")) onUnavailableRef.current?.();
         }
       }
@@ -760,9 +782,7 @@ export function EmbedPlayer({
   /** Diagnostics overlay: what the player found for this stream. */
   const [showStreamInfo, setShowStreamInfo] = useState(false);
   const [playerSrc, setPlayerSrc] = useState(
-    isCrunchyroll
-      ? `/api/crunchyroll-proxy?url=${encodeURIComponent(src)}`
-      : iframeSrc,
+    isCrunchyroll ? `/api/crunchyroll-proxy?url=${encodeURIComponent(src)}` : iframeSrc,
   );
   useEffect(() => {
     if (!isCrunchyroll) return;
@@ -1180,7 +1200,8 @@ export function EmbedPlayer({
     ...audioTracks,
     ...extraAudio.map((entry) => ({ lang: entry.lang, name: entry.label, external: true })),
   ];
-  const audioSelection = audioOverride === null ? audioTrackIndex : audioTracks.length + audioOverride;
+  const audioSelection =
+    audioOverride === null ? audioTrackIndex : audioTracks.length + audioOverride;
   const hasAudioChoice = audioOptions.length > 1;
   const qualityOptions = qualityLevels.map((level) => ({
     value: level.height || 0,
@@ -1494,7 +1515,11 @@ export function EmbedPlayer({
             <p className="mt-2">
               <span className="text-gray-400">Playing:</span> {describeSource(playbackSrc)}{" "}
               <span className="text-gray-400">·</span>{" "}
-              {useSourceFrame ? "direct frame" : streamAttempt === 0 ? "site player (proxy)" : "site player (direct)"}
+              {useSourceFrame
+                ? "direct frame"
+                : streamAttempt === 0
+                  ? "site player (proxy)"
+                  : "site player (direct)"}
             </p>
             <p className="mt-1">
               <span className="text-gray-400">Audio in this stream:</span>{" "}
@@ -1512,16 +1537,14 @@ export function EmbedPlayer({
             <p className="mt-1">
               <span className="text-gray-400">Qualities:</span>{" "}
               {qualityLevels.length > 0
-                ? qualityLevels
-                    .map((level) => (level.height ? `${level.height}p` : "?"))
-                    .join(", ")
+                ? qualityLevels.map((level) => (level.height ? `${level.height}p` : "?")).join(", ")
                 : "auto"}
             </p>
             {!hasAudioChoice && (
               <p className="mt-2 text-amber-300">
-                Is stream me sirf ek audio hai. Doosri language ke liye us site ke player me language
-                switch karke uska naya link copy karo, phir Admin → Add Movie → Embed → “Audio
-                languages” me add karo — player ke Audio menu se switch ho jayegi.
+                Is stream me sirf ek audio hai. Doosri language ke liye us site ke player me
+                language switch karke uska naya link copy karo, phir Admin → Add Movie → Embed →
+                “Audio languages” me add karo — player ke Audio menu se switch ho jayegi.
               </p>
             )}
           </div>
@@ -1634,7 +1657,8 @@ export function EmbedPlayer({
             language change swaps the frame — so a multi-dub source keeps its
             languages even when the site player had to stand aside.
           */}
-          {(kind === "video" && needsResolve && hasAudioChoice) || (useSourceFrame && hasAudioChoice) ? (
+          {(kind === "video" && needsResolve && hasAudioChoice) ||
+          (useSourceFrame && hasAudioChoice) ? (
             <label
               className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm"
               title={`${audioOptions.length} audio tracks in this stream`}

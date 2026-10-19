@@ -3,6 +3,7 @@ import type { Movie } from "../data";
 import { VideoPlayer } from "./VideoPlayer";
 import { EmbedPlayer } from "./EmbedPlayer";
 import { isRemoteMediaUrl } from "../lib/videoSource";
+import { buildMovieboxResolverUrl, isMovieboxUrl } from "../lib/moviebox";
 
 export default function PlayerOverlay({
   movie,
@@ -77,9 +78,31 @@ export default function PlayerOverlay({
   // proxies and plays them properly.
   const embedIsDirectMedia = !!current.embedUrl && isRemoteMediaUrl(current.embedUrl);
 
+  // MovieBox/m2box watch links parked in embedUrl/videoUrl: MovieBox has no
+  // iframe embed (framing the link would show their whole site), so route it
+  // to our /api/moviebox resolver, which returns a direct MP4/HLS. The row's
+  // own season/episode numbers win, so one base m2box link can be pasted on
+  // every episode row of a series. See docs/MOVIEBOX_EMBED.md.
+  const movieboxCandidate =
+    (current.embedUrl && isMovieboxUrl(current.embedUrl) && current.embedUrl) ||
+    (current.videoUrl && isMovieboxUrl(current.videoUrl) && current.videoUrl) ||
+    undefined;
+  const movieboxSrc = movieboxCandidate
+    ? buildMovieboxResolverUrl(movieboxCandidate, {
+        se:
+          current.seasonNumber != null && current.seasonNumber > 0
+            ? current.seasonNumber
+            : undefined,
+        ep:
+          current.episodeNumber != null && current.episodeNumber > 0
+            ? current.episodeNumber
+            : undefined,
+      })
+    : null;
+
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).
-  if (!current.youtubeId && current.embedUrl && !embedIsDirectMedia) {
+  if (!current.youtubeId && current.embedUrl && !embedIsDirectMedia && !movieboxSrc) {
     return (
       <EmbedPlayer
         key={current.id}
@@ -100,7 +123,7 @@ export default function PlayerOverlay({
 
   // Uploaded file / direct video URL (or a media address parked in embedUrl).
   const mediaSrc = !current.youtubeId
-    ? (embedIsDirectMedia ? current.embedUrl : undefined) || current.videoUrl
+    ? movieboxSrc || (embedIsDirectMedia ? current.embedUrl : undefined) || current.videoUrl
     : undefined;
   if (mediaSrc) {
     return (
