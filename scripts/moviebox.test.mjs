@@ -163,6 +163,24 @@ if (lib) {
     assert.equal(lib.buildMovieboxResolverUrl("https://example.com/x"), null);
   });
 
+  await ok("lib: full watch-page URL (screenshot wala /movies format)", () => {
+    assert.equal(
+      lib.buildMovieboxPageUrl(M2BOX, { se: 1, ep: 2 }),
+      "https://m2box.org/movies/my-demon-hindi-SfaaEeePcfa?id=8598850449111924848&type=/movie/detail&detailSe=1&detailEp=2&lang=en",
+    );
+    // Player-domain (spa) link bhi canonical m2box page me badle
+    assert.equal(
+      lib.buildMovieboxPageUrl(PLAYER, {}),
+      "https://m2box.org/movies/my-demon-hindi-SfaaEeePcfa?id=8598850449111924848&type=/movie/detail&detailSe=1&detailEp=3&lang=en",
+    );
+    // se/ep na ho to khali chhoro — site pehla episode khud kholta hai
+    assert.equal(
+      lib.buildMovieboxPageUrl(M2BOX, {}),
+      "https://m2box.org/movies/my-demon-hindi-SfaaEeePcfa?id=8598850449111924848&type=/movie/detail&detailSe=&detailEp=&lang=en",
+    );
+    assert.equal(lib.buildMovieboxPageUrl("not-a-url"), null);
+  });
+
   await ok("lib: player page URL (Referer wala exact format)", () => {
     assert.equal(
       lib.buildMovieboxPlayerPageUrl("https://mzfi.me/", "my-demon-hindi-SfaaEeePcfa", "8598850449111924848", 1, 3),

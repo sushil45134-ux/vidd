@@ -1,0 +1,202 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  MonitorPlay,
+  Play,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+} from "lucide-react";
+import {
+  buildMovieboxPageUrl,
+  buildMovieboxResolverUrl,
+  isMovieboxUrl,
+  MOVIEBOX_SITE,
+} from "../lib/moviebox";
+import { MOVIEBOX_FRAME_SANDBOX } from "../components/MovieboxPagePlayer";
+import { EmbedPlayer } from "../components/EmbedPlayer";
+
+/**
+ * /moviebox — poori M2Box site, Vidd ke andar
+ * =============================================
+ * m2box.org ka poora page (home/search/categories/watch — player aur
+ * episode grid ke saath) ek bade frame me yahin khulta hai, taaki poori
+ * MovieBox library bina site chhode browse ho sake.
+ *
+ *   /moviebox                                  → M2Box home
+ *   /moviebox?url=<m2box watch link>           → wahi title ka watch page
+ *
+ * Upar ki patti se koi bhi m2box link paste karke bhi yahin khola ja
+ * sakta hai. Frame kisi din blank aaye to "Proxy" mode (hamare server
+ * ke raaste HTML) ya — title page par — "Direct Video" (apna resolver
+ * player) ka rasta maujood hai.
+ */
+
+export const Route = createFileRoute("/moviebox")({
+  head: () => ({
+    meta: [
+      { title: "M2Box — vid" },
+      {
+        name: "description",
+        content: "Browse and watch the full M2Box library inside vid.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: MovieboxBrowsePage,
+});
+
+function initialTarget(): string {
+  if (typeof window === "undefined") return `${MOVIEBOX_SITE}/`;
+  const raw = new URLSearchParams(window.location.search).get("url") || "";
+  if (raw && isMovieboxUrl(raw)) return buildMovieboxPageUrl(raw) || raw;
+  return `${MOVIEBOX_SITE}/`;
+}
+
+function MovieboxBrowsePage() {
+  const [pageUrl, setPageUrl] = useState<string>(() => `${MOVIEBOX_SITE}/`);
+  const [input, setInput] = useState("");
+  const [mode, setMode] = useState<"direct" | "proxy">("direct");
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [directPlay, setDirectPlay] = useState(false);
+  const [hint, setHint] = useState("");
+
+  // ?url= pehle client par padho (SSR par window nahi hota).
+  useEffect(() => {
+    setPageUrl(initialTarget());
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+  }, [pageUrl, mode, reloadKey]);
+
+  const resolverUrl =
+    pageUrl !== `${MOVIEBOX_SITE}/` && isMovieboxUrl(pageUrl)
+      ? buildMovieboxResolverUrl(pageUrl)
+      : null;
+
+  function openPasted() {
+    const raw = input.trim();
+    if (!raw) return;
+    if (!isMovieboxUrl(raw)) {
+      setHint("Ye M2Box ka link nahi laga — m2box.org wala watch link paste karo.");
+      return;
+    }
+    setHint("");
+    setDirectPlay(false);
+    setPageUrl(buildMovieboxPageUrl(raw) || raw);
+    setInput("");
+  }
+
+  if (directPlay && resolverUrl) {
+    return <EmbedPlayer src={resolverUrl} kind="video" onClose={() => setDirectPlay(false)} />;
+  }
+
+  const frameSrc =
+    mode === "proxy" ? `/api/moviebox-frame?url=${encodeURIComponent(pageUrl)}` : pageUrl;
+
+  return (
+    <div className="min-h-dvh bg-black text-white flex flex-col">
+      {/* Upar ki patti: wapas, link paste, mode, naya tab */}
+      <div className="sticky top-0 z-20 bg-[#0b0b0f]/95 backdrop-blur border-b border-white/10">
+        <div className="max-w-[1800px] mx-auto px-3 py-2 flex items-center gap-2 flex-wrap">
+          <a
+            href="/"
+            className="h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
+          >
+            <ArrowLeft size={14} /> Home
+          </a>
+
+          <span className="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
+            <MonitorPlay size={17} className="text-[#ff6a00]" /> M2Box
+          </span>
+
+          <div className="flex items-center flex-1 min-w-[180px] max-w-xl bg-black/70 border border-white/15 rounded-full overflow-hidden focus-within:border-[#ff6a00]/60">
+            <Search size={14} className="ml-3 text-white/40 shrink-0" />
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") openPasted();
+              }}
+              placeholder="M2Box ka koi bhi link paste karo…"
+              className="bg-transparent flex-1 h-8 px-2 text-xs text-white placeholder-white/35 focus:outline-none"
+            />
+            <button
+              onClick={openPasted}
+              className="h-8 px-3 bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-xs font-bold shrink-0 active:scale-95"
+            >
+              Kholo
+            </button>
+          </div>
+
+          {resolverUrl && (
+            <button
+              onClick={() => setDirectPlay(true)}
+              className="h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
+              title="M2Box page ke bina, sirf video apne player me"
+            >
+              <Play size={13} /> Direct Video
+            </button>
+          )}
+
+          <button
+            onClick={() => setMode((m) => (m === "direct" ? "proxy" : "direct"))}
+            className="h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold hidden sm:flex items-center gap-1.5 transition active:scale-95 shrink-0"
+            title="Page blank aaye to server-proxy mode try karo"
+          >
+            <ShieldAlert size={13} /> {mode === "direct" ? "Proxy Try Karo" : "Direct Frame"}
+          </button>
+
+          <button
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95 shrink-0"
+            aria-label="Reload"
+          >
+            <RefreshCw size={14} />
+          </button>
+
+          <a
+            href={pageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95 shrink-0"
+            aria-label="M2Box par naye tab me kholo"
+          >
+            <ExternalLink size={14} />
+          </a>
+        </div>
+
+        <p className="max-w-[1800px] mx-auto px-3 pb-2 text-[11px] text-white/45">
+          {hint ||
+            "Poori M2Box site yahin khuli hai — title chuno, episode grid se episode badlo, quality/subtitle sab andar hi milega. Kuch blank dikhe to oopar “Proxy Try Karo” ya “Direct Video” dabao."}
+        </p>
+      </div>
+
+      {/* Poora M2Box page */}
+      <div className="relative flex-1 min-h-0">
+        <iframe
+          key={`${mode}-${reloadKey}-${pageUrl}`}
+          src={frameSrc}
+          className="absolute inset-0 w-full h-full border-0 bg-black"
+          style={{ minHeight: "calc(100dvh - 96px)" }}
+          title="M2Box — poori site"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+          sandbox={MOVIEBOX_FRAME_SANDBOX}
+          onLoad={() => setLoading(false)}
+        />
+        {loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/90 pointer-events-none">
+            <div className="w-10 h-10 border-4 border-white/20 border-t-[#ff6a00] rounded-full animate-spin" />
+            <p className="text-xs text-white/60">M2Box load ho raha hai…</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

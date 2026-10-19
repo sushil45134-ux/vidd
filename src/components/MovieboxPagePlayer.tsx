@@ -1,0 +1,188 @@
+import { useEffect, useRef, useState } from "react";
+import { X, ExternalLink, Play, RefreshCw, MonitorPlay, ShieldAlert } from "lucide-react";
+
+/**
+ * Full M2Box page player — "poora page website ke andar" mode
+ * =============================================================
+ * m2box.org ka poora watch page (player + Resources episode grid + site
+ * ki search/nav, bilkul screenshot jaisa) ek fullscreen iframe me hamari
+ * hi site ke andar khulta hai. Upar sirf ek patli si apni patti rehti hai:
+ * band karo, naye tab me kholo, aur agar kisi wajah se frame blank aaye
+ * to "Direct Video" (apna /api/moviebox resolver) par switch karo.
+ *
+ * Iframe jaan-boojh kar bina `allow-top-navigation` ke chalta hai, taaki
+ * M2Box ki site (ya uski ads) hamari tab ko hijack na kar sake; baaki
+ * scripts / same-origin / forms / downloads / popups allowed hain taaki
+ * poori site — episode chunna, quality, subtitles, download — frame ke
+ * andar bilkul waise chale jaise m2box.org par chalti hai.
+ */
+
+export const MOVIEBOX_FRAME_SANDBOX =
+  "allow-downloads allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts";
+
+interface MovieboxPagePlayerProps {
+  /** M2Box watch page ka poora URL (canonical /movies/…?id=…). */
+  pageUrl: string;
+  title?: string;
+  onClose: () => void;
+  /** Frame fail/blank ho? Apne direct-video player (resolver) par jao. */
+  onTryDirect?: () => void;
+}
+
+type FrameMode = "direct" | "proxy";
+
+export default function MovieboxPagePlayer({
+  pageUrl,
+  title,
+  onClose,
+  onTryDirect,
+}: MovieboxPagePlayerProps) {
+  const [mode, setMode] = useState<FrameMode>("direct");
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+  const helpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const src = mode === "proxy" ? `/api/moviebox-frame?url=${encodeURIComponent(pageUrl)}` : pageUrl;
+
+  // Iframe ka onLoad cross-origin block me bhi fire hota hai, isliye pakka
+  // pata kabhi nahi chalta ki page andar sach me khula ya browser ne
+  // X-Frame-Options ki wajah se blank error dikhaya. Isliye kuch der baad
+  // ek chhoti madad-patti khud dikh jaati hai: "kuch nahi dikh raha?
+  // Direct Video dabao." Load fast ho to bhi patti upar ki toolbar me
+  // hamesha maujood hai.
+  useEffect(() => {
+    setLoading(true);
+    setShowHelp(false);
+    if (helpTimer.current) clearTimeout(helpTimer.current);
+    helpTimer.current = setTimeout(() => setShowHelp(true), 6000);
+    return () => {
+      if (helpTimer.current) clearTimeout(helpTimer.current);
+    };
+  }, [src, reloadKey]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex flex-col">
+      {/* Apni patli patti — M2Box ka page iske neeche poori screen leta hai. */}
+      <div className="h-11 shrink-0 flex items-center gap-2 px-3 bg-[#0b0b0f] border-b border-white/10 text-white">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide text-white/90">
+          <MonitorPlay size={15} className="text-[#ff6a00]" />
+          <span className="hidden sm:inline">M2Box</span>
+        </span>
+        {title ? (
+          <span className="text-xs text-white/50 truncate max-w-[38vw] sm:max-w-[46vw]">
+            {title}
+          </span>
+        ) : null}
+
+        <div className="flex-1" />
+
+        {onTryDirect && (
+          <button
+            onClick={onTryDirect}
+            className="h-7 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95"
+            title="Bina M2Box page ke, sirf video hamare player me chalao"
+          >
+            <Play size={12} />
+            <span className="hidden xs:inline sm:inline">Direct Video</span>
+          </button>
+        )}
+
+        <button
+          onClick={() => {
+            setMode((m) => (m === "direct" ? "proxy" : "direct"));
+          }}
+          className="h-7 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-[11px] font-bold hidden md:flex items-center gap-1.5 transition active:scale-95"
+          title={
+            mode === "direct"
+              ? "Page phir bhi blank hai? Hamare server ke raaste (proxy) try karo"
+              : "Proxy mode me ho — seedha M2Box frame par wapas jao"
+          }
+        >
+          <ShieldAlert size={12} />
+          {mode === "direct" ? "Proxy Try Karo" : "Direct Frame"}
+        </button>
+
+        <button
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95"
+          title="Page dobara load karo"
+          aria-label="Reload page"
+        >
+          <RefreshCw size={13} />
+        </button>
+
+        <a
+          href={pageUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95"
+          title="M2Box par naye tab me kholo"
+          aria-label="Open on M2Box in a new tab"
+        >
+          <ExternalLink size={13} />
+        </a>
+
+        <button
+          onClick={onClose}
+          className="w-7 h-7 rounded-full bg-white/10 hover:bg-red-500/70 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95"
+          title="Band karo (Esc)"
+          aria-label="Close player"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      {/* Poora M2Box page — screenshot jaisa: player + episode grid sab. */}
+      <div className="relative flex-1 bg-black">
+        <iframe
+          key={`${mode}-${reloadKey}`}
+          src={src}
+          className="absolute inset-0 w-full h-full border-0"
+          title={title ? `${title} — M2Box` : "M2Box"}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+          sandbox={MOVIEBOX_FRAME_SANDBOX}
+          onLoad={() => setLoading(false)}
+        />
+
+        {loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/90 pointer-events-none">
+            <div className="w-10 h-10 border-4 border-white/20 border-t-[#ff6a00] rounded-full animate-spin" />
+            <p className="text-xs text-white/60">M2Box page load ho raha hai…</p>
+          </div>
+        )}
+
+        {showHelp && onTryDirect && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[94vw] flex items-center gap-2 rounded-full bg-black/85 ring-1 ring-white/15 backdrop-blur px-3 py-2 text-white shadow-2xl animate-fadeIn">
+            <span className="text-[11px] text-white/75 whitespace-nowrap overflow-hidden text-ellipsis">
+              Page blank dikh raha hai?
+            </span>
+            <button
+              onClick={onTryDirect}
+              className="h-6 px-2.5 rounded-full bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95"
+            >
+              <Play size={11} /> Direct Video Chalao
+            </button>
+            <button
+              onClick={() => setShowHelp(false)}
+              className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0"
+              aria-label="Dismiss help"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

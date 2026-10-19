@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as MovieboxRouteImport } from './routes/moviebox'
 import { Route as ApiAnimeRouteImport } from './routes/api/anime'
 import { Route as ApiAnimeAutoRouteImport } from './routes/api/anime-auto'
 import { Route as ApiAnimeSyncRouteImport } from './routes/api/anime-sync'
@@ -22,6 +23,7 @@ import { Route as ApiExtractRouteImport } from './routes/api/extract'
 import { Route as ApiHlsproxyRouteImport } from './routes/api/hlsproxy'
 import { Route as ApiMediaProxyRouteImport } from './routes/api/media-proxy'
 import { Route as ApiMovieboxRouteImport } from './routes/api/moviebox'
+import { Route as ApiMovieboxFrameRouteImport } from './routes/api/moviebox-frame'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiNxshaFetchRouteImport } from './routes/api/nxsha-fetch'
 import { Route as ApiPortraitPosterRouteImport } from './routes/api/portrait-poster'
@@ -38,6 +40,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MovieboxRoute = MovieboxRouteImport.update({
+  id: '/moviebox',
+  path: '/moviebox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAnimeRoute = ApiAnimeRouteImport.update({
@@ -95,6 +102,11 @@ const ApiMovieboxRoute = ApiMovieboxRouteImport.update({
   path: '/api/moviebox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMovieboxFrameRoute = ApiMovieboxFrameRouteImport.update({
+  id: '/api/moviebox-frame',
+  path: '/api/moviebox-frame',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMoviesRoute = ApiMoviesRouteImport.update({
   id: '/api/movies',
   path: '/api/movies',
@@ -134,6 +146,7 @@ const ApiToonstreamRoute = ApiToonstreamRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/moviebox': typeof MovieboxRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
@@ -145,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/api/hlsproxy': typeof ApiHlsproxyRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/moviebox': typeof ApiMovieboxRoute
+  '/api/moviebox-frame': typeof ApiMovieboxFrameRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
@@ -156,6 +170,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/moviebox': typeof MovieboxRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
@@ -167,6 +182,7 @@ export interface FileRoutesByTo {
   '/api/hlsproxy': typeof ApiHlsproxyRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/moviebox': typeof ApiMovieboxRoute
+  '/api/moviebox-frame': typeof ApiMovieboxFrameRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
@@ -179,6 +195,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/moviebox': typeof MovieboxRoute
   '/api/anime': typeof ApiAnimeRoute
   '/api/anime-auto': typeof ApiAnimeAutoRoute
   '/api/anime-sync': typeof ApiAnimeSyncRoute
@@ -190,6 +207,7 @@ export interface FileRoutesById {
   '/api/hlsproxy': typeof ApiHlsproxyRoute
   '/api/media-proxy': typeof ApiMediaProxyRoute
   '/api/moviebox': typeof ApiMovieboxRoute
+  '/api/moviebox-frame': typeof ApiMovieboxFrameRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/nxsha-fetch': typeof ApiNxshaFetchRoute
   '/api/portrait-poster': typeof ApiPortraitPosterRoute
@@ -203,6 +221,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/moviebox'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
@@ -214,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/hlsproxy'
     | '/api/media-proxy'
     | '/api/moviebox'
+    | '/api/moviebox-frame'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
@@ -225,6 +245,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/moviebox'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
@@ -236,6 +257,7 @@ export interface FileRouteTypes {
     | '/api/hlsproxy'
     | '/api/media-proxy'
     | '/api/moviebox'
+    | '/api/moviebox-frame'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
@@ -247,6 +269,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/moviebox'
     | '/api/anime'
     | '/api/anime-auto'
     | '/api/anime-sync'
@@ -258,6 +281,7 @@ export interface FileRouteTypes {
     | '/api/hlsproxy'
     | '/api/media-proxy'
     | '/api/moviebox'
+    | '/api/moviebox-frame'
     | '/api/movies'
     | '/api/nxsha-fetch'
     | '/api/portrait-poster'
@@ -270,6 +294,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  MovieboxRoute: typeof MovieboxRoute
   ApiAnimeRoute: typeof ApiAnimeRoute
   ApiAnimeAutoRoute: typeof ApiAnimeAutoRoute
   ApiAnimeSyncRoute: typeof ApiAnimeSyncRoute
@@ -281,6 +306,7 @@ export interface RootRouteChildren {
   ApiHlsproxyRoute: typeof ApiHlsproxyRoute
   ApiMediaProxyRoute: typeof ApiMediaProxyRoute
   ApiMovieboxRoute: typeof ApiMovieboxRoute
+  ApiMovieboxFrameRoute: typeof ApiMovieboxFrameRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiNxshaFetchRoute: typeof ApiNxshaFetchRoute
   ApiPortraitPosterRoute: typeof ApiPortraitPosterRoute
@@ -304,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/moviebox': {
+      id: '/moviebox'
+      path: '/moviebox'
+      fullPath: '/moviebox'
+      preLoaderRoute: typeof MovieboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/anime': {
@@ -383,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMovieboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/moviebox-frame': {
+      id: '/api/moviebox-frame'
+      path: '/api/moviebox-frame'
+      fullPath: '/api/moviebox-frame'
+      preLoaderRoute: typeof ApiMovieboxFrameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/movies': {
       id: '/api/movies'
       path: '/api/movies'
@@ -438,6 +478,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  MovieboxRoute: MovieboxRoute,
   ApiAnimeRoute: ApiAnimeRoute,
   ApiAnimeAutoRoute: ApiAnimeAutoRoute,
   ApiAnimeSyncRoute: ApiAnimeSyncRoute,
@@ -449,6 +490,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHlsproxyRoute: ApiHlsproxyRoute,
   ApiMediaProxyRoute: ApiMediaProxyRoute,
   ApiMovieboxRoute: ApiMovieboxRoute,
+  ApiMovieboxFrameRoute: ApiMovieboxFrameRoute,
   ApiMoviesRoute: ApiMoviesRoute,
   ApiNxshaFetchRoute: ApiNxshaFetchRoute,
   ApiPortraitPosterRoute: ApiPortraitPosterRoute,

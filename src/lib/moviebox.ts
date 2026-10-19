@@ -231,6 +231,41 @@ export function buildMovieboxPlayerPageUrl(
   );
 }
 
+/** Full-page mode jis mirror par khulta hai (screenshot wali site). */
+export const MOVIEBOX_SITE = "https://m2box.org";
+
+/**
+ * M2Box ke POORE watch page ka URL — player + Resources (episode grid) +
+ * poori site, bilkul jaise m2box.org par khulta hai:
+ *
+ *   https://m2box.org/movies/{detailPath}?id={subjectId}&type=/movie/detail&detailSe={s}&detailEp={e}&lang=en
+ *
+ * `input` koi bhi m2box/moviebox link ho sakta hai (mirror SPA link bhi);
+ * use parse karke canonical m2box.org page bana diya jata hai. Row ke
+ * season/episode opts link wale detailSe/detailEp par jeette hain; kuch
+ * na ho to detailSe/detailEp khali rehte hain (site khud pehla episode
+ * kholta hai). Slug/id dono na milein to, agar input ek http(s) URL hai
+ * to waisa ka waisa lauta do — page mode ke liye wahi best guess hai.
+ */
+export function buildMovieboxPageUrl(
+  input: string,
+  opts: { se?: number; ep?: number; site?: string } = {},
+): string | null {
+  const raw = String(input || "").trim();
+  const ref = parseMovieboxInput(raw);
+  if (!ref?.detailPath || !ref?.subjectId) {
+    return /^https?:\/\//i.test(raw) ? raw : null;
+  }
+  const site = String(opts.site || MOVIEBOX_SITE).replace(/\/+$/, "");
+  const se = opts.se != null ? opts.se : ref.se;
+  const ep = opts.ep != null ? opts.ep : ref.ep;
+  return (
+    `${site}/movies/${encodeURIComponent(ref.detailPath)}` +
+    `?id=${encodeURIComponent(ref.subjectId)}&type=/movie/detail` +
+    `&detailSe=${se != null ? se : ""}&detailEp=${ep != null ? ep : ""}&lang=en`
+  );
+}
+
 /**
  * `signCookie` ke andar chhupa asli manifest prefix nikaalo.
  *

@@ -3,7 +3,8 @@ import type { Movie } from "../data";
 import { VideoPlayer } from "./VideoPlayer";
 import { EmbedPlayer } from "./EmbedPlayer";
 import { isRemoteMediaUrl } from "../lib/videoSource";
-import { buildMovieboxResolverUrl, isMovieboxUrl } from "../lib/moviebox";
+import { buildMovieboxPageUrl, buildMovieboxResolverUrl, isMovieboxUrl } from "../lib/moviebox";
+import MovieboxPagePlayer from "./MovieboxPagePlayer";
 
 export default function PlayerOverlay({
   movie,
@@ -54,6 +55,15 @@ export default function PlayerOverlay({
     setIdx(initialIdx);
   }, [initialIdx, movie.id]);
 
+  // MovieBox full-page mode (default) vs direct-video mode (fallback). Har
+  // naye title par wapas full-page se shuru — user ko M2Box ka poora page
+  // (episode grid ke saath) chahiye, direct sirf tab jab frame na chale.
+  const [movieboxDirect, setMovieboxDirect] = useState(false);
+
+  useEffect(() => {
+    setMovieboxDirect(false);
+  }, [movie.id]);
+
   const current = queue[idx] || movie;
 
   // Queue siblings start from 0 — only the video the user pressed Play on
@@ -78,27 +88,42 @@ export default function PlayerOverlay({
   // proxies and plays them properly.
   const embedIsDirectMedia = !!current.embedUrl && isRemoteMediaUrl(current.embedUrl);
 
-  // MovieBox/m2box watch links parked in embedUrl/videoUrl: MovieBox has no
-  // iframe embed (framing the link would show their whole site), so route it
-  // to our /api/moviebox resolver, which returns a direct MP4/HLS. The row's
-  // own season/episode numbers win, so one base m2box link can be pasted on
-  // every episode row of a series. See docs/MOVIEBOX_EMBED.md.
+  // MovieBox/m2box watch links parked in embedUrl/videoUrl: by default the
+  // FULL M2Box watch page opens inside our site (their player + episode
+  // grid + search, exactly like m2box.org) — see MovieboxPagePlayer. Our
+  // /api/moviebox direct-video resolver stays as the one-tap fallback for
+  // when the frame ever comes up blank. The row's own season/episode
+  // numbers win, so one base m2box link can be pasted on every episode row
+  // of a series. See docs/MOVIEBOX_EMBED.md.
   const movieboxCandidate =
     (current.embedUrl && isMovieboxUrl(current.embedUrl) && current.embedUrl) ||
     (current.videoUrl && isMovieboxUrl(current.videoUrl) && current.videoUrl) ||
     undefined;
+  const movieboxSeEp = {
+    se: current.seasonNumber != null && current.seasonNumber > 0 ? current.seasonNumber : undefined,
+    ep:
+      current.episodeNumber != null && current.episodeNumber > 0
+        ? current.episodeNumber
+        : undefined,
+  };
   const movieboxSrc = movieboxCandidate
-    ? buildMovieboxResolverUrl(movieboxCandidate, {
-        se:
-          current.seasonNumber != null && current.seasonNumber > 0
-            ? current.seasonNumber
-            : undefined,
-        ep:
-          current.episodeNumber != null && current.episodeNumber > 0
-            ? current.episodeNumber
-            : undefined,
-      })
+    ? buildMovieboxResolverUrl(movieboxCandidate, movieboxSeEp)
     : null;
+  const movieboxPageUrl = movieboxCandidate
+    ? buildMovieboxPageUrl(movieboxCandidate, movieboxSeEp)
+    : null;
+
+  if (!current.youtubeId && movieboxPageUrl && !movieboxDirect) {
+    return (
+      <MovieboxPagePlayer
+        key={`mb-page-${current.id}`}
+        pageUrl={movieboxPageUrl}
+        title={current.title}
+        onClose={onClose}
+        onTryDirect={movieboxSrc ? () => setMovieboxDirect(true) : undefined}
+      />
+    );
+  }
 
   // Non-YouTube embeds (Vimeo, Dailymotion, Odysee, BitChute, Rumble,
   // Bilibili, Twitch, Streamable, Facebook, Google Drive, MEGA, generic iframe).

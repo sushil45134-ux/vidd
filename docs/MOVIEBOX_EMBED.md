@@ -1,5 +1,24 @@
 # MovieBox (m2box.org) — "embed" kaise nikalein
 
+## ⭐ Update: Full-Page Mode (ab yahi default hai)
+
+Owner ki demand par ab Vidd me **M2Box ka poora watch page site ke andar
+khulta hai** — bilkul waise jaise m2box.org par: player, Resources wali
+episode grid (01–16), quality/subtitle settings, search/nav sab andar.
+
+- Kisi row par m2box link paste hai → play dabate hi poora M2Box page
+  fullscreen frame me khulta hai (`MovieboxPagePlayer`). Upar ek patli
+  patti me kabhi blank aaye to **Direct Video** (neeche wala resolver),
+  **Proxy Try Karo** (`/api/moviebox-frame` — HTML hamare server se,
+  frame-block headers utre hue), reload aur naya-tab milte hain.
+- **`/moviebox`** page (Navbar ke **M2Box** button se) — poori M2Box
+  site yahin browse hoti hai; upar koi bhi m2box link paste karke wo
+  title bhi yahin khola ja sakta hai (`/moviebox?url=<link>` bhi chalega).
+- Neeche wala direct-stream resolver hataya NAHI gaya hai — wo ab
+  fallback hai. Dhyan: poora page iframe me tabhi chalega jab tak M2Box
+  `X-Frame-Options`/CSP se framing band nahi karta; jis din karega, usi
+  din Direct Video hi bacha hua pakka rasta hoga.
+
 ## TL;DR — pehle ye samajh lo
 
 **MovieBox ka koi official iframe embed hota hi nahi hai.** Nxsha / VidSrc /
@@ -50,7 +69,7 @@ Ek-baari link chahiye ho (download/VLC/test) to:
    `subject/play?subjectId=…` wali request kholo → **Response** me
    `data.streams[]` ke andar har quality ka `url` hai — wahi direct MP4 hai.
 3. Ya Network me `mp4` filter kar ke video request par right-click →
-   *Copy → Copy as cURL*.
+   _Copy → Copy as cURL_.
 
 ⚠️ Teen baatein: (a) ye URL **signed hai, kuch ghanton me expire** ho jata
 hai — website par permanent mat lagana; (b) CDN bina `Referer` ke **429**
@@ -83,13 +102,13 @@ Koi signing/login nahi lagta. Bas sahi headers ke saath ye 3 calls:
 
 Baaki kaam ki cheezein:
 
-| Kaam | Endpoint |
-|---|---|
+| Kaam                                          | Endpoint                                                                                                                                                        |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Play ka fallback (1080p `vipLocked` aata hai) | `GET {site}/wefeed-h5api-bff/subject/download?subjectId=&se=&ep=&detailPath=` (site = movieboxonline.net/m2box.org/moviebox.ph — h5-api par direct NAHI chalta) |
-| Subtitles | `GET /wefeed-h5api-bff/subject/caption?format={stream.format}&id={stream.id}&subjectId=&detailPath=` → `data.captions[]` (signed SRT/VTT) |
-| Search | pehle token lo, phir `POST /subject/search {"keyword":…,"page":1,"perPage":0,"subjectType":0}` |
-| Trending | `GET /subject/trending?page=1&perPage=20` (bina token ke chalta hai) |
-| Home/token | `GET /home?host=moviebox.ph` — response header `x-user` = `{"token":"<90-day guest JWT>"}`; wapas `Authorization: Bearer <token>` bhejo |
+| Subtitles                                     | `GET /wefeed-h5api-bff/subject/caption?format={stream.format}&id={stream.id}&subjectId=&detailPath=` → `data.captions[]` (signed SRT/VTT)                       |
+| Search                                        | pehle token lo, phir `POST /subject/search {"keyword":…,"page":1,"perPage":0,"subjectType":0}`                                                                  |
+| Trending                                      | `GET /subject/trending?page=1&perPage=20` (bina token ke chalta hai)                                                                                            |
+| Home/token                                    | `GET /home?host=moviebox.ph` — response header `x-user` = `{"token":"<90-day guest JWT>"}`; wapas `Authorization: Bearer <token>` bhejo                         |
 
 Search-suggest se token mint karne ka formula (jab `/home` wala token na
 mile): `POST /subject/search-suggest` with header
@@ -155,37 +174,48 @@ sthir hai; ye rasta tab socho jab app-only catalogue chahiye ho.
 
 ## Method 4 — Ready-made GitHub APIs (khud host karne ke liye)
 
-| Repo | Stack / tareeka | Kab use karo |
-|---|---|---|
-| `kelvinodgar-tech/Moviebox-API` | Zero-dep Node + Python scraper, H5 (Method 2) | Sabse saaf/sajha hua code padhna ho; `node server.js` se turant API |
-| `faisaljs/Moviebox-API` (= `v-bit2`, `walterwhite-69` wali lineage) | FastAPI, H5, guest-JWT + player-domain + proxy | Python service alag se deploy karna ho |
-| `tapframe/NuvioStreamsAddon` (`providers/moviebox.js`) | Stremio addon, India mobile API (Method 3) + Hindi/dub matching | TMDB-id → Hindi dub streams chahiye hain to iski matching logic best hai |
-| `Keliura-Johnson/spun-moviebox-api`, `royalsofts6-eng/moviebox-api` | Cloudflare Worker / Node, mobile signed + HLS proxy | Edge par chalana ho to |
-| `solo12345689/moviebox-internal-api` | APK reverse-engineering notes (`OFFICIAL_API_DOCUMENTATION.md`) | Signing/signCookie ki gehri detail |
-| `SagorT3K/moviebox` | Poora frontend + dash.js + ffmpeg DASH→HLS transcode | HEVC/DASH wale titles browser me chalane ka pattern |
-| `SANYAM7821/MovieBox-Api` | H5 wrapper (archived) | Sirf reference — "paid model, 480p cap" wali warning yahin se hai |
+| Repo                                                                | Stack / tareeka                                                 | Kab use karo                                                             |
+| ------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `kelvinodgar-tech/Moviebox-API`                                     | Zero-dep Node + Python scraper, H5 (Method 2)                   | Sabse saaf/sajha hua code padhna ho; `node server.js` se turant API      |
+| `faisaljs/Moviebox-API` (= `v-bit2`, `walterwhite-69` wali lineage) | FastAPI, H5, guest-JWT + player-domain + proxy                  | Python service alag se deploy karna ho                                   |
+| `tapframe/NuvioStreamsAddon` (`providers/moviebox.js`)              | Stremio addon, India mobile API (Method 3) + Hindi/dub matching | TMDB-id → Hindi dub streams chahiye hain to iski matching logic best hai |
+| `Keliura-Johnson/spun-moviebox-api`, `royalsofts6-eng/moviebox-api` | Cloudflare Worker / Node, mobile signed + HLS proxy             | Edge par chalana ho to                                                   |
+| `solo12345689/moviebox-internal-api`                                | APK reverse-engineering notes (`OFFICIAL_API_DOCUMENTATION.md`) | Signing/signCookie ki gehri detail                                       |
+| `SagorT3K/moviebox`                                                 | Poora frontend + dash.js + ffmpeg DASH→HLS transcode            | HEVC/DASH wale titles browser me chalane ka pattern                      |
+| `SANYAM7821/MovieBox-Api`                                           | H5 wrapper (archived)                                           | Sirf reference — "paid model, 480p cap" wali warning yahin se hai        |
 
 Public hosted demo instances par bharosa mat karo — aate-jaate rehte hain;
 ya to khud ka ek chhota server rakho, ya seedha Vidd wala route use karo.
 
-## Iframe wala "embed" try kiya to kya hoga?
+## Iframe wala "embed" (Full-Page Mode) — asal me kaisa lagta hai
 
-`<iframe src="https://mzfi.me/spa/videoPlayPage/movies/{slug}?id={id}&type=/movie/detail&detailSe=1&detailEp=1&lang=en">`
-ya m2box wali watch link frame kar sakte ho — lekin (1) domain rotate
-hota hai, link achanak marega; (2) saaf player ki jagah poori site, ads aur
-"Download APP" banner aayenge; (3) site kabhi bhi `X-Frame-Options`/CSP
-laga kar framing band kar sakti hai; (4) Vidd ke sandbox/ad-block
-niyam isse ladenge. Isi liye koi bhi ciddi project iframe nahi karta —
-Method 2 hi asal "embed" hai.
+Jo format hum frame karte hain wo screenshot wala hai:
+
+`<iframe src="https://m2box.org/movies/{slug}?id={id}&type=/movie/detail&detailSe={s}&detailEp={e}&lang=en">`
+
+Iske paksh me: poori library, episode grid, saari dubs/qualities —
+kuch bhi alag se jodna nahi padta, ek link = poori series. Iske
+khilaf, jo hamesha yaad rahe: (1) domains rotate hote hain, isliye hum
+link ko canonical `m2box.org` page me badal kar kholte hain; (2) poori
+site ke saath uski ads/"Download APP" banner bhi aate hain — hum iframe
+ko `allow-top-navigation` nahi dete, taaki site hamari tab hijack na
+karke; (3) M2Box kisi din `X-Frame-Options`/CSP laga de to frame blank
+ho jayega — usi ghadi ke liye toolbar me **Proxy** (server-side HTML,
+frame-headers utre hue) aur **Direct Video** (Method 2 resolver) dono
+fallback bane hue hain; (4) kuch purane TV browsers par bhari SPA slow
+ho sakta hai.
 
 ## Vidd me use — jo bana diya gaya hai
 
-**Admin ke liye (sabse asaan):** Upload/edit me movie ya har episode ki
-row par **Embed URL (ya Video URL) me poori m2box link paste kar do**.
-Player MovieBox link ko khud pehchanta hai aur iframe ki jagah resolver se
- MP4 chalata hai. Episode rows par Season/Episode number bhare hon to har
-row par **wahi ek base link** paste chalega — number row se aa jayega;
-number na hon to link ke `detailSe/detailEp` use honge.
+**Admin ke liye (sabse asaan):** Upload/edit me movie ya series ki row par
+**Embed URL (ya Video URL) me poori m2box link paste kar do**. Play
+dabate hi **poora M2Box page site ke andar khul jata hai** (episode grid
+wahi andar hai — series ke liye har episode ki alag row banana bhi
+zaroori nahi, ek hi row kaafi hai). Row par Season/Episode number bhare
+hon to page seedha usi episode se khulta hai. Frame kabhi blank aaye
+toh player ke upar "Direct Video" button wahi episode apne player me
+(resolver se) chala dega. Aur bina row banaye poori library ghumni ho
+to Navbar ka **M2Box** button / `/moviebox` page hai hi.
 
 **Resolver URL seedha lagana ho to** (Video URL field):
 
@@ -205,14 +235,17 @@ Search      : /api/moviebox?mode=search&q=My+Demon+Hindi               → har i
 Debug       : upar kisi me bhi &debug=1                                 → har upstream attempt ki trace
 ```
 
-| File | Kaam |
-|---|---|
-| `src/routes/api/moviebox.ts` | Server resolver (detail → get-domain → play → media-proxy URLs), cache + search/captions |
-| `src/lib/moviebox.ts` | Link parse, resolver URL, player-page Referer, signCookie manifest, MD5 (client+server shared) |
-| `src/components/PlayerOverlay.tsx` | m2box link (embedUrl/videoUrl) → khud resolver video me badalta hai |
-| `src/components/EmbedPlayer.tsx` | `/api/extract` ki tarah `/api/moviebox` ko bhi resolver-backed video maanta hai |
-| `scripts/moviebox-probe.mjs` | PC/VPS se standalone test/download (`--search`, `--detail`, `--json`) |
-| `scripts/moviebox.test.mjs` | Offline tests: `node scripts/moviebox.test.mjs` |
+| File                                    | Kaam                                                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `src/components/MovieboxPagePlayer.tsx` | **Default player** — poora M2Box page fullscreen frame me + madad-patti (Direct Video / Proxy / naya tab)         |
+| `src/routes/moviebox.tsx`               | `/moviebox` page — poori M2Box site andar hi browse + link paste (Navbar ke M2Box button se)                      |
+| `src/routes/api/moviebox-frame.ts`      | Frame fallback: M2Box ka HTML apne server se (`<base>` injected, frame-block headers utre hue)                    |
+| `src/routes/api/moviebox.ts`            | Server resolver (detail → get-domain → play → media-proxy URLs), cache + search/captions — Direct Video ke peeche |
+| `src/lib/moviebox.ts`                   | Link parse, full-page/resolver URL, player-page Referer, signCookie manifest, MD5 (client+server shared)          |
+| `src/components/PlayerOverlay.tsx`      | m2box link → pehle poora page (MovieboxPagePlayer), Direct dabane par resolver video                              |
+| `src/components/EmbedPlayer.tsx`        | `/api/extract` ki tarah `/api/moviebox` ko bhi resolver-backed video maanta hai                                   |
+| `scripts/moviebox-probe.mjs`            | PC/VPS se standalone test/download (`--search`, `--detail`, `--json`)                                             |
+| `scripts/moviebox.test.mjs`             | Offline tests: `node scripts/moviebox.test.mjs`                                                                   |
 
 **Env (optional):** `MOVIEBOX_HOST` (default `moviebox.ph`) — token-mint
 aur `?host=` ke liye frontend host badalna ho to.

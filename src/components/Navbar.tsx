@@ -16,6 +16,7 @@ import {
   Drama,
   Palette,
   Tv,
+  MonitorPlay,
 } from "lucide-react";
 import type { Category } from "../data";
 import { useSiteConfig } from "../lib/customization";
@@ -264,6 +265,18 @@ function Navbar({
               </button>
             );
           })}
+          <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
+          {/* Poori M2Box site, site ke andar hi (/moviebox page) */}
+          <button
+            onClick={() => {
+              window.location.href = "/moviebox";
+            }}
+            className="shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-gradient-to-r from-[#f5c518]/25 to-[#ff6a00]/25 text-[#f5c518] ring-1 ring-[#f5c518]/40 hover:text-[#ffe27a]"
+            title="Poori M2Box site yahin kholo"
+          >
+            <MonitorPlay size={13} strokeWidth={2.2} aria-hidden="true" />
+            M2Box
+          </button>
         </div>
       </div>
     </nav>
