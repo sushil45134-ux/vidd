@@ -181,6 +181,20 @@ if (lib) {
     assert.equal(lib.buildMovieboxPageUrl("not-a-url"), null);
   });
 
+  await ok("lib: sirf-player crop nap-tol", () => {
+    const desktop = lib.getMovieboxCrop(1920, 900);
+    assert.equal(desktop.frameWidth, 1360); // badi screen par site-width cap
+    assert.equal(desktop.cropTop, 118); // header+menu kata hua
+    assert.equal(desktop.stacked, false);
+    // 1320 content x 0.735 player x 9/16 + saans
+    assert.ok(desktop.height >= 540 && desktop.height <= 600, `desktop height ${desktop.height}`);
+    const mobile = lib.getMovieboxCrop(390, 700);
+    assert.equal(mobile.stacked, true);
+    assert.ok(mobile.height > 450, `mobile height ${mobile.height}`); // player + episode grid
+    const capped = lib.getMovieboxCrop(1360, 300);
+    assert.equal(capped.height, 300); // screen se bada kabhi nahi
+  });
+
   await ok("lib: player page URL (Referer wala exact format)", () => {
     assert.equal(
       lib.buildMovieboxPlayerPageUrl("https://mzfi.me/", "my-demon-hindi-SfaaEeePcfa", "8598850449111924848", 1, 3),

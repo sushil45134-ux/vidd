@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
+  Crop,
   ExternalLink,
+  Frame,
   MonitorPlay,
   Play,
   RefreshCw,
@@ -16,6 +18,7 @@ import {
   MOVIEBOX_SITE,
 } from "../lib/moviebox";
 import { MOVIEBOX_FRAME_SANDBOX } from "../components/MovieboxPagePlayer";
+import MovieboxCroppedFrame from "../components/MovieboxCroppedFrame";
 import { EmbedPlayer } from "../components/EmbedPlayer";
 
 /**
@@ -59,6 +62,9 @@ function MovieboxBrowsePage() {
   const [pageUrl, setPageUrl] = useState<string>(() => `${MOVIEBOX_SITE}/`);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"direct" | "proxy">("direct");
+  // Watch page (koi title) khula ho to sirf player + episode wala hissa
+  // ("crop"), home/browse par poora page ("full") taaki search chal sake.
+  const [view, setView] = useState<"crop" | "full">("full");
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [directPlay, setDirectPlay] = useState(false);
@@ -71,6 +77,8 @@ function MovieboxBrowsePage() {
 
   useEffect(() => {
     setLoading(true);
+    // Title ka watch page => sirf player view; M2Box home => poora page.
+    setView(pageUrl.includes("/movies/") ? "crop" : "full");
   }, [pageUrl, mode, reloadKey]);
 
   const resolverUrl =
@@ -133,6 +141,19 @@ function MovieboxBrowsePage() {
             </button>
           </div>
 
+          <button
+            onClick={() => setView((v) => (v === "crop" ? "full" : "crop"))}
+            className="h-8 px-2.5 rounded-full bg-gradient-to-r from-[#f5c518]/30 to-[#ff6a00]/30 ring-1 ring-[#f5c518]/40 text-[#ffe27a] text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
+            title={
+              view === "crop"
+                ? "Sirf player dikh raha hai — poora M2Box page dekhna hai?"
+                : "Poora page dikh raha hai — wapas sirf player par"
+            }
+          >
+            {view === "crop" ? <Frame size={13} /> : <Crop size={13} />}
+            {view === "crop" ? "Poora Page" : "Sirf Player"}
+          </button>
+
           {resolverUrl && (
             <button
               onClick={() => setDirectPlay(true)}
@@ -172,24 +193,35 @@ function MovieboxBrowsePage() {
 
         <p className="max-w-[1800px] mx-auto px-3 pb-2 text-[11px] text-white/45">
           {hint ||
-            "Poori M2Box site yahin khuli hai — title chuno, episode grid se episode badlo, quality/subtitle sab andar hi milega. Kuch blank dikhe to oopar “Proxy Try Karo” ya “Direct Video” dabao."}
+            "Title khulte hi sirf player + episode list dikhta hai (M2Box ka menu kata hua). Poori site chahiye to “Poora Page” dabao. Kuch blank dikhe to “Proxy Try Karo” ya “Direct Video” dabao."}
         </p>
       </div>
 
-      {/* Poora M2Box page */}
+      {/* Watch page par default sirf player + episode grid (crop);
+          browse ke liye "Poora Page" ek tap door hai. */}
       <div className="relative flex-1 min-h-0">
-        <iframe
-          key={`${mode}-${reloadKey}-${pageUrl}`}
-          src={frameSrc}
-          className="absolute inset-0 w-full h-full border-0 bg-black"
-          style={{ minHeight: "calc(100dvh - 96px)" }}
-          title="M2Box — poori site"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
-          allowFullScreen
-          referrerPolicy="no-referrer-when-downgrade"
-          sandbox={MOVIEBOX_FRAME_SANDBOX}
-          onLoad={() => setLoading(false)}
-        />
+        {view === "crop" ? (
+          <MovieboxCroppedFrame
+            key={`crop-${mode}-${reloadKey}-${pageUrl}`}
+            src={frameSrc}
+            title="M2Box — sirf player"
+            sandbox={MOVIEBOX_FRAME_SANDBOX}
+            onLoad={() => setLoading(false)}
+          />
+        ) : (
+          <iframe
+            key={`full-${mode}-${reloadKey}-${pageUrl}`}
+            src={frameSrc}
+            className="absolute inset-0 w-full h-full border-0 bg-black"
+            style={{ minHeight: "calc(100dvh - 96px)" }}
+            title="M2Box — poori site"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+            sandbox={MOVIEBOX_FRAME_SANDBOX}
+            onLoad={() => setLoading(false)}
+          />
+        )}
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/90 pointer-events-none">
             <div className="w-10 h-10 border-4 border-white/20 border-t-[#ff6a00] rounded-full animate-spin" />

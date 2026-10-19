@@ -6,11 +6,17 @@ Owner ki demand par ab Vidd me **M2Box ka poora watch page site ke andar
 khulta hai** — bilkul waise jaise m2box.org par: player, Resources wali
 episode grid (01–16), quality/subtitle settings, search/nav sab andar.
 
-- Kisi row par m2box link paste hai → play dabate hi poora M2Box page
-  fullscreen frame me khulta hai (`MovieboxPagePlayer`). Upar ek patli
-  patti me kabhi blank aaye to **Direct Video** (neeche wala resolver),
-  **Proxy Try Karo** (`/api/moviebox-frame` — HTML hamare server se,
-  frame-block headers utre hue), reload aur naya-tab milte hain.
+- Kisi row par m2box link paste hai → play dabate hi M2Box page khulta
+  hai **"Sirf Player" crop mode me** (`MovieboxPagePlayer` +
+  `MovieboxCroppedFrame`): iframe ek overflow-hidden dabbe me itna
+  upar dhakela hota hai ki M2Box ka logo/search/menu hamesha kata
+  rahe, aur dabbe ki unchai player (16:9) jitni — dikhta bas video
+  player + episode grid hai (`lib/moviebox.ts` ka `getMovieboxCrop`,
+  nap screenshot-par naapa hua; site header badle to wahi number
+  badlo). Toolbar ka **"Poora Page"** button poora M2Box page wapas
+  dikha deta hai. Upar ki patti me blank aaye to **Direct Video**
+  (neeche wala resolver), **Proxy Try Karo** (`/api/moviebox-frame`),
+  reload aur naya-tab bhi hain.
 - **`/moviebox`** page (Navbar ke **M2Box** button se) — poori M2Box
   site yahin browse hoti hai; upar koi bhi m2box link paste karke wo
   title bhi yahin khola ja sakta hai (`/moviebox?url=<link>` bhi chalega).

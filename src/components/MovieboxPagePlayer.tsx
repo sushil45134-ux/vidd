@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { X, ExternalLink, Play, RefreshCw, MonitorPlay, ShieldAlert } from "lucide-react";
+import {
+  X,
+  ExternalLink,
+  Play,
+  RefreshCw,
+  MonitorPlay,
+  ShieldAlert,
+  Crop,
+  Frame,
+} from "lucide-react";
+import MovieboxCroppedFrame from "./MovieboxCroppedFrame";
 
 /**
  * Full M2Box page player — "poora page website ke andar" mode
@@ -30,6 +40,7 @@ interface MovieboxPagePlayerProps {
 }
 
 type FrameMode = "direct" | "proxy";
+type ViewMode = "crop" | "full";
 
 export default function MovieboxPagePlayer({
   pageUrl,
@@ -38,6 +49,9 @@ export default function MovieboxPagePlayer({
   onTryDirect,
 }: MovieboxPagePlayerProps) {
   const [mode, setMode] = useState<FrameMode>("direct");
+  // Default: sirf player + episode wala hissa ("crop"). Chaho to ek tap me
+  // poora M2Box page ("full") bhi dikha sakte ho.
+  const [view, setView] = useState<ViewMode>("crop");
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
@@ -84,6 +98,19 @@ export default function MovieboxPagePlayer({
         ) : null}
 
         <div className="flex-1" />
+
+        <button
+          onClick={() => setView((v) => (v === "crop" ? "full" : "crop"))}
+          className="h-7 px-2.5 rounded-full bg-gradient-to-r from-[#f5c518]/30 to-[#ff6a00]/30 ring-1 ring-[#f5c518]/40 text-[#ffe27a] text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95"
+          title={
+            view === "crop"
+              ? "Sirf player dikh raha hai — poora M2Box page dekhna hai?"
+              : "Poora page dikh raha hai — wapas sirf player par"
+          }
+        >
+          {view === "crop" ? <Frame size={12} /> : <Crop size={12} />}
+          <span className="hidden sm:inline">{view === "crop" ? "Poora Page" : "Sirf Player"}</span>
+        </button>
 
         {onTryDirect && (
           <button
@@ -141,19 +168,30 @@ export default function MovieboxPagePlayer({
         </button>
       </div>
 
-      {/* Poora M2Box page — screenshot jaisa: player + episode grid sab. */}
-      <div className="relative flex-1 bg-black">
-        <iframe
-          key={`${mode}-${reloadKey}`}
-          src={src}
-          className="absolute inset-0 w-full h-full border-0"
-          title={title ? `${title} — M2Box` : "M2Box"}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
-          allowFullScreen
-          referrerPolicy="no-referrer-when-downgrade"
-          sandbox={MOVIEBOX_FRAME_SANDBOX}
-          onLoad={() => setLoading(false)}
-        />
+      {/* Default: sirf player + episode grid (header kata hua). "Poora Page"
+          dabane par site jaisi hai waisi poori. */}
+      <div className="relative flex-1 bg-black min-h-0">
+        {view === "crop" ? (
+          <MovieboxCroppedFrame
+            key={`crop-${mode}-${reloadKey}`}
+            src={src}
+            title={title ? `${title} — M2Box` : "M2Box"}
+            sandbox={MOVIEBOX_FRAME_SANDBOX}
+            onLoad={() => setLoading(false)}
+          />
+        ) : (
+          <iframe
+            key={`full-${mode}-${reloadKey}`}
+            src={src}
+            className="absolute inset-0 w-full h-full border-0"
+            title={title ? `${title} — M2Box` : "M2Box"}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+            sandbox={MOVIEBOX_FRAME_SANDBOX}
+            onLoad={() => setLoading(false)}
+          />
+        )}
 
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/90 pointer-events-none">

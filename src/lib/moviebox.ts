@@ -266,6 +266,44 @@ export function buildMovieboxPageUrl(
   );
 }
 
+export interface MovieboxCrop {
+  /** Frame ki chaudai (badi screen par site ke content-width par cap). */
+  frameWidth: number;
+  /** Upar se kitne px kaatenge — M2Box ka logo/search + menu wala hissa. */
+  cropTop: number;
+  /** Dikhne wale hisse ki unchai (player, + mobile par neeche wali episode list). */
+  height: number;
+  /** Chhoti chaudai par site episode list ko player ke neeche rakh deti hai. */
+  stacked: boolean;
+}
+
+/**
+ * "Sirf Player" crop ka nap-tol.
+ *
+ * Cross-origin iframe ke andar haath nahi dal sakte, isliye puraani
+ * crop trick chalti hai: iframe ko ek overflow-hidden dabbe ke andar
+ * `cropTop` px upar dhakelo — M2Box ka header hamesha ke liye dabbe ke
+ * bahar reh jata hai, aur dabbe ki unchai player (16:9) ke hisaab se rakh
+ * do to neeche ki detail/recommendation bhi nahi dikhti. Nap screenshot
+ * par naapa hua hai (desktop par header+menu ≈ 118px, player column
+ * content ka ≈ 73.5%, content max ≈ 1320px) — site apna header kabhi
+ * badle to bas yahi number badalne hain.
+ */
+export function getMovieboxCrop(outerWidth: number, outerHeight: number): MovieboxCrop {
+  const w = outerWidth > 0 ? outerWidth : 1280;
+  const frameWidth = Math.min(w, 1360);
+  const stacked = frameWidth < 900;
+  const cropTop =
+    frameWidth >= 1024 ? 118 : frameWidth >= 768 ? 112 : frameWidth >= 480 ? 108 : 104;
+  const contentW = Math.min(frameWidth, 1320);
+  const playerW = stacked ? Math.max(0, frameWidth - 24) : contentW * 0.735;
+  const playerH = (playerW * 9) / 16;
+  // Desktop: player + halki si saans. Mobile: player ke neeche episode grid.
+  const wanted = stacked ? playerH + 350 : playerH + 28;
+  const height = outerHeight > 0 ? Math.min(wanted, outerHeight) : wanted;
+  return { frameWidth, cropTop, height: Math.round(height), stacked };
+}
+
 /**
  * `signCookie` ke andar chhupa asli manifest prefix nikaalo.
  *
