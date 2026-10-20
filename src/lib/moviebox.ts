@@ -288,12 +288,14 @@ export const MOVIEBOX_STAGE_WIDTH = 1280;
 /** Stage par M2Box ka header+menu (upar se kata hua hissa). */
 export const MOVIEBOX_STAGE_CROP_TOP = 116;
 /**
- * Stage par player ke control-bar ke neeche tak ka hissa. Iske neeche
- * site ki title/detail aati hai jo dikhani hi nahi hai — isliye dabba
- * bilkul yahin khatm hota hai (aur desktop par andar scroll bhi band
- * rehta hai, taaki scroll karke bhi neeche na pahuncha ja sake).
+ * Stage par dikhne wala hissa — cropTop (116) se page-y 560 tak.
+ * Asli screenshot par pixel-naap (20 Oct 2026): player/panel ka
+ * neeche wala kinara ≈551, uske neeche title/detail ≈579 se shuru.
+ * Window 560 par khatm hoti hai: player ke 9px neeche, title se 19px
+ * upar — controls poore dikhenge, title bilkul nahi. (Controls video
+ * par overlay hote hain, alag bar neeche nahi hota.)
  */
-export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 498;
+export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 444;
 
 /**
  * "Sirf Player" crop ka nap-tol.
@@ -333,8 +335,8 @@ export function getMovieboxCrop(outerWidth: number, outerHeight: number): Movieb
   const cropTop = w >= 768 ? 112 : w >= 480 ? 108 : 104;
   const playerW = Math.max(0, w - 24);
   const playerH = (playerW * 9) / 16;
-  // Video + uske neeche wala control-bar (~44px) + episode grid (~320px).
-  const wanted = playerH + 44 + 320;
+  // Video (controls usi par overlay hote hain) + halki saans + episode grid.
+  const wanted = playerH + 16 + 320;
   const height = outerHeight > 0 ? Math.min(wanted, outerHeight) : wanted;
   return {
     frameWidth: Math.round(w),

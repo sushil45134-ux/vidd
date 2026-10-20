@@ -64,7 +64,10 @@ await ok("parse spa videoPlayPage link", () => {
 });
 
 await ok("parse bare detailPath / subjectId", () => {
-  assert.equal(parseMovieboxUrl("my-demon-hindi-SfaaEeePcfa").detailPath, "my-demon-hindi-SfaaEeePcfa");
+  assert.equal(
+    parseMovieboxUrl("my-demon-hindi-SfaaEeePcfa").detailPath,
+    "my-demon-hindi-SfaaEeePcfa",
+  );
   assert.equal(parseMovieboxUrl("8598850449111924848").subjectId, "8598850449111924848");
   assert.equal(parseMovieboxUrl("https://example.com/watch?v=abc"), null);
 });
@@ -73,10 +76,7 @@ await ok("X-Client-Token = sec,md5(reverse(sec))", () => {
   const t = clientToken(1789185091000);
   const [sec, hash] = t.split(",");
   assert.equal(sec, "1789185091");
-  const expected = crypto
-    .createHash("md5")
-    .update(sec.split("").reverse().join(""))
-    .digest("hex");
+  const expected = crypto.createHash("md5").update(sec.split("").reverse().join("")).digest("hex");
   assert.equal(hash, expected);
 });
 
@@ -93,8 +93,23 @@ await ok("normalizeStreams: play/download response roop", () => {
   // response se verify): streams[].resolutions string hoti hai.
   const play = normalizeStreams({
     streams: [
-      { id: "1", format: "MP4", url: "https://cdn.example.com/v-720.mp4", resolutions: "720", size: "734003200", duration: 3900, codecName: "h264" },
-      { id: "2", format: "MP4", url: "https://cdn.example.com/v-1080.mp4", resolutions: "1080", size: "1500000000", codecName: "hevc" },
+      {
+        id: "1",
+        format: "MP4",
+        url: "https://cdn.example.com/v-720.mp4",
+        resolutions: "720",
+        size: "734003200",
+        duration: 3900,
+        codecName: "h264",
+      },
+      {
+        id: "2",
+        format: "MP4",
+        url: "https://cdn.example.com/v-1080.mp4",
+        resolutions: "1080",
+        size: "1500000000",
+        codecName: "hevc",
+      },
       { id: "3", format: "MP4", url: "", resolutions: "360" },
     ],
     hls: [],
@@ -124,7 +139,9 @@ let lib = null;
 try {
   lib = await import("../src/lib/moviebox.ts");
 } catch {
-  console.log("⚠️ src/lib/moviebox.ts import nahi hua (Node type-stripping unavailable) — app-helper tests skip");
+  console.log(
+    "⚠️ src/lib/moviebox.ts import nahi hua (Node type-stripping unavailable) — app-helper tests skip",
+  );
 }
 
 if (lib) {
@@ -187,7 +204,7 @@ if (lib) {
     assert.equal(desktop.scale, 1.5); // 1920/1280
     assert.equal(desktop.cropTop, lib.MOVIEBOX_STAGE_CROP_TOP); // header+menu kata
     assert.equal(desktop.stacked, false);
-    // Dikhne wala hissa = stage ka 498 x scale — player ke just neeche khatm
+    // Dikhne wala hissa = stage ka 444 x scale — player ke just neeche khatm
     assert.equal(desktop.height, Math.round(lib.MOVIEBOX_STAGE_VISIBLE_HEIGHT * 1.5));
     const mobile = lib.getMovieboxCrop(390, 700);
     assert.equal(mobile.stacked, true);
@@ -198,7 +215,13 @@ if (lib) {
 
   await ok("lib: player page URL (Referer wala exact format)", () => {
     assert.equal(
-      lib.buildMovieboxPlayerPageUrl("https://mzfi.me/", "my-demon-hindi-SfaaEeePcfa", "8598850449111924848", 1, 3),
+      lib.buildMovieboxPlayerPageUrl(
+        "https://mzfi.me/",
+        "my-demon-hindi-SfaaEeePcfa",
+        "8598850449111924848",
+        1,
+        3,
+      ),
       "https://mzfi.me/spa/videoPlayPage/movies/my-demon-hindi-SfaaEeePcfa?id=8598850449111924848&type=/movie/detail&detailSe=1&detailEp=3&lang=en",
     );
   });

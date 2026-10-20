@@ -104,7 +104,7 @@ function MovieboxBrowsePage() {
     mode === "proxy" ? `/api/moviebox-frame?url=${encodeURIComponent(pageUrl)}` : pageUrl;
 
   return (
-    <div className="min-h-dvh bg-black text-white flex flex-col">
+    <div className="h-dvh bg-black text-white flex flex-col overflow-hidden">
       {/* Upar ki patti: wapas, link paste, mode, naya tab */}
       <div className="sticky top-0 z-20 bg-[#0b0b0f]/95 backdrop-blur border-b border-white/10">
         <div className="max-w-[1800px] mx-auto px-3 py-2 flex items-center gap-2 flex-wrap">
@@ -203,7 +203,7 @@ function MovieboxBrowsePage() {
       {!pageUrl ? (
         /* Shuruaat: koi site nahi, bas link-paste wala saaf page. Link
            dalte hi seedha sirf-player. */
-        <div className="flex-1 flex items-center justify-center px-4 py-14">
+        <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center px-4 py-14">
           <div className="w-full max-w-xl text-center">
             <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-[#ff6a00] to-[#ee0979] flex items-center justify-center shadow-2xl shadow-[#ee0979]/25">
               <MonitorPlay size={30} className="text-white" />

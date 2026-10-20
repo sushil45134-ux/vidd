@@ -41,22 +41,39 @@ export default function MovieboxCroppedFrame({
     const measure = () => {
       const r = el.getBoundingClientRect();
       setSize({ w: r.width, h: r.height });
+      // Fullscreen ki halat bhi har nap ke saath sync rakho — event
+      // kabhi miss ho jaye to purani halat chipki na reh jaye.
+      setIsFullscreen(!!document.fullscreenElement);
     };
     measure();
+    window.addEventListener("resize", measure);
     if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", measure);
       return () => window.removeEventListener("resize", measure);
     }
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro.disconnect();
+    };
   }, []);
 
   useEffect(() => {
     const onFsChange = () => {
-      setIsFullscreen(
-        !!document.fullscreenElement && document.fullscreenElement === iframeRef.current,
-      );
+      setIsFullscreen(!!document.fullscreenElement);
+      // Fullscreen se wapas aate hi layout ek pal me settle hota hai;
+      // nap dobara lo taaki fullscreen wala bada size chipka na reh
+      // jaye (usi chipke size se crop ki unchai badh jati thi aur
+      // player ke neeche wala title dikhne lagta tha).
+      const el = outerRef.current;
+      if (!el) return;
+      const remeasure = () => {
+        const r = el.getBoundingClientRect();
+        setSize({ w: r.width, h: r.height });
+      };
+      requestAnimationFrame(remeasure);
+      window.setTimeout(remeasure, 80);
+      window.setTimeout(remeasure, 250);
     };
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
@@ -106,9 +123,11 @@ export default function MovieboxCroppedFrame({
                     height: crop.stageVisibleHeight + crop.cropTop,
                   }
             }
-            // Desktop: andar scroll band — neeche wala hissa kisi tarah na aaye.
+            // Desktop: andar scroll HAMESHA band (fullscreen me bhi) —
+            // warna fullscreen se lautne par page khiska hua mil sakta
+            // hai aur neeche wala hissa dikhne lagta hai.
             // Mobile: episode list player ke neeche hai, scroll zaroori hai.
-            {...(crop.stacked || isFullscreen ? {} : { scrolling: "no" })}
+            {...(crop.stacked ? {} : { scrolling: "no" })}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
