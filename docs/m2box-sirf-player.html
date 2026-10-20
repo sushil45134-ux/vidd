@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M2Box — Sirf Player (crop demo)</title>
+    <!--
+      ============================================================
+      M2Box "Sirf Player" — ek hi file me poora jugaad
+      ============================================================
+      Is file ko browser me khol kar hi test kar sakte ho. Apni
+      website par lagane ke liye sirf teen cheezein chahiye:
+        1) neeche wali CSS (.m2outer / .m2box / .m2stage / .m2frame)
+        2) wo teen dabbe wala HTML (outer > box > stage > iframe)
+        3) neeche wala script (constants + getCrop + apply)
+      Upar wala paste-bar sirf is demo ke liye hai — apni site par
+      use hata kar seedha openLink(apnaLink) bula lena, ya iframe
+      ke src me apna watch-page URL de dena.
+
+      Chal (trick) seedhi hai: iframe ko hamesha fixed 1536px
+      chaudi "stage" par render karte hain, use upar 117px aur
+      baayein 120px dhakel kar ek overflow-hidden dabbe me band
+      kar dete hain jiski unchai player ke just neeche khatm hoti
+      hai (545px stage hisaab me). Poori stage ko phir screen ke
+      hisaab se CSS scale kar dete hain — isliye kaat har screen
+      par bilkul ek jagah padta hai. Poori tafseel:
+      docs/M2BOX_SIRF_PLAYER_GUIDE.md
+      ============================================================
+    -->
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: #000; }
+      body {
+        /* PAKKI (fixed) unchai — min-height/auto kabhi mat rakho,
+           warna dabba apni hi unchai naapne lagta hai aur controls
+           kat jaate hain (guide me is galti ki kahani hai). */
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: system-ui, sans-serif;
+        color: #fff;
+      }
+
+      /* ---- Sirf demo ka paste-bar (apni site par hata sakte ho) ---- */
+      .demo-bar {
+        flex: 0 0 auto;
+        display: flex; gap: 8px; align-items: center;
+        padding: 10px 12px; background: #0b0b0f; border-bottom: 1px solid #ffffff1a;
+      }
+      .demo-bar input {
+        flex: 1; height: 36px; border-radius: 999px; border: 1px solid #ffffff26;
+        background: #000000b3; color: #fff; padding: 0 14px; font-size: 13px; outline: none;
+      }
+      .demo-bar input:focus { border-color: #ff6a0099; }
+      .demo-bar button {
+        height: 36px; padding: 0 18px; border: 0; border-radius: 999px; cursor: pointer;
+        background: linear-gradient(90deg, #ff6a00, #ee0979); color: #fff; font-weight: 700; font-size: 13px;
+      }
+      .demo-err { color: #fda4af; font-size: 12px; padding: 0 12px; flex: 0 0 auto; }
+
+      /* ================= ASLI HISSA — yahi copy karna hai ================= */
+      /* Naapne wala dabba: iski chaudai/unchai se crop banta hai.
+         Ye apne parent ki PAKKI jagah le — height iske bachon par
+         nirbhar nahi honi chahiye. */
+      .m2outer {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      /* Dikhne wala dabba — iske bahar ka sab kata hua hai.
+         width/height JS set karta hai. */
+      .m2box {
+        position: relative;
+        overflow: hidden;
+        background: #000;
+        flex: 0 0 auto;
+      }
+      /* Stage — fixed chaudai, JS isko scale karta hai. */
+      .m2stage { position: relative; transform-origin: top left; }
+      /* Iframe — upar/baayein dhakela hua; top/left/width/height JS deta hai. */
+      .m2frame { position: absolute; border: 0; }
+    </style>
+  </head>
+  <body>
+    <!-- Sirf demo ke liye: link paste karke badal sakte ho -->
+    <div class="demo-bar">
+      <input id="demoInput" placeholder="https://m2box.org/movies/...?id=..." />
+      <button id="demoBtn" type="button">Kholo</button>
+    </div>
+    <div class="demo-err" id="demoErr"></div>
+
+    <!-- ================= ASLI HISSA ================= -->
+    <div class="m2outer" id="m2outer">
+      <div class="m2box" id="m2box">
+        <div class="m2stage" id="m2stage">
+          <iframe
+            id="m2frame"
+            class="m2frame"
+            title="M2Box player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
+            allowfullscreen
+            referrerpolicy="no-referrer-when-downgrade"
+            sandbox="allow-downloads allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+          ></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+
+      /* ---------- Saare number ek jagah (site layout badle to bas ye badlo) ---------- */
+      var STAGE_WIDTH = 1536;        // iframe hamesha is chaudai par render hoga
+      var CROP_TOP = 117;            // upar se kata: header + menu
+      var CROP_LEFT = 120;           // baayein se kata: player 129 se shuru hota hai
+      var VISIBLE_HEIGHT = 545;      // dikhne wali unchai: page-y 117 -> 662 (player bottom 654, title 682)
+
+      var outer = document.getElementById("m2outer");
+      var box = document.getElementById("m2box");
+      var stage = document.getElementById("m2stage");
+      var frame = document.getElementById("m2frame");
+
+      /* ---------- Nap-tol: bahari dabba (w x h) -> crop ke number ---------- */
+      function getCrop(outerW, outerH) {
+        var w = outerW > 0 ? outerW : 1416;
+        if (w >= 900) {
+          // Desktop: fixed stage + scale
+          var visibleW = STAGE_WIDTH - CROP_LEFT;          // 1416
+          var scale = w / visibleW;
+          var wanted = VISIBLE_HEIGHT * scale;
+          return {
+            stacked: false,
+            frameWidth: Math.round(w),
+            height: Math.round(outerH > 0 ? Math.min(wanted, outerH) : wanted),
+            stageWidth: STAGE_WIDTH,
+            stageVisibleWidth: visibleW,
+            stageVisibleHeight: VISIBLE_HEIGHT,
+            cropTop: CROP_TOP,
+            cropLeft: CROP_LEFT,
+            scale: scale,
+          };
+        }
+        // Mobile/tablet: site episode list player ke NEECHE rakhti hai.
+        // Stage nahi banta; unchai = player + halki saans + episode grid,
+        // aur andar scroll khula rehta hai warna episodes dikhenge hi nahi.
+        var cropTop = w >= 768 ? 112 : w >= 480 ? 108 : 104;
+        var playerH = (Math.max(0, w - 24) * 9) / 16;
+        var wantedM = playerH + 16 + 320;
+        return {
+          stacked: true,
+          frameWidth: Math.round(w),
+          height: Math.round(outerH > 0 ? Math.min(wantedM, outerH) : wantedM),
+          stageWidth: Math.round(w),
+          stageVisibleWidth: Math.round(w),
+          stageVisibleHeight: Math.round(wantedM),
+          cropTop: cropTop,
+          cropLeft: 0,
+          scale: 1,
+        };
+      }
+
+      /* ---------- Crop lagao (fullscreen me sab hata do) ---------- */
+      function apply() {
+        var r = outer.getBoundingClientRect();
+        var isFs = !!document.fullscreenElement;
+        var crop = getCrop(r.width, r.height);
+
+        if (isFs) {
+          // Fullscreen me crop/scale bilkul nahi — warna kata hua
+          // hissa fullscreen me bhi bigda dikhega.
+          box.style.width = "100%";
+          box.style.height = "100%";
+          stage.style.width = "100%";
+          stage.style.height = "100%";
+          stage.style.transform = "";
+          frame.style.top = "0px";
+          frame.style.left = "0px";
+          frame.style.width = "100%";
+          frame.style.height = "100%";
+        } else {
+          box.style.width = crop.frameWidth + "px";
+          box.style.height = crop.height + "px";
+          stage.style.width = crop.stageVisibleWidth + "px";
+          stage.style.height = crop.stageVisibleHeight + "px";
+          stage.style.transform = crop.scale !== 1 ? "scale(" + crop.scale + ")" : "";
+          frame.style.top = -crop.cropTop + "px";
+          frame.style.left = -crop.cropLeft + "px";
+          frame.style.width = crop.stageWidth + "px";
+          frame.style.height = crop.stageVisibleHeight + crop.cropTop + "px";
+        }
+
+        // Desktop: iframe ke andar PAGE scroll hamesha band (fullscreen
+        // me bhi!) — warna andar ka page khisak kar title dikha dega.
+        // Mobile par scroll zaroori hai (episodes player ke neeche hain).
+        if (crop.stacked) frame.removeAttribute("scrolling");
+        else frame.setAttribute("scrolling", "no");
+      }
+
+      // Size badle to dobara naapo
+      if (window.ResizeObserver) new ResizeObserver(apply).observe(outer);
+      window.addEventListener("resize", apply);
+
+      // Fullscreen aane-jaane par: state sync + layout settle hone
+      // ke baad dobara naap (warna fullscreen wala bada size chipak
+      // jata hai aur lautne par neeche ka title dikhne lagta hai).
+      document.addEventListener("fullscreenchange", function () {
+        apply();
+        requestAnimationFrame(apply);
+        setTimeout(apply, 80);
+        setTimeout(apply, 250);
+      });
+
+      /* ---------- Kisi bhi m2box/moviebox link se canonical watch-page URL ---------- */
+      function parseLink(raw) {
+        var s = String(raw || "").trim().replace(/&amp;/g, "&");
+        var slug = (s.match(/\/movies\/([^/?#]+)/) || s.match(/\/spa\/videoPlayPage\/movies\/([^/?#]+)/) || [])[1];
+        var id = (s.match(/[?&]id=(\d+)/) || [])[1];
+        if (!slug && /^[a-z0-9-]{5,}$/i.test(s) && !/^\d+$/.test(s)) slug = s; // sirf slug diya ho to
+        if (!id && /^\d{10,}$/.test(s)) id = s;                                 // sirf id diya ho to
+        var se = (s.match(/[?&]detailSe=(\d+)/) || [])[1] || "";
+        var ep = (s.match(/[?&]detailEp=(\d+)/) || [])[1] || "";
+        return slug && id ? { slug: slug, id: id, se: se, ep: ep } : null;
+      }
+      function watchUrl(raw) {
+        var p = parseLink(raw);
+        if (!p) return null;
+        return (
+          "https://m2box.org/movies/" + encodeURIComponent(p.slug) +
+          "?id=" + encodeURIComponent(p.id) +
+          "&type=/movie/detail&detailSe=" + p.se + "&detailEp=" + p.ep + "&lang=en"
+        );
+      }
+      function openLink(raw) {
+        var url = watchUrl(raw);
+        if (!url) return false;
+        frame.src = url;
+        apply();
+        return true;
+      }
+
+      /* ---------- Demo paste-bar (apni site par hata sakte ho) ---------- */
+      var input = document.getElementById("demoInput");
+      var err = document.getElementById("demoErr");
+      function tryOpen() {
+        err.textContent = openLink(input.value)
+          ? ""
+          : "Ye M2Box ka watch link nahi lagta — https://m2box.org/movies/...?id=... wala poora link paste karo.";
+      }
+      document.getElementById("demoBtn").addEventListener("click", tryOpen);
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter") tryOpen(); });
+
+      // Shuruaat me example title kholo
+      openLink("https://m2box.org/movies/my-demon-hindi-SfaaEeePcfa?id=8598850449111924848&type=/movie/detail");
+      apply();
+    </script>
+  </body>
+</html>

@@ -1,5 +1,9 @@
 # MovieBox (m2box.org) — "embed" kaise nikalein
 
+> **Sirf crop (player kaatna) dusri website par lagana hai?**
+> Poori copy-paste wali guide: `docs/M2BOX_SIRF_PLAYER_GUIDE.md`
+> aur ready-made ek-file demo: `docs/m2box-sirf-player.html`.
+
 ## ⭐ Update: Full-Page Mode (ab yahi default hai)
 
 Owner ki demand par ab Vidd me **M2Box ka poora watch page site ke andar
