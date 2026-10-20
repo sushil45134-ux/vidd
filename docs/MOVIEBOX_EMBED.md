@@ -8,10 +8,13 @@ episode grid (01–16), quality/subtitle settings, search/nav sab andar.
 
 - Kisi row par m2box link paste hai → play dabate hi M2Box page khulta
   hai **"Sirf Player" crop mode me** (`MovieboxPagePlayer` +
-  `MovieboxCroppedFrame`): iframe ek fixed 1280px "stage" par render
-  hota hai, stage overflow-hidden dabbe me header/menu jitna upar
-  dhakela hota hai, aur dabbe ki unchai player ke control-bar ke just
-  neeche khatm hoti hai (`MOVIEBOX_STAGE_*` + `getMovieboxCrop`,
+  `MovieboxCroppedFrame`): iframe ek fixed 1536px "stage" par render
+  hota hai (is chaudai par episode guide asli site jaisa chhota
+  5-column banta hai; kam chaudai par guide bada/lamba ho kar player
+  ko kheenchta hai aur controls dab jaate hain), stage
+  overflow-hidden dabbe me header/menu jitna upar aur sidebar jitna
+  baayein dhakela hota hai, aur dabbe ki unchai player ke just neeche
+  khatm hoti hai (`MOVIEBOX_STAGE_*` + `getMovieboxCrop`,
   `lib/moviebox.ts`) — stage CSS-scale ho jata hai, isliye kat har
   screen par same jagah padta hai. Desktop par andar scroll bhi band
   hai, neeche wala title/detail hissa kahin se nahi dikhega. Toolbar ka

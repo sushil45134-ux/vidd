@@ -4,9 +4,11 @@ import { getMovieboxCrop } from "../lib/moviebox";
 /**
  * Sirf-Player frame — bas player + episode grid, upar-neeche sab kata
  * ====================================================================
- * Desktop par iframe ek fixed 1280px wale "stage" par render hota hai
- * aur stage poori screen ke hisaab se scale hoti hai. Stage ke andar
- * iframe itna upar dhakela hota hai ki M2Box ka header/menu hamesha
+ * Desktop par iframe ek fixed 1536px wale "stage" par render hota
+ * hai (is chaudai par episode guide asli site jaisa chhota 5-column
+ * banta hai) aur stage screen ke hisaab se scale hoti hai. Stage ke
+ * andar iframe itna upar aur baayein dhakela hota hai ki M2Box ka
+ * header/menu aur sidebar hamesha
  * dabbe ke bahar rahe, aur dabbe ki unchai player ke control-bar ke
  * just neeche khatm hoti hai — title/detail wala hissa bilkul nahi
  * dikhta. Desktop par iframe ke andar scroll bhi band hai, taaki
@@ -102,7 +104,7 @@ export default function MovieboxCroppedFrame({
             isFullscreen
               ? { width: "100%", height: "100%" }
               : {
-                  width: crop.stageWidth,
+                  width: crop.stageVisibleWidth,
                   height: crop.stageVisibleHeight,
                   transform: crop.scale !== 1 ? `scale(${crop.scale})` : undefined,
                   transformOrigin: "top left",
@@ -113,12 +115,13 @@ export default function MovieboxCroppedFrame({
             ref={iframeRef}
             src={src}
             title={title || "M2Box player"}
-            className="absolute left-0 border-0"
+            className="absolute border-0"
             style={
               isFullscreen
-                ? { top: 0, width: "100%", height: "100%" }
+                ? { top: 0, left: 0, width: "100%", height: "100%" }
                 : {
                     top: -crop.cropTop,
+                    left: -crop.cropLeft,
                     width: crop.stageWidth,
                     height: crop.stageVisibleHeight + crop.cropTop,
                   }

@@ -271,42 +271,61 @@ export interface MovieboxCrop {
   frameWidth: number;
   /** Iframe ke apne (stage) hisaab me upar se kata hissa — header+menu. */
   cropTop: number;
+  /** Stage hisaab me baayein se kata hissa — site ki sidebar (desktop). */
+  cropLeft: number;
   /** Screen par dikhne wale dabbe ki unchai (px) — iske neeche kuch nahi dikhta. */
   height: number;
   /** Chhoti chaudai par site episode list ko player ke neeche rakh deti hai. */
   stacked: boolean;
-  /** Iframe jis fixed chaudai par render hota hai (desktop par 1280). */
+  /** Iframe jis fixed chaudai par render hota hai (desktop par 1536). */
   stageWidth: number;
   /** Stage ko screen ke hisaab se kitna bada/chhota dikhana hai. */
   scale: number;
+  /** Stage ke hisaab me dikhne wali chaudai (= stageWidth − cropLeft). */
+  stageVisibleWidth: number;
   /** Stage ke hisaab me dikhne wala hissa (iframe ki unchai = ye + cropTop). */
   stageVisibleHeight: number;
 }
 
-/** Desktop par iframe hamesha is fixed chaudai par render hota hai. */
-export const MOVIEBOX_STAGE_WIDTH = 1280;
-/** Stage par M2Box ka header+menu (upar se kata hua hissa). */
-export const MOVIEBOX_STAGE_CROP_TOP = 116;
 /**
- * Stage par dikhne wala hissa — cropTop (116) se page-y 560 tak.
- * Asli screenshot par pixel-naap (20 Oct 2026): player/panel ka
- * neeche wala kinara ≈551, uske neeche title/detail ≈579 se shuru.
- * Window 560 par khatm hoti hai: player ke 9px neeche, title se 19px
- * upar — controls poore dikhenge, title bilkul nahi. (Controls video
- * par overlay hote hain, alag bar neeche nahi hota.)
+ * Desktop par iframe hamesha is fixed chaudai par render hota hai.
+ * 1536 isliye: is chaudai par site bilkul waisi khulti hai jaisi
+ * m2box.org par khud dikhti hai — episode guide 5 column me chhote
+ * button ke saath. (1280 par guide 4 column ka bada banta tha; zyada
+ * episodes hone par panel player se lamba ho jata tha aur site
+ * player ko kheench kar controls ko hamari window ke bahar dhakel
+ * deti thi.) Is chaudai par site left sidebar bhi dikhati hai — use
+ * cropLeft se kaat dete hain.
  */
-export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 444;
+export const MOVIEBOX_STAGE_WIDTH = 1536;
+/** Stage par M2Box ka header+menu (upar se kata hua hissa). */
+export const MOVIEBOX_STAGE_CROP_TOP = 117;
+/**
+ * Stage par baayein se kata hissa — site ki sidebar (≈228px) + uske
+ * baad wali khali patti ka aadha. Player ≈245 se shuru hota hai, to
+ * 236 par kaatne se sidebar pura gayab, player bilkul nahi kat-ta.
+ */
+export const MOVIEBOX_STAGE_CROP_LEFT = 236;
+/**
+ * Stage par dikhne wala hissa — cropTop (117) se page-y 662 tak.
+ * Asli site ke screenshot ka pixel-naap (20 Oct 2026, Demon Slayer
+ * 26 eps): player/panel ka neeche wala kinara ≈654, title ≈682 se.
+ * Window 662 par khatm: player ke 8px neeche, title se 20px upar.
+ * (Controls video par overlay hote hain — ≈640 tak aate hain.)
+ */
+export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 545;
 
 /**
  * "Sirf Player" crop ka nap-tol.
  *
- * Desktop par iframe ko pehle ek FIXED 1280px wale stage par render
+ * Desktop par iframe ko pehle ek FIXED 1536px wale stage par render
  * karte hain (site ka layout us ek chaudai par hamesha pakka rehta
- * hai), phir poore stage ko screen ke hisaab se scale kar dete hain.
- * Isse upar ka kata (header) aur neeche ka kata (player ke control-bar
- * ke just neeche) har screen par ekdum waisa hi padta hai. Nap asli
- * screenshots par naapa gaya hai; site apna layout kabhi badle to bas
- * upar wale teen number badalne hain.
+ * hai — chhote 5-column episode button ke saath, jaisa asli site
+ * par), baayein sidebar aur upar header kaat kar bache hisse ko
+ * screen ke hisaab se scale kar dete hain. Isse teeno kaat (upar,
+ * baayein, neeche player ke just baad) har screen par ekdum ek
+ * jaise padte hain. Nap asli screenshots par naapa gaya hai; site
+ * apna layout kabhi badle to bas upar wale char number badalne hain.
  *
  * Chhoti screen (mobile) par stage nahi banta — wahan site episode
  * list ko player ke neeche rakh deti hai, to unchai player + controls
@@ -314,20 +333,23 @@ export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 444;
  * hai (warna episodes tak pahuncha hi nahi jayega).
  */
 export function getMovieboxCrop(outerWidth: number, outerHeight: number): MovieboxCrop {
-  const w = outerWidth > 0 ? outerWidth : 1280;
+  const w = outerWidth > 0 ? outerWidth : 1300;
   const stacked = w < 900;
 
   if (!stacked) {
-    const scale = w / MOVIEBOX_STAGE_WIDTH;
+    const stageVisibleWidth = MOVIEBOX_STAGE_WIDTH - MOVIEBOX_STAGE_CROP_LEFT;
+    const scale = w / stageVisibleWidth;
     const wanted = MOVIEBOX_STAGE_VISIBLE_HEIGHT * scale;
     const height = outerHeight > 0 ? Math.min(wanted, outerHeight) : wanted;
     return {
       frameWidth: Math.round(w),
       cropTop: MOVIEBOX_STAGE_CROP_TOP,
+      cropLeft: MOVIEBOX_STAGE_CROP_LEFT,
       height: Math.round(height),
       stacked,
       stageWidth: MOVIEBOX_STAGE_WIDTH,
       scale,
+      stageVisibleWidth,
       stageVisibleHeight: MOVIEBOX_STAGE_VISIBLE_HEIGHT,
     };
   }
@@ -341,10 +363,12 @@ export function getMovieboxCrop(outerWidth: number, outerHeight: number): Movieb
   return {
     frameWidth: Math.round(w),
     cropTop,
+    cropLeft: 0,
     height: Math.round(height),
     stacked,
     stageWidth: Math.round(w),
     scale: 1,
+    stageVisibleWidth: Math.round(w),
     stageVisibleHeight: Math.round(wanted),
   };
 }

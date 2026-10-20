@@ -200,12 +200,14 @@ if (lib) {
 
   await ok("lib: sirf-player crop nap-tol (fixed stage)", () => {
     const desktop = lib.getMovieboxCrop(1920, 900);
-    assert.equal(desktop.stageWidth, 1280); // iframe fixed stage par
-    assert.equal(desktop.scale, 1.5); // 1920/1280
+    assert.equal(desktop.stageWidth, 1536); // iframe fixed stage par (chhota 5-col guide)
+    assert.equal(desktop.cropLeft, lib.MOVIEBOX_STAGE_CROP_LEFT); // sidebar kata
+    assert.equal(desktop.stageVisibleWidth, 1300); // 1536 - 236
+    assert.equal(desktop.scale, 1920 / 1300);
     assert.equal(desktop.cropTop, lib.MOVIEBOX_STAGE_CROP_TOP); // header+menu kata
     assert.equal(desktop.stacked, false);
-    // Dikhne wala hissa = stage ka 444 x scale — player ke just neeche khatm
-    assert.equal(desktop.height, Math.round(lib.MOVIEBOX_STAGE_VISIBLE_HEIGHT * 1.5));
+    // Dikhne wala hissa = stage ka 545 x scale — player ke just neeche khatm
+    assert.equal(desktop.height, Math.round(lib.MOVIEBOX_STAGE_VISIBLE_HEIGHT * (1920 / 1300)));
     const mobile = lib.getMovieboxCrop(390, 700);
     assert.equal(mobile.stacked, true);
     assert.ok(mobile.height > 450, `mobile height ${mobile.height}`); // player + episode grid
