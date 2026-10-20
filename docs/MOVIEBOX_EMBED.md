@@ -21,9 +21,8 @@ episode grid (01–16), quality/subtitle settings, search/nav sab andar.
   `lib/moviebox.ts`) — stage CSS-scale ho jata hai, isliye kat har
   screen par same jagah padta hai. Desktop par andar scroll bhi band
   hai, neeche wala title/detail hissa kahin se nahi dikhega. Player ke
-  upar koi patti nahi hai — band karna, **"Poora Page"**, **Direct
-  Video**, **Proxy Try Karo**, reload sab upar-left ek chhoti floating
-  pill me hain.
+  upar apna koi UI nahi hai — bas upar-left band karne ka chhota sa
+  gola X (Esc se bhi band hota hai).
 - **`/moviebox`** page — **sirf admin ke liye** hai (`/api/auth` se
   `isAdmin` check; Navbar ka M2Box button bhi sirf admin ko dikhta
   hai). Khulte hi M2Box ki website NAHI aati, sirf apna link-paste
