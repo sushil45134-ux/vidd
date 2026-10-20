@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Frame,
   Home,
+  Lock,
   MonitorPlay,
   Play,
   RefreshCw,
@@ -18,19 +19,17 @@ import MovieboxCroppedFrame from "../components/MovieboxCroppedFrame";
 import { EmbedPlayer } from "../components/EmbedPlayer";
 
 /**
- * /moviebox — poori M2Box site, Vidd ke andar
- * =============================================
- * m2box.org ka poora page (home/search/categories/watch — player aur
- * episode grid ke saath) ek bade frame me yahin khulta hai, taaki poori
- * MovieBox library bina site chhode browse ho sake.
+ * /moviebox — M2Box link-paste tool (SIRF ADMIN ke liye)
+ * =======================================================
+ * Ye page public nahi hai: /api/auth se isAdmin check karke hi khulta
+ * hai (Navbar ka M2Box button bhi sirf admin ko dikhta hai). Admin
+ * yahan m2box.org ka koi bhi watch link paste karta hai aur seedha
+ * sirf-player (crop) khulta hai — titles library me daalne ke liye
+ * Upload wala "M2Box" tab hai, ye page bas jaldi check/playback ke
+ * liye hai.
  *
- *   /moviebox                                  → M2Box home
- *   /moviebox?url=<m2box watch link>           → wahi title ka watch page
- *
- * Upar ki patti se koi bhi m2box link paste karke bhi yahin khola ja
- * sakta hai. Frame kisi din blank aaye to "Proxy" mode (hamare server
- * ke raaste HTML) ya — title page par — "Direct Video" (apna resolver
- * player) ka rasta maujood hai.
+ *   /moviebox                                  → link-paste wala page
+ *   /moviebox?url=<m2box watch link>           → seedha wahi player
  */
 
 export const Route = createFileRoute("/moviebox")({
@@ -60,6 +59,17 @@ function initialTarget(): string {
 }
 
 function MovieboxBrowsePage() {
+  // Ye tool sirf admin ke liye hai — pehle /api/auth se pakka karo.
+  // Check pura hone se pehle (aur admin na hone par) landing/player
+  // bilkul render nahi hota, taaki pageUrl wala iframe load hi na ho.
+  const [authState, setAuthState] = useState<"checking" | "admin" | "denied">("checking");
+  useEffect(() => {
+    fetch("/api/auth")
+      .then((r) => r.json())
+      .then((d) => setAuthState(d.isAdmin === true ? "admin" : "denied"))
+      .catch(() => setAuthState("denied"));
+  }, []);
+
   const [pageUrl, setPageUrl] = useState<string>("");
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"direct" | "proxy">("direct");
@@ -95,6 +105,53 @@ function MovieboxBrowsePage() {
     setDirectPlay(false);
     setPageUrl(buildMovieboxPageUrl(raw) || raw);
     setInput("");
+  }
+
+  if (authState === "checking") {
+    return (
+      <div className="h-dvh bg-black flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-white/20 border-t-[#ff6a00] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (authState === "denied") {
+    return (
+      <div className="relative h-dvh bg-black text-white flex items-center justify-center px-4">
+        <a
+          href="/"
+          className="absolute left-3 top-3 z-30 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold backdrop-blur transition active:scale-95"
+        >
+          <ArrowLeft size={14} /> Home
+        </a>
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-[#ff6a00] to-[#ee0979] flex items-center justify-center shadow-2xl shadow-[#ee0979]/25">
+            <Lock size={28} className="text-white" />
+          </div>
+          <h1 className="mt-5 text-2xl font-extrabold tracking-tight">
+            Ye tool sirf admin ke liye hai
+          </h1>
+          <p className="mt-2 text-sm text-white/55 leading-relaxed">
+            M2Box link-paste wala page ab public nahi hai. Admin ho to pehle login kar lo, phir
+            yahan aa jana.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <a
+              href="/admin"
+              className="h-10 px-5 rounded-full bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-sm font-bold inline-flex items-center transition active:scale-95"
+            >
+              Admin Login
+            </a>
+            <a
+              href="/"
+              className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-sm font-bold inline-flex items-center transition active:scale-95"
+            >
+              Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (directPlay && resolverUrl) {

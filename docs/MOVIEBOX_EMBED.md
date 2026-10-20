@@ -20,13 +20,16 @@ episode grid (01–16), quality/subtitle settings, search/nav sab andar.
   khatm hoti hai (`MOVIEBOX_STAGE_*` + `getMovieboxCrop`,
   `lib/moviebox.ts`) — stage CSS-scale ho jata hai, isliye kat har
   screen par same jagah padta hai. Desktop par andar scroll bhi band
-  hai, neeche wala title/detail hissa kahin se nahi dikhega. Toolbar ka
-  **"Poora Page"** button poora M2Box page wapas dikha deta hai. Upar
-  ki patti me blank aaye to **Direct Video** (neeche wala resolver),
-  **Proxy Try Karo** (`/api/moviebox-frame`), reload aur naya-tab bhi hain.
-- **`/moviebox`** page (Navbar ke **M2Box** button se) — khulte hi
-  M2Box ki website NAHI aati, sirf apna link-paste wala page dikhta
-  hai; link dalte hi seedha sirf-player (`/moviebox?url=<link>` bhi chalega).
+  hai, neeche wala title/detail hissa kahin se nahi dikhega. Player ke
+  upar koi patti nahi hai — band karna, **"Poora Page"**, **Direct
+  Video**, **Proxy Try Karo**, reload sab upar-left ek chhoti floating
+  pill me hain.
+- **`/moviebox`** page — **sirf admin ke liye** hai (`/api/auth` se
+  `isAdmin` check; Navbar ka M2Box button bhi sirf admin ko dikhta
+  hai). Khulte hi M2Box ki website NAHI aati, sirf apna link-paste
+  wala page dikhta hai; link dalte hi seedha sirf-player
+  (`/moviebox?url=<link>` bhi chalega). Library me title daalne ke
+  liye Upload modal ka **M2Box tab** hai ("M2 Upload").
 - Neeche wala direct-stream resolver hataya NAHI gaya hai — wo ab
   fallback hai. Dhyan: poora page iframe me tabhi chalega jab tak M2Box
   `X-Frame-Options`/CSP se framing band nahi karta; jis din karega, usi

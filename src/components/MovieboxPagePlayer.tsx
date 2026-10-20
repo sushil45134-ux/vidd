@@ -1,14 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  X,
-  ExternalLink,
-  Play,
-  RefreshCw,
-  MonitorPlay,
-  ShieldAlert,
-  Crop,
-  Frame,
-} from "lucide-react";
+import { X, ExternalLink, Play, RefreshCw, ShieldAlert, Crop, Frame } from "lucide-react";
 import MovieboxCroppedFrame from "./MovieboxCroppedFrame";
 
 /**
@@ -16,9 +7,9 @@ import MovieboxCroppedFrame from "./MovieboxCroppedFrame";
  * =============================================================
  * m2box.org ka poora watch page (player + Resources episode grid + site
  * ki search/nav, bilkul screenshot jaisa) ek fullscreen iframe me hamari
- * hi site ke andar khulta hai. Upar sirf ek patli si apni patti rehti hai:
- * band karo, naye tab me kholo, aur agar kisi wajah se frame blank aaye
- * to "Direct Video" (apna /api/moviebox resolver) par switch karo.
+ * hi site ke andar khulta hai. Upar koi patti NAHI hai — bas player.
+ * Zaroori buttons (band karo, Poora Page, Direct Video…) upar-left ek
+ * chhoti si floating pill me rehte hain, halke transparent.
  *
  * Iframe jaan-boojh kar bina `allow-top-navigation` ke chalta hai, taaki
  * M2Box ki site (ya uski ads) hamari tab ko hijack na kar sake; baaki
@@ -63,8 +54,7 @@ export default function MovieboxPagePlayer({
   // pata kabhi nahi chalta ki page andar sach me khula ya browser ne
   // X-Frame-Options ki wajah se blank error dikhaya. Isliye kuch der baad
   // ek chhoti madad-patti khud dikh jaati hai: "kuch nahi dikh raha?
-  // Direct Video dabao." Load fast ho to bhi patti upar ki toolbar me
-  // hamesha maujood hai.
+  // Direct Video dabao." Wahi rasta upar-left wali pill me bhi hai.
   useEffect(() => {
     setLoading(true);
     setShowHelp(false);
@@ -85,92 +75,80 @@ export default function MovieboxPagePlayer({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black animate-fadeIn flex flex-col">
-      {/* Apni patli patti — M2Box ka page iske neeche poori screen leta hai. */}
-      <div className="h-11 shrink-0 flex items-center gap-2 px-3 bg-[#0b0b0f] border-b border-white/10 text-white">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide text-white/90">
-          <MonitorPlay size={15} className="text-[#ff6a00]" />
-          <span className="hidden sm:inline">M2Box</span>
-        </span>
-        {title ? (
-          <span className="text-xs text-white/50 truncate max-w-[38vw] sm:max-w-[46vw]">
-            {title}
-          </span>
-        ) : null}
-
-        <div className="flex-1" />
-
-        <button
-          onClick={() => setView((v) => (v === "crop" ? "full" : "crop"))}
-          className="h-7 px-2.5 rounded-full bg-gradient-to-r from-[#f5c518]/30 to-[#ff6a00]/30 ring-1 ring-[#f5c518]/40 text-[#ffe27a] text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95"
-          title={
-            view === "crop"
-              ? "Sirf player dikh raha hai — poora M2Box page dekhna hai?"
-              : "Poora page dikh raha hai — wapas sirf player par"
-          }
-        >
-          {view === "crop" ? <Frame size={12} /> : <Crop size={12} />}
-          <span className="hidden sm:inline">{view === "crop" ? "Poora Page" : "Sirf Player"}</span>
-        </button>
-
-        {onTryDirect && (
-          <button
-            onClick={onTryDirect}
-            className="h-7 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95"
-            title="Bina M2Box page ke, sirf video hamare player me chalao"
-          >
-            <Play size={12} />
-            <span className="hidden xs:inline sm:inline">Direct Video</span>
-          </button>
-        )}
-
-        <button
-          onClick={() => {
-            setMode((m) => (m === "direct" ? "proxy" : "direct"));
-          }}
-          className="h-7 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-[11px] font-bold hidden md:flex items-center gap-1.5 transition active:scale-95"
-          title={
-            mode === "direct"
-              ? "Page phir bhi blank hai? Hamare server ke raaste (proxy) try karo"
-              : "Proxy mode me ho — seedha M2Box frame par wapas jao"
-          }
-        >
-          <ShieldAlert size={12} />
-          {mode === "direct" ? "Proxy Try Karo" : "Direct Frame"}
-        </button>
-
-        <button
-          onClick={() => setReloadKey((k) => k + 1)}
-          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95"
-          title="Page dobara load karo"
-          aria-label="Reload page"
-        >
-          <RefreshCw size={13} />
-        </button>
-
-        <a
-          href={pageUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95"
-          title="M2Box par naye tab me kholo"
-          aria-label="Open on M2Box in a new tab"
-        >
-          <ExternalLink size={13} />
-        </a>
-
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full bg-white/10 hover:bg-red-500/70 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95"
-          title="Band karo (Esc)"
-          aria-label="Close player"
-        >
-          <X size={15} />
-        </button>
-      </div>
-
-      {/* Default: sirf player + episode grid (header kata hua). "Poora Page"
-          dabane par site jaisi hai waisi poori. */}
+      {/* Upar koi patti nahi — bas player. Zaroori buttons upar-left ek
+          chhoti si floating pill me hain (halke transparent; mouse/tap
+          le jaane par saaf). Band karne ka X usi me sabse pehle hai. */}
       <div className="relative flex-1 bg-black min-h-0">
+        <div className="absolute left-3 top-3 z-30 flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-md ring-1 ring-white/15 px-1.5 py-1.5 text-white opacity-40 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full hover:bg-red-500/70 flex items-center justify-center transition active:scale-95"
+            title="Band karo (Esc)"
+            aria-label="Close player"
+          >
+            <X size={15} />
+          </button>
+          <span className="w-px h-5 bg-white/15 mx-0.5" />
+          <button
+            onClick={() => setView((v) => (v === "crop" ? "full" : "crop"))}
+            className="h-8 px-2.5 rounded-full bg-gradient-to-r from-[#f5c518]/25 to-[#ff6a00]/25 ring-1 ring-[#f5c518]/40 text-[#ffe27a] text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95"
+            title={
+              view === "crop"
+                ? "Sirf player dikh raha hai — poora M2Box page dekhna hai?"
+                : "Poora page dikh raha hai — wapas sirf player par"
+            }
+          >
+            {view === "crop" ? <Frame size={13} /> : <Crop size={13} />}
+            <span className="hidden sm:inline">
+              {view === "crop" ? "Poora Page" : "Sirf Player"}
+            </span>
+          </button>
+          {onTryDirect && (
+            <button
+              onClick={onTryDirect}
+              className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+              title="Direct Video — bina M2Box page ke, sirf video hamare player me"
+              aria-label="Direct Video"
+            >
+              <Play size={14} />
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setMode((m) => (m === "direct" ? "proxy" : "direct"));
+            }}
+            className="w-8 h-8 rounded-full hover:bg-white/15 hidden sm:flex items-center justify-center transition active:scale-95"
+            title={
+              mode === "direct"
+                ? "Page blank hai? Proxy Try Karo (hamare server ke raaste)"
+                : "Direct Frame par wapas"
+            }
+            aria-label="Proxy / Direct frame"
+          >
+            <ShieldAlert size={14} />
+          </button>
+          <button
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+            title="Page dobara load karo"
+            aria-label="Reload page"
+          >
+            <RefreshCw size={14} />
+          </button>
+          <a
+            href={pageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+            title="M2Box par naye tab me kholo"
+            aria-label="Open on M2Box in a new tab"
+          >
+            <ExternalLink size={14} />
+          </a>
+        </div>
+
+        {/* Default: sirf player + episode grid (header kata hua). "Poora Page"
+            dabane par site jaisi hai waisi poori. */}
         {view === "crop" ? (
           <MovieboxCroppedFrame
             key={`crop-${mode}-${reloadKey}`}
