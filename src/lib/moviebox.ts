@@ -294,18 +294,22 @@ export interface MovieboxCrop {
  * button ke saath. (1280 par guide 4 column ka bada banta tha; zyada
  * episodes hone par panel player se lamba ho jata tha aur site
  * player ko kheench kar controls ko hamari window ke bahar dhakel
- * deti thi.) Is chaudai par site left sidebar bhi dikhati hai — use
- * cropLeft se kaat dete hain.
+ * deti thi.) Dhyan: iframe ke andar site ki left sidebar default
+ * BAND padti hai (browser tab me khuli dikh sakti hai — wahan ki
+ * preference iframe ko nahi milti), isliye player stage par ≈129
+ * se hi shuru ho jata hai; cropLeft usi hisaab se hai.
  */
 export const MOVIEBOX_STAGE_WIDTH = 1536;
 /** Stage par M2Box ka header+menu (upar se kata hua hissa). */
 export const MOVIEBOX_STAGE_CROP_TOP = 117;
 /**
- * Stage par baayein se kata hissa — site ki sidebar (≈228px) + uske
- * baad wali khali patti ka aadha. Player ≈245 se shuru hota hai, to
- * 236 par kaatne se sidebar pura gayab, player bilkul nahi kat-ta.
+ * Stage par baayein se kata hissa. Screenshot pixel-naap: iframe me
+ * player ka left kinara ≈129 par hai (time-text usse 112 aage) — 120
+ * par kaatne se play/sound wale button poore dikhenge aur baayein
+ * sirf 9px ki kaali saans bachegi. (Pehle 236 rakha tha — browser
+ * tab ke khule sidebar (≈228) ke hisaab se; usse buttons kat gaye.)
  */
-export const MOVIEBOX_STAGE_CROP_LEFT = 236;
+export const MOVIEBOX_STAGE_CROP_LEFT = 120;
 /**
  * Stage par dikhne wala hissa — cropTop (117) se page-y 662 tak.
  * Asli site ke screenshot ka pixel-naap (20 Oct 2026, Demon Slayer
@@ -333,7 +337,7 @@ export const MOVIEBOX_STAGE_VISIBLE_HEIGHT = 545;
  * hai (warna episodes tak pahuncha hi nahi jayega).
  */
 export function getMovieboxCrop(outerWidth: number, outerHeight: number): MovieboxCrop {
-  const w = outerWidth > 0 ? outerWidth : 1300;
+  const w = outerWidth > 0 ? outerWidth : 1416;
   const stacked = w < 900;
 
   if (!stacked) {

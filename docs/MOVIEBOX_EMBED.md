@@ -12,8 +12,11 @@ episode grid (01–16), quality/subtitle settings, search/nav sab andar.
   hota hai (is chaudai par episode guide asli site jaisa chhota
   5-column banta hai; kam chaudai par guide bada/lamba ho kar player
   ko kheenchta hai aur controls dab jaate hain), stage
-  overflow-hidden dabbe me header/menu jitna upar aur sidebar jitna
-  baayein dhakela hota hai, aur dabbe ki unchai player ke just neeche
+  overflow-hidden dabbe me header/menu jitna upar aur player se
+  pehle wala hissa baayein dhakela hota hai (dhyan: iframe ke andar
+  site ki sidebar default band padti hai, isliye baayein wala kaat
+  browser-tab wale khule sidebar ke hisaab se nahi, iframe ke asal
+  naap se hai), aur dabbe ki unchai player ke just neeche
   khatm hoti hai (`MOVIEBOX_STAGE_*` + `getMovieboxCrop`,
   `lib/moviebox.ts`) — stage CSS-scale ho jata hai, isliye kat har
   screen par same jagah padta hai. Desktop par andar scroll bhi band
