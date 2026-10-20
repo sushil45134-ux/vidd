@@ -13,6 +13,7 @@ import {
   Link,
   Globe,
   Layers,
+  MonitorPlay,
   Wand2,
 } from "lucide-react";
 import type { Movie } from "../data";
@@ -47,13 +48,19 @@ import {
 import AnimeAutoFetchPanel from "./AnimeAutoFetchPanel";
 import NxshaFetchPanel from "./NxshaFetchPanel";
 import AnimeEpisodeSyncPanel from "./AnimeEpisodeSyncPanel";
+import M2boxUploadPanel from "./M2boxUploadPanel";
+import { buildMovieboxPageUrl, isMovieboxUrl, parseMovieboxInput } from "../lib/moviebox";
 
 interface UploadModalProps {
   onClose: () => void;
   onUpload: (movie: Movie | Movie[]) => void;
   /** Existing uploaded series (playlistId + title + season summary) the admin
    *  can add more episodes/seasons into instead of creating a new card. */
-  existingSeries?: { playlistId: string; title: string; seasons: { season: number; count: number }[] }[];
+  existingSeries?: {
+    playlistId: string;
+    title: string;
+    seasons: { season: number; count: number }[];
+  }[];
 }
 
 const GENRES = [
@@ -87,9 +94,20 @@ interface PlatformResult {
 }
 
 /** Languages offered when adding an extra audio track (shared list). */
-const AUDIO_LANGUAGE_PRESETS = ["hi", "ja", "en", "ta", "te", "ml", "kn", "bn", "mr", "ko", "es", "pt"].map(
-  (lang) => ({ lang, label: audioLanguageLabel(lang) }),
-);
+const AUDIO_LANGUAGE_PRESETS = [
+  "hi",
+  "ja",
+  "en",
+  "ta",
+  "te",
+  "ml",
+  "kn",
+  "bn",
+  "mr",
+  "ko",
+  "es",
+  "pt",
+].map((lang) => ({ lang, label: audioLanguageLabel(lang) }));
 
 function detectPlatform(input: string): PlatformResult | null {
   const trimmed = input.trim();
@@ -321,6 +339,23 @@ function detectPlatform(input: string): PlatformResult | null {
       icon: "📁",
     };
 
+  // ── M2Box / MovieBox (m2box.org watch link) ────────────────
+  // Canonical watch-page URL hi embedUrl banta hai — PlayerOverlay
+  // use pehchankar sirf-player (crop) wala page kholta hai.
+  const cleanedUrl = url.replace(/&amp;/g, "&");
+  if (isMovieboxUrl(cleanedUrl)) {
+    const pageUrl = buildMovieboxPageUrl(cleanedUrl);
+    if (pageUrl)
+      return {
+        platform: "M2Box",
+        id: parseMovieboxInput(cleanedUrl)?.subjectId || pageUrl,
+        embedUrl: pageUrl,
+        thumbnail: "",
+        color: "bg-orange-600",
+        icon: "📺",
+      };
+  }
+
   // ── Crunchyroll ────────────────────────────────────────────
   // Crunchyroll has no public embed URL; keep the original watch URL
   // (or pasted iframe src) so the user's own session is used.
@@ -393,6 +428,11 @@ function detectPlatform(input: string): PlatformResult | null {
 
 /* ── Supported platforms info ─────────────────────────────────── */
 const PLATFORMS = [
+  {
+    name: "M2Box",
+    examples: ["m2box.org/movies/...?id=... (sirf player khulega)"],
+    color: "text-orange-400",
+  },
   { name: "YouTube", examples: ["youtube.com/watch?v=...", "youtu.be/..."], color: "text-red-400" },
   { name: "Odysee", examples: ["odysee.com/@channel/video", "embed link"], color: "text-pink-400" },
   {
@@ -428,7 +468,7 @@ const PLATFORMS = [
 ];
 
 type CloudTab = CloudProvider; // "drive" | "mega"
-type SourceTab = "file" | "embed" | "series" | "anime" | CloudTab;
+type SourceTab = "file" | "embed" | "series" | "anime" | "m2box" | CloudTab;
 
 /** One episode row in the "Series" (bulk embed) tab. */
 interface EmbedEpisode {
@@ -527,9 +567,9 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
    * several `#EXT-X-MEDIA` renditions, so "multi-audio" means keeping those
    * URLs together. The player then offers them in its Audio menu.
    */
-  const [audioSources, setAudioSources] = useState<Array<{ lang: string; label: string; url: string }>>(
-    [],
-  );
+  const [audioSources, setAudioSources] = useState<
+    Array<{ lang: string; label: string; url: string }>
+  >([]);
   const [audioDraftLang, setAudioDraftLang] = useState("hi");
   const [audioDraftUrl, setAudioDraftUrl] = useState("");
   const [audioNote, setAudioNote] = useState("");
@@ -838,16 +878,14 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
 
     try {
       const res = await fetch(`/api/probe?url=${encodeURIComponent(url)}`);
-      const data = (await res.json().catch(() => null)) as
-        | {
-            ok?: boolean;
-            kind?: string;
-            note?: string;
-            languages?: Array<{ name: string; lang: string; isDefault?: boolean }>;
-            qualities?: number[];
-            drm?: string[];
-          }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        kind?: string;
+        note?: string;
+        languages?: Array<{ name: string; lang: string; isDefault?: boolean }>;
+        qualities?: number[];
+        drm?: string[];
+      } | null;
       if (!data?.note) {
         setStreamCheck({ state: "warn", note: "Could not check this link right now." });
         return;
@@ -979,7 +1017,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         ? !!detected
         : sourceTab === "series"
           ? embedEpisodes.length > 0
-          : sourceTab === "anime"
+          : sourceTab === "anime" || sourceTab === "m2box"
             ? true
             : cloudEpisodes[sourceTab as CloudTab].length > 0;
 
@@ -1166,9 +1204,12 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
       const sTitle = seriesTitle.trim() || "My Series";
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
-      const cloudGenres = selectedGenres.length > 0
-        ? (selectedGenres.includes("Anime") ? selectedGenres : [...selectedGenres, "Anime"])
-        : ["Anime"];
+      const cloudGenres =
+        selectedGenres.length > 0
+          ? selectedGenres.includes("Anime")
+            ? selectedGenres
+            : [...selectedGenres, "Anime"]
+          : ["Anime"];
       const movies: Movie[] = episodes.map((ep, i) => ({
         id: Date.now() + i,
         title: `${sTitle} - ${ep.title}`,
@@ -1202,14 +1243,23 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
         seriesMode === "existing" && existingPid
           ? existingPid
           : imdbInput.trim()
-            ? `imdb-${imdbInput.trim()}-${sTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}`
-            : `user-series-${sTitle.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}-${Date.now()}`;
+            ? `imdb-${imdbInput.trim()}-${sTitle
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .replace(/[^a-z0-9-]/g, "")}`
+            : `user-series-${sTitle
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .replace(/[^a-z0-9-]/g, "")}-${Date.now()}`;
       const fallbackImg =
         "https://images.pexels.com/photos/32728014/pexels-photo-32728014.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
       const cover = thumbnailUrl || fallbackImg;
-      const finalGenres = selectedGenres.length > 0 
-        ? (selectedGenres.includes("Anime") ? selectedGenres : [...selectedGenres, "Anime"])
-        : ["Anime"];
+      const finalGenres =
+        selectedGenres.length > 0
+          ? selectedGenres.includes("Anime")
+            ? selectedGenres
+            : [...selectedGenres, "Anime"]
+          : ["Anime"];
       const movies: Movie[] = eps.map((ep, i) => {
         const yt = extractYouTubeId(ep.url);
         // YouTube embeds get their own real thumbnail; non-YouTube iframe
@@ -1417,6 +1467,12 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                 className={`flex-1 min-w-[60px] flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "anime" ? "bg-[#e50914] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}
               >
                 <Wand2 size={14} /> Anime
+              </button>
+              <button
+                onClick={() => setSourceTab("m2box")}
+                className={`flex-1 min-w-[60px] flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs md:text-sm font-medium transition-all ${sourceTab === "m2box" ? "bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-white" : "text-gray-400 hover:text-white hover:bg-[#222]"}`}
+              >
+                <MonitorPlay size={14} /> M2Box
               </button>
               {(["drive", "mega"] as CloudTab[]).map((tab) => (
                 <button
@@ -1644,7 +1700,8 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                       dub, so each extra language is added with its own link and
                       shows up in the player's Audio menu.
                     */}
-                    {(detected.platform === "HLS Stream" || detected.platform === "Direct Video") && (
+                    {(detected.platform === "HLS Stream" ||
+                      detected.platform === "Direct Video") && (
                       <div className="mt-4 bg-[#222] rounded-lg p-4">
                         <div className="flex items-start gap-2 mb-3">
                           <Languages size={18} className="text-[#e50914] mt-0.5 flex-shrink-0" />
@@ -1653,10 +1710,10 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                               Audio languages (multi-audio)
                             </p>
                             <p className="text-gray-400 text-xs mt-0.5">
-                              Upar wala link jo audio deta hai wahi default rahega. Doosri language ke
-                              liye us site ke player me language switch karke uska <b>naya link</b> copy
-                              karo aur yahan add karo — phir player me <b>Audio</b> menu se switch kar
-                              sakte ho.
+                              Upar wala link jo audio deta hai wahi default rahega. Doosri language
+                              ke liye us site ke player me language switch karke uska{" "}
+                              <b>naya link</b> copy karo aur yahan add karo — phir player me{" "}
+                              <b>Audio</b> menu se switch kar sakte ho.
                             </p>
                           </div>
                         </div>
@@ -1732,9 +1789,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
               <div>
                 {/* Add to: new series OR existing series */}
                 <div className="mb-4">
-                  <label className="text-gray-300 text-sm font-medium mb-2 block">
-                    Add to
-                  </label>
+                  <label className="text-gray-300 text-sm font-medium mb-2 block">Add to</label>
                   <div className="flex gap-2 mb-3">
                     <button
                       type="button"
@@ -1781,9 +1836,8 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                         </p>
                       )}
                       <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
-                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1
-                        rakho, ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar
-                        judeinge.
+                        💡 Naya episode Season 1 mein daalne ke liye neeche Season Number = 1 rakho,
+                        ya Season 2 ke liye 2. Saare episodes isi series ke card ke andar judeinge.
                       </p>
                     </>
                   )}
@@ -1890,8 +1944,8 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   )}
                   <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
                     💡 NHD (nhdapi.com) default player hai. Nxsha (nxsha.space / web.nxsha.app) —
-                    Hindi audio verified by user; popup ads blocked. IMDb ya numeric TMDB ID se
-                    har episode ka link khud banta hai. Test ID:{" "}
+                    Hindi audio verified by user; popup ads blocked. IMDb ya numeric TMDB ID se har
+                    episode ka link khud banta hai. Test ID:{" "}
                     <span className="font-mono">tt15765670</span> → NHD{" "}
                     <span className="font-mono">https://nhdapi.com/tv/tt15765670/1/1</span>, Nxsha{" "}
                     <span className="font-mono">
@@ -2071,6 +2125,17 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
               </div>
             )}
 
+            {/* ── M2BOX TAB (bas watch link — sirf player khulega) ── */}
+            {sourceTab === "m2box" && (
+              <M2boxUploadPanel
+                onAddMovies={(movies) => {
+                  if (movies[0]) setTitle(movies[0].title);
+                  setStep("done");
+                  setTimeout(() => onUpload(movies), 1500);
+                }}
+              />
+            )}
+
             {/* ── CLOUD SERIES TAB (Google Drive / MEGA) ── */}
             {cloudTab && cloudConfig && (
               <div>
@@ -2186,7 +2251,7 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
             )}
 
             {/* Actions */}
-            {sourceTab !== "anime" && (
+            {sourceTab !== "anime" && sourceTab !== "m2box" && (
               <div className="flex justify-end mt-6 gap-3">
                 <button
                   onClick={onClose}
@@ -2195,42 +2260,42 @@ export default function UploadModal({ onClose, onUpload, existingSeries = [] }: 
                   Cancel
                 </button>
                 {cloudTab ? (
-                <button
-                  onClick={() => setStep("details")}
-                  disabled={cloudEps.length === 0 || !seriesTitle.trim()}
-                  className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next: Add Details ({cloudEps.length} episode{cloudEps.length !== 1 ? "s" : ""})
-                </button>
-              ) : sourceTab === "series" ? (
-                <button
-                  onClick={() => setStep("details")}
-                  disabled={
-                    embedEpisodes.length === 0 ||
-                    !seriesTitle.trim() ||
-                    (seriesMode === "existing" && !existingPid)
-                  }
-                  className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next: Add Details ({embedEpisodes.length} episode
-                  {embedEpisodes.length !== 1 ? "s" : ""})
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (sourceTab === "embed" && embedInput && !detected) {
-                      setEmbedError(
-                        "Could not detect a video. Try pasting a direct URL or embed code.",
-                      );
-                      return;
+                  <button
+                    onClick={() => setStep("details")}
+                    disabled={cloudEps.length === 0 || !seriesTitle.trim()}
+                    className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next: Add Details ({cloudEps.length} episode{cloudEps.length !== 1 ? "s" : ""})
+                  </button>
+                ) : sourceTab === "series" ? (
+                  <button
+                    onClick={() => setStep("details")}
+                    disabled={
+                      embedEpisodes.length === 0 ||
+                      !seriesTitle.trim() ||
+                      (seriesMode === "existing" && !existingPid)
                     }
-                    setStep("details");
-                  }}
-                  disabled={!hasSource}
-                  className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next: Add Details
-                </button>
+                    className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next: Add Details ({embedEpisodes.length} episode
+                    {embedEpisodes.length !== 1 ? "s" : ""})
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (sourceTab === "embed" && embedInput && !detected) {
+                        setEmbedError(
+                          "Could not detect a video. Try pasting a direct URL or embed code.",
+                        );
+                        return;
+                      }
+                      setStep("details");
+                    }}
+                    disabled={!hasSource}
+                    className="px-6 py-2 rounded bg-[#e50914] text-white text-sm font-bold hover:bg-[#f6121d] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next: Add Details
+                  </button>
                 )}
               </div>
             )}

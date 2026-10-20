@@ -5,6 +5,7 @@ import {
   Crop,
   ExternalLink,
   Frame,
+  Home,
   MonitorPlay,
   Play,
   RefreshCw,
@@ -104,106 +105,17 @@ function MovieboxBrowsePage() {
     mode === "proxy" ? `/api/moviebox-frame?url=${encodeURIComponent(pageUrl)}` : pageUrl;
 
   return (
-    <div className="h-dvh bg-black text-white flex flex-col overflow-hidden">
-      {/* Upar ki patti: wapas, link paste, mode, naya tab */}
-      <div className="sticky top-0 z-20 bg-[#0b0b0f]/95 backdrop-blur border-b border-white/10">
-        <div className="max-w-[1800px] mx-auto px-3 py-2 flex items-center gap-2 flex-wrap">
-          <a
-            href="/"
-            className="h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
-          >
-            <ArrowLeft size={14} /> Home
-          </a>
-
-          <span className="inline-flex items-center gap-1.5 text-sm font-bold shrink-0">
-            <MonitorPlay size={17} className="text-[#ff6a00]" /> M2Box
-          </span>
-
-          <div className="flex items-center flex-1 min-w-[180px] max-w-xl bg-black/70 border border-white/15 rounded-full overflow-hidden focus-within:border-[#ff6a00]/60">
-            <Search size={14} className="ml-3 text-white/40 shrink-0" />
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") openPasted();
-              }}
-              placeholder="M2Box ka koi bhi link paste karo…"
-              className="bg-transparent flex-1 h-8 px-2 text-xs text-white placeholder-white/35 focus:outline-none"
-            />
-            <button
-              onClick={openPasted}
-              className="h-8 px-3 bg-gradient-to-r from-[#ff6a00] to-[#ee0979] text-xs font-bold shrink-0 active:scale-95"
-            >
-              Kholo
-            </button>
-          </div>
-
-          {pageUrl ? (
-            <>
-              <button
-                onClick={() => setView((v) => (v === "crop" ? "full" : "crop"))}
-                className="h-8 px-2.5 rounded-full bg-gradient-to-r from-[#f5c518]/30 to-[#ff6a00]/30 ring-1 ring-[#f5c518]/40 text-[#ffe27a] text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
-                title={
-                  view === "crop"
-                    ? "Sirf player dikh raha hai — poora M2Box page dekhna hai?"
-                    : "Poora page dikh raha hai — wapas sirf player par"
-                }
-              >
-                {view === "crop" ? <Frame size={13} /> : <Crop size={13} />}
-                {view === "crop" ? "Poora Page" : "Sirf Player"}
-              </button>
-
-              {resolverUrl && (
-                <button
-                  onClick={() => setDirectPlay(true)}
-                  className="h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shrink-0"
-                  title="M2Box page ke bina, sirf video apne player me"
-                >
-                  <Play size={13} /> Direct Video
-                </button>
-              )}
-
-              <button
-                onClick={() => setMode((m) => (m === "direct" ? "proxy" : "direct"))}
-                className="h-8 px-2.5 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold hidden sm:flex items-center gap-1.5 transition active:scale-95 shrink-0"
-                title="Page blank aaye to server-proxy mode try karo"
-              >
-                <ShieldAlert size={13} /> {mode === "direct" ? "Proxy Try Karo" : "Direct Frame"}
-              </button>
-
-              <button
-                onClick={() => setReloadKey((k) => k + 1)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95 shrink-0"
-                aria-label="Reload"
-              >
-                <RefreshCw size={14} />
-              </button>
-
-              <a
-                href={pageUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 flex items-center justify-center transition active:scale-95 shrink-0"
-                aria-label="M2Box par naye tab me kholo"
-              >
-                <ExternalLink size={14} />
-              </a>
-            </>
-          ) : null}
-        </div>
-
-        {pageUrl ? (
-          <p className="max-w-[1800px] mx-auto px-3 pb-2 text-[11px] text-white/45">
-            {hint ||
-              "Bas player + episode list dikh raha hai — M2Box ka upar-neeche wala saara hissa kata hua hai. Zaroorat pade to “Poora Page” dabao."}
-          </p>
-        ) : null}
-      </div>
-
+    <div className="relative h-dvh bg-black text-white flex flex-col overflow-hidden">
       {!pageUrl ? (
         /* Shuruaat: koi site nahi, bas link-paste wala saaf page. Link
            dalte hi seedha sirf-player. */
-        <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center px-4 py-14">
+        <div className="relative flex-1 min-h-0 overflow-y-auto flex items-center justify-center px-4 py-14">
+          <a
+            href="/"
+            className="absolute left-3 top-3 z-30 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/15 text-xs font-bold backdrop-blur transition active:scale-95"
+          >
+            <ArrowLeft size={14} /> Home
+          </a>
           <div className="w-full max-w-xl text-center">
             <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-[#ff6a00] to-[#ee0979] flex items-center justify-center shadow-2xl shadow-[#ee0979]/25">
               <MonitorPlay size={30} className="text-white" />
@@ -250,9 +162,83 @@ function MovieboxBrowsePage() {
           </div>
         </div>
       ) : (
-        /* Watch page: sirf player + episode grid (crop); chaho to
-           "Poora Page" ek tap door hai. */
+        /* Watch page: bas player — upar koi patti nahi. Zaroori buttons
+           chhoti si floating pill me hain (upar-left, halki transparent;
+           mouse/tap le jaane par saaf). */
         <div className="relative flex-1 min-h-0">
+          <div className="absolute left-3 top-3 z-30 flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-md ring-1 ring-white/15 px-1.5 py-1.5 opacity-40 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <button
+              onClick={() => {
+                setDirectPlay(false);
+                setPageUrl("");
+              }}
+              className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+              title="Wapas — naya link paste karo"
+              aria-label="Wapas, naya link paste karo"
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <a
+              href="/"
+              className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+              title="Site ki home par"
+              aria-label="Home"
+            >
+              <Home size={15} />
+            </a>
+            <span className="w-px h-5 bg-white/15 mx-0.5" />
+            <button
+              onClick={() => setView((v) => (v === "crop" ? "full" : "crop"))}
+              className="h-8 px-2.5 rounded-full bg-gradient-to-r from-[#f5c518]/25 to-[#ff6a00]/25 ring-1 ring-[#f5c518]/40 text-[#ffe27a] text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95"
+              title={
+                view === "crop"
+                  ? "Sirf player dikh raha hai — poora M2Box page dekhna hai?"
+                  : "Poora page dikh raha hai — wapas sirf player par"
+              }
+            >
+              {view === "crop" ? <Frame size={13} /> : <Crop size={13} />}
+              {view === "crop" ? "Poora Page" : "Sirf Player"}
+            </button>
+            {resolverUrl && (
+              <button
+                onClick={() => setDirectPlay(true)}
+                className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+                title="Direct Video — M2Box page ke bina, sirf video apne player me"
+                aria-label="Direct Video"
+              >
+                <Play size={14} />
+              </button>
+            )}
+            <button
+              onClick={() => setMode((m) => (m === "direct" ? "proxy" : "direct"))}
+              className="w-8 h-8 rounded-full hover:bg-white/15 hidden sm:flex items-center justify-center transition active:scale-95"
+              title={
+                mode === "direct" ? "Page blank aaye to Proxy Try Karo" : "Direct Frame par wapas"
+              }
+              aria-label="Proxy / Direct frame"
+            >
+              <ShieldAlert size={14} />
+            </button>
+            <button
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+              title="Reload"
+              aria-label="Reload"
+            >
+              <RefreshCw size={14} />
+            </button>
+            <a
+              href={pageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center transition active:scale-95"
+              title="M2Box par naye tab me kholo"
+              aria-label="M2Box par naye tab me kholo"
+            >
+              <ExternalLink size={14} />
+            </a>
+          </div>
+
           {view === "crop" ? (
             <MovieboxCroppedFrame
               key={`crop-${mode}-${reloadKey}-${pageUrl}`}
@@ -266,7 +252,6 @@ function MovieboxBrowsePage() {
               key={`full-${mode}-${reloadKey}-${pageUrl}`}
               src={frameSrc}
               className="absolute inset-0 w-full h-full border-0 bg-black"
-              style={{ minHeight: "calc(100dvh - 96px)" }}
               title="M2Box — poori site"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
               allowFullScreen
